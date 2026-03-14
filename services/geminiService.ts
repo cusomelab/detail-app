@@ -2,14 +2,21 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GeneratedCopy, ProductCategory } from "../types";
 
 // Models mapping
-const TEXT_MODEL = 'gemini-2.5-flash'; 
-const IMAGE_MODEL = 'gemini-3-pro-image-preview'; 
+const TEXT_MODEL = 'gemini-2.0-flash'; 
+const IMAGE_MODEL = 'gemini-2.0-flash-exp'; 
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE';
 
-/**
- * Converts a File object to a Base64 string suitable for Gemini API.
- */
+// ── API 키 전역 관리 ──────────────────────────────────
+let _apiKey: string = '';
+export const setApiKey = (key: string) => { _apiKey = key; };
+export const getApiKey = () => _apiKey;
+
+const getAI = () => {
+  if (!_apiKey) throw new Error('API 키가 설정되지 않았습니다.');
+  return new GoogleGenAI({ apiKey: _apiKey });
+};
+
 export const fileToGenerativePart = async (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -23,14 +30,11 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
   });
 };
 
-/**
- * Analyzes a benchmark URL using Google Search Grounding to extract key selling points.
- */
 async function analyzeBenchmarkUrl(url: string): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAI();
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.0-flash',
             contents: `You are a market researcher. Analyze the product at this URL: ${url}.
             Find:
             1. Key Selling Points (Why do people buy it?)
@@ -49,9 +53,6 @@ async function analyzeBenchmarkUrl(url: string): Promise<string> {
     }
 }
 
-/**
- * Generates the localized copywriting for the product page.
- */
 export const generateProductCopy = async (
   productName: string,
   features: string,
@@ -59,14 +60,13 @@ export const generateProductCopy = async (
   benchmarkUrl?: string,
   mainImage?: File | null
 ): Promise<GeneratedCopy> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAI();
   
   let benchmarkContext = "";
   if (benchmarkUrl) {
       benchmarkContext = await analyzeBenchmarkUrl(benchmarkUrl);
   }
 
-  // Dynamic Persona based on Category
   let categoryInstruction = "";
   switch (category) {
       case 'FASHION':
@@ -111,14 +111,11 @@ export const generateProductCopy = async (
     ${categoryInstruction}
     
     CRITICAL FORMATTING RULES:
-    1. **Product Name**: Use the EXACT provided Product Name in the Main Hook if possible. Do NOT invent a completely unrelated abstract title.
-    2. **Natural Flow**: Write complete, flowing sentences spanning 2-3 lines. Do NOT use short, choppy fragments.
+    1. **Product Name**: Use the EXACT provided Product Name in the Main Hook if possible.
+    2. **Natural Flow**: Write complete, flowing sentences spanning 2-3 lines.
     3. **Line Breaks**: Use '\\n' to visually separate parts of the sentence for mobile readability.
-    4. **No Punctuation**: Do NOT use commas (,) or periods (.) at the end of lines or in the middle if it breaks the flow visually. Just use line breaks.
+    4. **No Punctuation**: Do NOT use commas (,) or periods (.) at the end of lines.
     
-    Example Good: 
-    "피부에 닿는 순간 기분 좋은 부드러움\\n하루 종일 입고 싶어질 거예요"
-
     Structure:
     1. Main Hook: Catchy title using the Product Name or key benefit.
     2. Selling Points: 3 key features. Titles and natural 2-3 line descriptions.
@@ -131,27 +128,27 @@ export const generateProductCopy = async (
   const schema: Schema = {
     type: Type.OBJECT,
     properties: {
-      mainHook: { type: Type.STRING, description: "Catchy headline with \\n line breaks. " },
+      mainHook: { type: Type.STRING },
       sellingPoints: {
         type: Type.ARRAY,
         items: {
           type: Type.OBJECT,
           properties: {
-            icon: { type: Type.STRING, description: "Single emoji" },
-            title: { type: Type.STRING, description: "Short title" },
-            description: { type: Type.STRING, description: "Natural description spanning 2-3 lines with \\n." },
+            icon: { type: Type.STRING },
+            title: { type: Type.STRING },
+            description: { type: Type.STRING },
           }
         }
       },
-      story: { type: Type.STRING, description: "Story with \\n line breaks." },
-      sizeTip: { type: Type.STRING, description: "Size or Usage tip" },
-      mdComment: { type: Type.STRING, description: "MD Comment with \\n line breaks." },
+      story: { type: Type.STRING },
+      sizeTip: { type: Type.STRING },
+      mdComment: { type: Type.STRING },
       productInfo: {
         type: Type.OBJECT,
         properties: {
-          material: { type: Type.STRING, description: "Material or Ingredients" },
+          material: { type: Type.STRING },
           origin: { type: Type.STRING },
-          wash: { type: Type.STRING, description: "Wash or Storage guide" }
+          wash: { type: Type.STRING }
         }
       }
     },
@@ -162,12 +159,9 @@ export const generateProductCopy = async (
   Product Name: ${productName}
   Category: ${category}
   Key Features: ${features || 'Analyze based on typical items in this category'}
-  ${benchmarkContext ? `\n[COMPETITOR BENCHMARK INSIGHTS] (Incorporate these winning points): ${benchmarkContext}` : ''}
-  
-  IMPORTANT: If an image is provided, VISUALLY ANALYZE it to extract specific details (color, texture, design elements, packaging) and include them in the copy to make it more authentic.
-  
-  Imagine specific usage scenarios (e.g., "Wearing this at a Hannam-dong cafe", "Camping weekend") rather than generic utility.
-  Avoid generic clichés (e.g., "후회 없는", "강력 추천").
+  ${benchmarkContext ? `\n[COMPETITOR BENCHMARK INSIGHTS]: ${benchmarkContext}` : ''}
+  ${mainImage ? 'IMPORTANT: Analyze the provided image to extract specific details.' : ''}
+  Imagine specific usage scenarios. Avoid generic clichés.
   `;
 
   const requestContents: any[] = [{ text: contentPrompt }];
@@ -182,7 +176,7 @@ export const generateProductCopy = async (
       });
   }
 
-  const apiCall = ai.models.generateContent({
+  const response = await ai.models.generateContent({
     model: TEXT_MODEL,
     contents: requestContents,
     config: {
@@ -192,14 +186,6 @@ export const generateProductCopy = async (
       temperature: 0.95
     }
   });
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-          reject(new Error("Text generation timed out (30s). Please try again."));
-      }, 30000);
-  });
-
-  const response = await Promise.race([apiCall, timeoutPromise]);
 
   if (response.text) {
     return JSON.parse(response.text) as GeneratedCopy;
@@ -211,7 +197,7 @@ export const regenerateCopy = async (
   currentText: string,
   fieldLabel: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAI();
   const prompt = `Rewrite this '${fieldLabel}' text for a Korean e-commerce page. 
   Rules:
   1. Make it more attractive, emotional, and persuasive.
@@ -232,7 +218,7 @@ export const processProductImage = async (
   imageFile: File,
   mode: ImageProcessMode
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAI();
   const base64Data = await fileToGenerativePart(imageFile);
   
   let prompt = "";
@@ -248,24 +234,19 @@ export const processProductImage = async (
           break;
   }
 
-  const apiCall = ai.models.generateContent({
+  const response = await ai.models.generateContent({
     model: IMAGE_MODEL,
     contents: {
       parts: [{ inlineData: { mimeType: imageFile.type, data: base64Data } }, { text: prompt }]
     },
+    config: { responseModalities: ['TEXT', 'IMAGE'] }
   });
 
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => { reject(new Error("Image processing timed out.")); }, 45000);
-  });
-
-  const response = await Promise.race([apiCall, timeoutPromise]);
-  // @ts-ignore
   const candidates = response.candidates;
   if (!candidates || candidates.length === 0) throw new Error("No image generated");
 
   for (const part of candidates[0].content.parts) {
-    if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
+    if ((part as any).inlineData) return `data:image/png;base64,${(part as any).inlineData.data}`;
   }
   throw new Error("No image data found");
 };
