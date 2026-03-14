@@ -6,7 +6,7 @@ import { ResultPreview } from './components/ResultPreview';
 import { ArrowUpTrayIcon, PhotoIcon, SparklesIcon, KeyIcon, LinkIcon, ShoppingBagIcon, HomeIcon, FireIcon, CakeIcon, SwatchIcon } from '@heroicons/react/24/outline';
 
 function App() {
-  const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(true); // ★ 항상 폼 표시 (키 입력란이 폼 안에 있음)
   const [apiKey, setApiKey] = useState('');
   const [step, setStep] = useState<AppStep>(AppStep.INPUT);
   const [logs, setLogs] = useState<string[]>([]);
@@ -45,24 +45,15 @@ function App() {
   });
 
   // Check for API Key on mount
+  // Restore API Key from sessionStorage on mount
   useEffect(() => {
-    const win = window as any;
-    // 1) AI Studio 환경
-    if (win.aistudio) {
-      win.aistudio.hasSelectedApiKey().then((hasKey: boolean) => setHasApiKey(hasKey));
-      return;
-    }
-    // 2) sessionStorage에서 복원
     try {
       const saved = sessionStorage.getItem('GEMINI_API_KEY');
       if (saved && saved.length > 10) {
         setApiKey(saved);
-        win.__GEMINI_API_KEY__ = saved;
-        setHasApiKey(true);
-        return;
+        (window as any).__GEMINI_API_KEY__ = saved;
       }
     } catch {}
-    setHasApiKey(false);
   }, []);
 
   // Prevent accidental refresh
@@ -76,22 +67,6 @@ function App() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [generatedCopy]);
-
-  const handleSelectKey = async () => {
-    const win = window as any;
-    if (win.aistudio) {
-      await win.aistudio.openSelectKey();
-      setHasApiKey(true);
-    } else {
-      // Vercel 환경 — 수동 입력
-      const key = prompt('Gemini API Key를 입력하세요:');
-      if (key && key.trim()) {
-        // 런타임에 process.env.API_KEY를 덮어씌움 (Vite define은 빌드 시점이므로 런타임 변수로 세팅)
-        (window as any).__GEMINI_API_KEY__ = key.trim();
-        setHasApiKey(true);
-      }
-    }
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -194,19 +169,14 @@ function App() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // ★ API Key 최종 복원 + 확인
-    const win = window as any;
-    if (!win.__GEMINI_API_KEY__) {
-        try {
-            const saved = sessionStorage.getItem('GEMINI_API_KEY');
-            if (saved && saved.length > 10) win.__GEMINI_API_KEY__ = saved;
-        } catch {}
-    }
-    if (!win.__GEMINI_API_KEY__) {
-        alert('API Key가 설정되지 않았습니다.\n페이지를 새로고침하고 API Key를 다시 입력해주세요.');
-        setHasApiKey(false);
+    // ★ apiKey state에서 직접 읽어서 window에 확실히 세팅
+    const key = apiKey || '';
+    if (!key || key.length < 10) {
+        alert('API Key를 입력해주세요.\n\nGoogle AI Studio에서 발급받은 키를 폼 상단에 붙여넣으세요.');
         return;
     }
+    (window as any).__GEMINI_API_KEY__ = key;
+    try { sessionStorage.setItem('GEMINI_API_KEY', key); } catch {}
 
     setStep(AppStep.PROCESSING);
     setLogs([]);
@@ -282,11 +252,10 @@ function App() {
       const fullMsg = errDetail ? `${errMsg}\n\n상세: ${errDetail}` : errMsg;
       
       if (errMsg.includes("Requested entity was not found") || errMsg.includes("API key") || errMsg.includes("API Key") || errMsg.includes("PERMISSION_DENIED") || errMsg.includes("API_KEY_INVALID") || errMsg.includes("403")) {
-        alert(`API Key 오류: ${fullMsg}\n\n키를 다시 입력해주세요.`);
+        alert(`API Key 오류: ${fullMsg}\n\nAPI Key를 확인하고 다시 입력해주세요.`);
         (window as any).__GEMINI_API_KEY__ = null;
         setApiKey('');
         try { sessionStorage.removeItem('GEMINI_API_KEY'); } catch {}
-        setHasApiKey(false);
         setStep(AppStep.INPUT);
         return;
       }
@@ -296,42 +265,6 @@ function App() {
       setStep(AppStep.INPUT);
     }
   };
-
-  if (!hasApiKey) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
-           <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6"><KeyIcon className="w-8 h-8 text-indigo-600" /></div>
-           <h1 className="text-2xl font-bold text-gray-900 mb-2">API 키 연결 필요</h1>
-           <p className="text-gray-500 mb-6">Gemini API 키를 입력하면 바로 시작할 수 있습니다.</p>
-           {/* ★ 수동 API Key 입력 */}
-           <div className="mb-4">
-               <input 
-                   type="password" 
-                   id="apiKeyInput"
-                   placeholder="Gemini API Key를 붙여넣으세요" 
-                   className="w-full py-3 px-4 border border-gray-300 rounded-xl text-center text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-               />
-           </div>
-           <button onClick={() => {
-               const input = document.getElementById('apiKeyInput') as HTMLInputElement;
-               const key = input?.value?.trim();
-               if (!key) {
-                   alert('API Key를 입력해주세요.');
-                   return;
-               }
-               // ★ 3중 저장: React state + window + sessionStorage
-               setApiKey(key);
-               (window as any).__GEMINI_API_KEY__ = key;
-               try { sessionStorage.setItem('GEMINI_API_KEY', key); } catch {}
-               console.log('API Key saved:', key.substring(0, 8) + '...');
-               setHasApiKey(true);
-           }} id="apiStartBtn" className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"><KeyIcon className="w-5 h-5" /> 시작하기</button>
-           <p className="mt-6 text-xs text-gray-400"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline hover:text-indigo-500">Google AI Studio에서 API Key 발급받기 →</a></p>
-        </div>
-      </div>
-    );
-  }
 
   if (step === AppStep.PROCESSING) return <ProcessingStep logs={logs} />;
 
@@ -364,6 +297,25 @@ function App() {
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-6">
+            {/* ★ API Key 입력 */}
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                <label htmlFor="geminiApiKey" className="block text-xs font-bold text-indigo-700 mb-2">🔑 Gemini API Key</label>
+                <input 
+                    id="geminiApiKey" 
+                    type="password" 
+                    className="w-full px-4 py-2.5 border border-indigo-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white" 
+                    placeholder="Google AI Studio에서 발급받은 API Key를 붙여넣으세요"
+                    value={apiKey}
+                    onChange={(e) => {
+                        const key = e.target.value;
+                        setApiKey(key);
+                        (window as any).__GEMINI_API_KEY__ = key;
+                        try { sessionStorage.setItem('GEMINI_API_KEY', key); } catch {}
+                    }}
+                />
+                <p className="mt-1.5 text-xs text-indigo-400"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline hover:text-indigo-600">API Key 발급받기 →</a></p>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">카테고리 선택</label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
