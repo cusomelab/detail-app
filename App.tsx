@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory } from './types';
-import { generateProductCopy } from './services/geminiService';
+import { generateProductCopy, setApiKey } from './services/geminiService';
 import { ProcessingStep } from './components/ProcessingStep';
 import { ResultPreview } from './components/ResultPreview';
 import { ArrowUpTrayIcon, PhotoIcon, SparklesIcon, KeyIcon, LinkIcon, ShoppingBagIcon, HomeIcon, FireIcon, CakeIcon, SwatchIcon } from '@heroicons/react/24/outline';
 
 function App() {
+  const [apiKey, setApiKeyState] = useState('');
+  const [apiKeyInput, setApiKeyInput] = useState('');
   const [hasApiKey, setHasApiKey] = useState(false);
   const [step, setStep] = useState<AppStep>(AppStep.INPUT);
   const [logs, setLogs] = useState<string[]>([]);
@@ -15,7 +17,6 @@ function App() {
   const [isDraggingDetail, setIsDraggingDetail] = useState(false);
   const [isDraggingOption, setIsDraggingOption] = useState(false);
   
-  // Drag Counters to prevent flickering on child elements
   const dragCounterMain = useRef(0);
   const dragCounterDetail = useRef(0);
   const dragCounterOption = useRef(0);
@@ -23,7 +24,7 @@ function App() {
   // Data State
   const [productData, setProductData] = useState<ProductData>({
     productName: '',
-    category: 'FASHION', // Default
+    category: 'FASHION',
     features: '',
     mainImage: null,
     detailImages: [],
@@ -31,41 +32,40 @@ function App() {
     benchmarkUrl: ''
   });
 
-  // Result State
   const [generatedCopy, setGeneratedCopy] = useState<GeneratedCopy | null>(null);
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
 
-  // Check for API Key on mount
+  // localStorage에서 API 키 복원
   useEffect(() => {
-    const checkKey = async () => {
-      const win = window as any;
-      if (win.aistudio) {
-        const hasKey = await win.aistudio.hasSelectedApiKey();
-        setHasApiKey(hasKey);
-      }
-    };
-    checkKey();
+    const saved = localStorage.getItem('gemini_api_key');
+    if (saved) {
+      setApiKeyState(saved);
+      setApiKey(saved);
+      setHasApiKey(true);
+    }
   }, []);
 
-  // Prevent accidental refresh
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
         if (generatedCopy) {
             e.preventDefault();
-            e.returnValue = ''; // Chrome requires returnValue to be set
+            e.returnValue = '';
         }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [generatedCopy]);
 
-  const handleSelectKey = async () => {
-    const win = window as any;
-    if (win.aistudio) {
-      await win.aistudio.openSelectKey();
-      // Assume success after dialog closes
-      setHasApiKey(true);
+  const handleApiKeySubmit = () => {
+    const key = apiKeyInput.trim();
+    if (!key.startsWith('AIza')) {
+      alert('올바른 Gemini API 키를 입력해주세요. (AIza로 시작)');
+      return;
     }
+    setApiKeyState(key);
+    setApiKey(key);
+    localStorage.setItem('gemini_api_key', key);
+    setHasApiKey(true);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -101,7 +101,6 @@ function App() {
     }
   };
 
-  // --- Drag and Drop Handlers ---
   const handleDragEnter = (e: React.DragEvent, type: 'MAIN' | 'DETAIL' | 'OPTION') => {
     e.preventDefault();
     e.stopPropagation();
@@ -140,7 +139,6 @@ function App() {
   const handleDrop = (e: React.DragEvent, type: 'MAIN' | 'DETAIL' | 'OPTION') => {
     e.preventDefault();
     e.stopPropagation();
-    
     if (type === 'MAIN') {
       setIsDraggingMain(false);
       dragCounterMain.current = 0;
@@ -168,19 +166,15 @@ function App() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     setStep(AppStep.PROCESSING);
     setLogs([]);
     setProcessedImages([]);
 
     try {
-      // 1. Generate Copy
       addLog(`🤖 [${productData.category}] 카테고리 전문 AI 에이전트 호출 중...`);
       addLog("📦 상품 기본 정보를 분석하고 있습니다...");
-      
       if (productData.benchmarkUrl) addLog("🔎 벤치마킹 링크를 분석하여 소구점을 추출하고 있습니다...");
-      if (productData.mainImage) addLog("📸 대표 이미지를 시각적으로 분석하여 특징을 추출하고 있습니다...");
-
+      if (productData.mainImage) addLog("📸 대표 이미지를 시각적으로 분석하고 있습니다...");
       addLog("✍️ 구매 전환율을 높이는 모바일 최적화 카피 생성 중...");
       
       const copy = await generateProductCopy(
@@ -193,19 +187,16 @@ function App() {
       setGeneratedCopy(copy);
       addLog("✅ 카피라이팅 생성 완료.");
 
-      // 2. Load Images
       if (productData.mainImage) {
           addLog("📂 대표 이미지를 에디터로 불러오는 중...");
           setProcessedImages(prev => [...prev, { originalUrl: URL.createObjectURL(productData.mainImage!), processedUrl: URL.createObjectURL(productData.mainImage!), type: 'main', status: 'done' }]);
       }
-
       if (productData.detailImages.length > 0) {
         addLog(`📂 상세 이미지 ${productData.detailImages.length}장을 에디터로 불러오는 중...`);
         productData.detailImages.forEach((file) => {
             setProcessedImages(prev => [...prev, { originalUrl: URL.createObjectURL(file), processedUrl: URL.createObjectURL(file), type: 'detail', status: 'done' }]);
         });
       }
-
       if (productData.optionImages.length > 0) {
         addLog(`📂 옵션 이미지 ${productData.optionImages.length}장을 에디터로 불러오는 중...`);
         productData.optionImages.forEach((file) => {
@@ -218,14 +209,10 @@ function App() {
 
     } catch (error: any) {
       console.error(error);
-      if (error.message && error.message.includes("Requested entity was not found")) {
-        alert("API Key가 만료되었거나 유효하지 않습니다. 키를 다시 선택해주세요.");
+      if (error.message?.includes('401') || error.message?.includes('API')) {
+        alert('API 키가 유효하지 않습니다. 다시 확인해주세요.');
         setHasApiKey(false);
-        const win = window as any;
-        await win.aistudio.openSelectKey();
-        setHasApiKey(true);
-        setStep(AppStep.INPUT);
-        return;
+        localStorage.removeItem('gemini_api_key');
       }
       addLog(`❌ 오류 발생: ${error instanceof Error ? error.message : "Unknown"}`);
       alert("처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
@@ -233,15 +220,36 @@ function App() {
     }
   };
 
+  // ── API 키 입력 화면 ──────────────────────────────────
   if (!hasApiKey) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
-           <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6"><KeyIcon className="w-8 h-8 text-indigo-600" /></div>
-           <h1 className="text-2xl font-bold text-gray-900 mb-2">API 키 연결 필요</h1>
-           <p className="text-gray-500 mb-8">Gemini 3 Pro 모델을 사용하기 위해 Google AI Studio의 유료 프로젝트 API 키가 필요합니다.</p>
-           <button onClick={handleSelectKey} className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"><KeyIcon className="w-5 h-5" /> API Key 선택하기</button>
-           <p className="mt-6 text-xs text-gray-400"><a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline hover:text-indigo-500">Billing 관련 문서 확인하기</a></p>
+           <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
+             <KeyIcon className="w-8 h-8 text-indigo-600" />
+           </div>
+           <h1 className="text-2xl font-bold text-gray-900 mb-2">Gemini API 키 입력</h1>
+           <p className="text-gray-500 mb-6">
+             Google AI Studio에서 발급받은 API 키를 입력하세요.<br/>
+             <span className="text-xs text-gray-400">입력한 키는 브라우저에만 저장됩니다.</span>
+           </p>
+           <input
+             type="password"
+             value={apiKeyInput}
+             onChange={(e) => setApiKeyInput(e.target.value)}
+             onKeyDown={(e) => e.key === 'Enter' && handleApiKeySubmit()}
+             placeholder="AIza..."
+             className="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+           />
+           <button 
+             onClick={handleApiKeySubmit}
+             className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"
+           >
+             <KeyIcon className="w-5 h-5" /> 연결하기
+           </button>
+           <p className="mt-4 text-xs text-gray-400">
+             API 키 발급: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline hover:text-indigo-500">aistudio.google.com/apikey</a>
+           </p>
         </div>
       </div>
     );
@@ -270,9 +278,17 @@ function App() {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl w-full space-y-8 bg-white p-10 rounded-2xl shadow-xl">
         <div className="text-center">
-          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight flex items-center justify-center gap-3"><SparklesIcon className="w-10 h-10 text-indigo-600" /> CoupangGen AI</h1>
-          <p className="mt-4 text-lg text-gray-500">Powered by <span className="font-semibold text-indigo-600">Gemini 3 Pro</span></p>
+          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight flex items-center justify-center gap-3">
+            <SparklesIcon className="w-10 h-10 text-indigo-600" /> CoupangGen AI
+          </h1>
+          <p className="mt-4 text-lg text-gray-500">Powered by <span className="font-semibold text-indigo-600">Gemini</span></p>
           <p className="mt-2 text-sm text-gray-400">상품명만 입력하면 3초 만에 상세페이지 초안을 생성합니다.</p>
+          <button 
+            onClick={() => { setHasApiKey(false); localStorage.removeItem('gemini_api_key'); }}
+            className="mt-2 text-xs text-gray-300 hover:text-gray-500 underline"
+          >
+            API 키 변경
+          </button>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -299,13 +315,13 @@ function App() {
             
             <div>
               <label htmlFor="features" className="block text-sm font-medium text-gray-700 mb-1">주요 특징 (선택사항)</label>
-              <textarea id="features" name="features" rows={3} className="appearance-none rounded-lg block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="예: 울 함유, 오버핏, 봄가을용 (AI가 카피라이팅에 참고합니다)" value={productData.features} onChange={handleInputChange} />
+              <textarea id="features" name="features" rows={3} className="appearance-none rounded-lg block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="예: 울 함유, 오버핏, 봄가을용" value={productData.features} onChange={handleInputChange} />
             </div>
 
             <div>
               <label htmlFor="benchmarkUrl" className="block text-sm font-medium text-gray-700 mb-1">벤치마킹 링크 (선택사항)</label>
               <div className="relative rounded-lg shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><LinkIcon className="h-5 w-5 text-gray-400" aria-hidden="true" /></div>
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><LinkIcon className="h-5 w-5 text-gray-400" /></div>
                 <input type="url" name="benchmarkUrl" id="benchmarkUrl" className="block w-full pl-10 px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="예: https://www.coupang.com/vp/products/..." value={productData.benchmarkUrl || ''} onChange={handleInputChange} />
               </div>
             </div>
@@ -359,9 +375,13 @@ function App() {
                     </div>
                 )}
             </div>
-
           </div>
-          <div><button type="submit" className="w-full flex justify-center py-4 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg transition-all transform hover:scale-[1.01]"><SparklesIcon className="h-5 w-5 mr-2" /> 상세페이지 기획 생성 (즉시 시작)</button></div>
+
+          <div>
+            <button type="submit" className="w-full flex justify-center py-4 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg transition-all transform hover:scale-[1.01]">
+              <SparklesIcon className="h-5 w-5 mr-2" /> 상세페이지 기획 생성 (즉시 시작)
+            </button>
+          </div>
         </form>
       </div>
     </div>
