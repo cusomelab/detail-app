@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory, ProductInfoDisclosure } from './types';
+import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory } from './types';
 import { generateProductCopy } from './services/geminiService';
 import { ProcessingStep } from './components/ProcessingStep';
 import { ResultPreview } from './components/ResultPreview';
 import { ArrowUpTrayIcon, PhotoIcon, SparklesIcon, KeyIcon, LinkIcon, ShoppingBagIcon, HomeIcon, FireIcon, CakeIcon, SwatchIcon } from '@heroicons/react/24/outline';
 
 function App() {
-  const [hasApiKey, setHasApiKey] = useState(true); // ★ 항상 폼 표시 (키 입력란이 폼 안에 있음)
-  const [apiKey, setApiKey] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(false);
   const [step, setStep] = useState<AppStep>(AppStep.INPUT);
   const [logs, setLogs] = useState<string[]>([]);
   
@@ -35,25 +34,17 @@ function App() {
   // Result State
   const [generatedCopy, setGeneratedCopy] = useState<GeneratedCopy | null>(null);
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
-  
-  // ★ 상품 정보고시
-  const [infoDisclosure, setInfoDisclosure] = useState<ProductInfoDisclosure>({
-    manufacturer: '',
-    origin: '',
-    material: '',
-    customerService: '',
-  });
 
   // Check for API Key on mount
-  // Restore API Key from sessionStorage on mount
   useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem('GEMINI_API_KEY');
-      if (saved && saved.length > 10) {
-        setApiKey(saved);
-        sessionStorage.setItem('GEMINI_API_KEY', saved);
+    const checkKey = async () => {
+      const win = window as any;
+      if (win.aistudio) {
+        const hasKey = await win.aistudio.hasSelectedApiKey();
+        setHasApiKey(hasKey);
       }
-    } catch {}
+    };
+    checkKey();
   }, []);
 
   // Prevent accidental refresh
@@ -67,6 +58,15 @@ function App() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [generatedCopy]);
+
+  const handleSelectKey = async () => {
+    const win = window as any;
+    if (win.aistudio) {
+      await win.aistudio.openSelectKey();
+      // Assume success after dialog closes
+      setHasApiKey(true);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -169,14 +169,6 @@ function App() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // ★ apiKey state에서 직접 읽어서 window에 확실히 세팅
-    const key = apiKey || '';
-    if (!key || key.length < 10) {
-        alert('API Key를 입력해주세요.\n\nGoogle AI Studio에서 발급받은 키를 폼 상단에 붙여넣으세요.');
-        return;
-    }
-    sessionStorage.setItem("GEMINI_API_KEY", key);
-
     setStep(AppStep.PROCESSING);
     setLogs([]);
     setProcessedImages([]);
@@ -196,74 +188,64 @@ function App() {
           productData.features, 
           productData.category,
           productData.benchmarkUrl,
-          productData.mainImage,
-          apiKey
+          productData.mainImage
       );
       setGeneratedCopy(copy);
       addLog("✅ 카피라이팅 생성 완료.");
 
-      // 2. Load Images — ★ 한 번에 배열로 세팅 (React batching 문제 방지)
-      const allImages: ProcessedImage[] = [];
-      
+      // 2. Load Images
       if (productData.mainImage) {
           addLog("📂 대표 이미지를 에디터로 불러오는 중...");
-          allImages.push({ 
-              originalUrl: URL.createObjectURL(productData.mainImage), 
-              processedUrl: URL.createObjectURL(productData.mainImage), 
-              type: 'main', status: 'done', 
-              fileName: productData.mainImage.name 
-          });
+          setProcessedImages(prev => [...prev, { originalUrl: URL.createObjectURL(productData.mainImage!), processedUrl: URL.createObjectURL(productData.mainImage!), type: 'main', status: 'done', fileName: productData.mainImage!.name }]);
       }
 
       if (productData.detailImages.length > 0) {
         addLog(`📂 상세 이미지 ${productData.detailImages.length}장을 에디터로 불러오는 중...`);
         productData.detailImages.forEach((file) => {
-            allImages.push({ 
-                originalUrl: URL.createObjectURL(file), 
-                processedUrl: URL.createObjectURL(file), 
-                type: 'detail', status: 'done', 
-                fileName: file.name 
-            });
+            setProcessedImages(prev => [...prev, { originalUrl: URL.createObjectURL(file), processedUrl: URL.createObjectURL(file), type: 'detail', status: 'done', fileName: file.name }]);
         });
       }
 
       if (productData.optionImages.length > 0) {
         addLog(`📂 옵션 이미지 ${productData.optionImages.length}장을 에디터로 불러오는 중...`);
         productData.optionImages.forEach((file) => {
-            allImages.push({ 
-                originalUrl: URL.createObjectURL(file), 
-                processedUrl: URL.createObjectURL(file), 
-                type: 'option', status: 'done', 
-                fileName: file.name 
-            });
+            setProcessedImages(prev => [...prev, { originalUrl: URL.createObjectURL(file), processedUrl: URL.createObjectURL(file), type: 'option', status: 'done', fileName: file.name }]);
         });
       }
-
-      // ★ 한 번에 세팅 — ResultPreview useEffect가 최종 상태로 1회만 실행
-      setProcessedImages(allImages);
 
       addLog("✨ 준비 완료! 에디터 화면으로 이동합니다...");
       setTimeout(() => setStep(AppStep.RESULT), 800);
 
     } catch (error: any) {
-      console.error('Full error:', error);
-      const errMsg = error instanceof Error ? error.message : String(error);
-      const errDetail = error?.response?.data?.error?.message || error?.statusText || '';
-      const fullMsg = errDetail ? `${errMsg}\n\n상세: ${errDetail}` : errMsg;
-      
-      if (errMsg.includes("Requested entity was not found") || errMsg.includes("API key") || errMsg.includes("API Key") || errMsg.includes("PERMISSION_DENIED") || errMsg.includes("API_KEY_INVALID") || errMsg.includes("403")) {
-        alert(`API Key 오류: ${fullMsg}\n\nAPI Key를 확인하고 다시 입력해주세요.`);
-        setApiKey('');
-        try { sessionStorage.removeItem('GEMINI_API_KEY'); } catch {}
+      console.error(error);
+      if (error.message && error.message.includes("Requested entity was not found")) {
+        alert("API Key가 만료되었거나 유효하지 않습니다. 키를 다시 선택해주세요.");
+        setHasApiKey(false);
+        const win = window as any;
+        await win.aistudio.openSelectKey();
+        setHasApiKey(true);
         setStep(AppStep.INPUT);
         return;
       }
-      addLog(`❌ 오류 발생: ${errMsg}`);
-      // ★ 실제 에러 메시지를 사용자에게 표시 (디버깅용)
-      alert(`오류 발생:\n${fullMsg}`);
+      addLog(`❌ 오류 발생: ${error instanceof Error ? error.message : "Unknown"}`);
+      alert("처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       setStep(AppStep.INPUT);
     }
   };
+
+  if (!hasApiKey) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
+           <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6"><KeyIcon className="w-8 h-8 text-indigo-600" /></div>
+           <h1 className="text-2xl font-bold text-gray-900 mb-2">API 키 연결 필요</h1>
+           <p className="text-gray-500 mb-8">Gemini 3 Pro 모델을 사용하기 위해 Google AI Studio의 유료 프로젝트 API 키가 필요합니다.</p>
+           <button onClick={handleSelectKey} className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"><KeyIcon className="w-5 h-5" /> API Key 선택하기</button>
+           <p className="mt-6 text-xs text-gray-400"><a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline hover:text-indigo-500">Billing 관련 문서 확인하기</a></p>
+        </div>
+      </div>
+    );
+  }
 
   if (step === AppStep.PROCESSING) return <ProcessingStep logs={logs} />;
 
@@ -274,7 +256,6 @@ function App() {
         images={processedImages} 
         productName={productData.productName}
         category={productData.category}
-        infoDisclosure={infoDisclosure}
         onReset={() => {
             setStep(AppStep.INPUT);
             setProductData({ productName: '', category: 'FASHION', features: '', mainImage: null, detailImages: [], optionImages: [], benchmarkUrl: '' });
@@ -296,24 +277,6 @@ function App() {
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-6">
-            {/* ★ API Key 입력 */}
-            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-                <label htmlFor="geminiApiKey" className="block text-xs font-bold text-indigo-700 mb-2">🔑 Gemini API Key</label>
-                <input 
-                    id="geminiApiKey" 
-                    type="password" 
-                    className="w-full px-4 py-2.5 border border-indigo-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white" 
-                    placeholder="Google AI Studio에서 발급받은 API Key를 붙여넣으세요"
-                    value={apiKey}
-                    onChange={(e) => {
-                        const key = e.target.value;
-                        setApiKey(key);
-                        sessionStorage.setItem("GEMINI_API_KEY", key);
-                    }}
-                />
-                <p className="mt-1.5 text-xs text-indigo-400"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline hover:text-indigo-600">API Key 발급받기 →</a></p>
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">카테고리 선택</label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -398,38 +361,6 @@ function App() {
             </div>
 
           </div>
-          
-          {/* ★ 상품 정보고시 입력란 */}
-          <div className="border border-gray-200 rounded-xl p-6 space-y-4 bg-gray-50">
-              <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">📋 상품 정보고시 (선택)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">제조자/수입자</label>
-                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: (주)폰이지" value={infoDisclosure.manufacturer || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, manufacturer: e.target.value}))} />
-                  </div>
-                  <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">원산지</label>
-                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: 중국" value={infoDisclosure.origin || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, origin: e.target.value}))} />
-                  </div>
-                  <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">소재/재질</label>
-                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: 폴리에스테르 95%, 스판 5%" value={infoDisclosure.material || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, material: e.target.value}))} />
-                  </div>
-                  <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">고객센터</label>
-                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: 02-1234-5678" value={infoDisclosure.customerService || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, customerService: e.target.value}))} />
-                  </div>
-                  <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">색상</label>
-                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: 블랙, 화이트, 그레이" value={infoDisclosure.color || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, color: e.target.value}))} />
-                  </div>
-                  <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">사이즈</label>
-                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: FREE (44~66)" value={infoDisclosure.size || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, size: e.target.value}))} />
-                  </div>
-              </div>
-          </div>
-
           <div><button type="submit" className="w-full flex justify-center py-4 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg transition-all transform hover:scale-[1.01]"><SparklesIcon className="h-5 w-5 mr-2" /> 상세페이지 기획 생성 (즉시 시작)</button></div>
         </form>
       </div>

@@ -1,5 +1,5 @@
 {
-  "name": "\ub85c\ucf13_\uc0c1\uc138\ud398\uc774\uc9c0-\uc81c\uc791",
+  "name": "로켓_상세페이지-제작",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,10 +12,7 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "@google/genai": "^1.33.0",
-    "@heroicons/react": "^2.2.0",
-    "lucide-react": "^0.400.0",
-    "html2canvas": "^1.4.1",
-    "react-dropzone": "^14.2.3"
+    "@heroicons/react": "^2.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

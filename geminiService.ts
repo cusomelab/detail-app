@@ -8,11 +8,6 @@ const IMAGE_MODEL = 'gemini-3-pro-image-preview';
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOVE_TEXT' | 'ERASE_PART' | 'CUSTOM';
 
-// ★ API Key: sessionStorage에서 직접 읽기 (App.tsx에서 저장)
-const getSavedKey = (): string => {
-    try { return sessionStorage.getItem('GEMINI_API_KEY') || ''; } catch { return ''; }
-};
-
 /**
  * Converts a File object to a Base64 string suitable for Gemini API.
  */
@@ -32,8 +27,8 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
 /**
  * Analyzes a benchmark URL using Google Search Grounding to extract key selling points.
  */
-async function analyzeBenchmarkUrl(url: string, apiKey: string): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey });
+async function analyzeBenchmarkUrl(url: string): Promise<string> {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -84,17 +79,13 @@ export const generateProductCopy = async (
   features: string,
   category: ProductCategory,
   benchmarkUrl?: string,
-  mainImage?: File | null,
-  apiKey?: string
+  mainImage?: File | null
 ): Promise<GeneratedCopy> => {
-  const key = apiKey || getSavedKey();
-  if (!key) throw new Error('API 키가 설정되지 않았습니다. 폼 상단에서 Gemini API Key를 입력해주세요.');
-  _savedApiKey = key; // 다른 함수에서도 사용할 수 있도록 저장
-  const ai = new GoogleGenAI({ apiKey: key });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   let benchmarkContext = "";
   if (benchmarkUrl) {
-      benchmarkContext = await analyzeBenchmarkUrl(benchmarkUrl, key);
+      benchmarkContext = await analyzeBenchmarkUrl(benchmarkUrl);
   }
 
   // Dynamic Persona based on Category
@@ -232,45 +223,21 @@ export const regenerateCopy = async (
   currentText: string,
   fieldLabel: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: getSavedKey() });
-  const prompt = `You are a Korean e-commerce copywriter. Rewrite the text below into ONE short, polished version.
-
-ABSOLUTE RULES:
-- Return ONLY the rewritten text. Nothing else.
-- Do NOT provide multiple options or alternatives.
-- Do NOT include any explanation, intro, or preamble like "요청하신 규칙에 맞춰" or "제안해 드립니다".
-- Do NOT use markdown: no **, no *, no #, no - lists, no numbered lists, no backticks, no --- dividers.
-- Do NOT add labels like "옵션 1." or "[MD's Pick]".
-- No trailing periods.
-- Keep it concise - similar length or shorter than the original.
-- Use natural line breaks (\\n) at semantic boundaries only.
-- Professional, emotional Korean tone.
-
-Text to rewrite:
-${currentText}`;
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const prompt = `Rewrite this '${fieldLabel}' text for a Korean e-commerce page. 
+  Rules:
+  1. No trailing periods (.).
+  2. Phrase-based breaks: Insert \\n only at natural semantic boundaries.
+  3. Do not split words.
+  4. Professional and emotional tone.
+  
+  Current: "${currentText}"`;
   const response = await ai.models.generateContent({
     model: TEXT_MODEL, 
     contents: prompt,
-    config: { temperature: 0.8 }
+    config: { temperature: 0.85 }
   });
   let text = response.text?.trim() || currentText;
-  // 마크다운/번호/서론 잔여물 후처리
-  text = text
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/^#+\s*/gm, '')
-    .replace(/^[-*•]\s+/gm, '')
-    .replace(/^\d+\.\s+/gm, '')
-    .replace(/`(.+?)`/g, '$1')
-    .replace(/^---+$/gm, '')
-    .replace(/\\n/g, '\n')
-    .replace(/^\s*\[?옵션\s*\d+\.?\]?\s*/gm, '')
-    .replace(/^\s*\(추천\)\s*/gm, '')
-    .replace(/^\s*\[MD'?s?\s*Pick\]\s*/gim, '')
-    .replace(/요청하신.*?제안해\s*드립니다\.?\s*/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
   if (text.endsWith('.')) text = text.slice(0, -1);
   return text;
 };
@@ -281,7 +248,7 @@ export const processProductImage = async (
   maskFile?: File,
   customPrompt?: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: getSavedKey() });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const base64Data = await fileToGenerativePart(imageFile);
   let prompt = "";
   const parts: any[] = [{ inlineData: { mimeType: imageFile.type, data: base64Data } }];
