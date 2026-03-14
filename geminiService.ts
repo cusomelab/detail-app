@@ -8,16 +8,9 @@ const IMAGE_MODEL = 'gemini-3-pro-image-preview';
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOVE_TEXT' | 'ERASE_PART' | 'CUSTOM';
 
-// ★ 모듈 레벨 API Key (가장 확실한 방법)
-let _savedApiKey = '';
-export const setGeminiApiKey = (key: string) => { 
-    _savedApiKey = key;
-    try { sessionStorage.setItem('GEMINI_API_KEY', key); } catch {}
-};
+// ★ API Key: sessionStorage에서 직접 읽기 (App.tsx에서 저장)
 const getSavedKey = (): string => {
-    if (_savedApiKey) return _savedApiKey;
-    try { const s = sessionStorage.getItem('GEMINI_API_KEY'); if (s) { _savedApiKey = s; return s; } } catch {}
-    return '';
+    try { return sessionStorage.getItem('GEMINI_API_KEY') || ''; } catch { return ''; }
 };
 
 /**

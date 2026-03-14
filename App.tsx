@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory, ProductInfoDisclosure } from './types';
-import { generateProductCopy, setGeminiApiKey } from './services/geminiService';
+import { generateProductCopy } from './services/geminiService';
 import { ProcessingStep } from './components/ProcessingStep';
 import { ResultPreview } from './components/ResultPreview';
 import { ArrowUpTrayIcon, PhotoIcon, SparklesIcon, KeyIcon, LinkIcon, ShoppingBagIcon, HomeIcon, FireIcon, CakeIcon, SwatchIcon } from '@heroicons/react/24/outline';
@@ -51,7 +51,7 @@ function App() {
       const saved = sessionStorage.getItem('GEMINI_API_KEY');
       if (saved && saved.length > 10) {
         setApiKey(saved);
-        setGeminiApiKey(saved);
+        sessionStorage.setItem('GEMINI_API_KEY', saved);
       }
     } catch {}
   }, []);
@@ -175,7 +175,7 @@ function App() {
         alert('API Key를 입력해주세요.\n\nGoogle AI Studio에서 발급받은 키를 폼 상단에 붙여넣으세요.');
         return;
     }
-    setGeminiApiKey(key);
+    sessionStorage.setItem("GEMINI_API_KEY", key);
 
     setStep(AppStep.PROCESSING);
     setLogs([]);
@@ -253,7 +253,6 @@ function App() {
       
       if (errMsg.includes("Requested entity was not found") || errMsg.includes("API key") || errMsg.includes("API Key") || errMsg.includes("PERMISSION_DENIED") || errMsg.includes("API_KEY_INVALID") || errMsg.includes("403")) {
         alert(`API Key 오류: ${fullMsg}\n\nAPI Key를 확인하고 다시 입력해주세요.`);
-        setGeminiApiKey('');
         setApiKey('');
         try { sessionStorage.removeItem('GEMINI_API_KEY'); } catch {}
         setStep(AppStep.INPUT);
@@ -309,7 +308,7 @@ function App() {
                     onChange={(e) => {
                         const key = e.target.value;
                         setApiKey(key);
-                        setGeminiApiKey(key);
+                        sessionStorage.setItem("GEMINI_API_KEY", key);
                     }}
                 />
                 <p className="mt-1.5 text-xs text-indigo-400"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline hover:text-indigo-600">API Key 발급받기 →</a></p>
