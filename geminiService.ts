@@ -8,6 +8,18 @@ const IMAGE_MODEL = 'gemini-3-pro-image-preview';
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOVE_TEXT' | 'ERASE_PART' | 'CUSTOM';
 
+// ★ 모듈 레벨 API Key (가장 확실한 방법)
+let _savedApiKey = '';
+export const setGeminiApiKey = (key: string) => { 
+    _savedApiKey = key;
+    try { sessionStorage.setItem('GEMINI_API_KEY', key); } catch {}
+};
+const getSavedKey = (): string => {
+    if (_savedApiKey) return _savedApiKey;
+    try { const s = sessionStorage.getItem('GEMINI_API_KEY'); if (s) { _savedApiKey = s; return s; } } catch {}
+    return '';
+};
+
 /**
  * Converts a File object to a Base64 string suitable for Gemini API.
  */
@@ -82,8 +94,9 @@ export const generateProductCopy = async (
   mainImage?: File | null,
   apiKey?: string
 ): Promise<GeneratedCopy> => {
-  const key = apiKey || (window as any).__GEMINI_API_KEY__ || '';
-  if (!key) throw new Error('API 키가 설정되지 않았습니다.');
+  const key = apiKey || getSavedKey();
+  if (!key) throw new Error('API 키가 설정되지 않았습니다. 폼 상단에서 Gemini API Key를 입력해주세요.');
+  _savedApiKey = key; // 다른 함수에서도 사용할 수 있도록 저장
   const ai = new GoogleGenAI({ apiKey: key });
   
   let benchmarkContext = "";
@@ -226,7 +239,7 @@ export const regenerateCopy = async (
   currentText: string,
   fieldLabel: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: (window as any).__GEMINI_API_KEY__ || "" });
+  const ai = new GoogleGenAI({ apiKey: getSavedKey() });
   const prompt = `You are a Korean e-commerce copywriter. Rewrite the text below into ONE short, polished version.
 
 ABSOLUTE RULES:
@@ -275,7 +288,7 @@ export const processProductImage = async (
   maskFile?: File,
   customPrompt?: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: (window as any).__GEMINI_API_KEY__ || "" });
+  const ai = new GoogleGenAI({ apiKey: getSavedKey() });
   const base64Data = await fileToGenerativePart(imageFile);
   let prompt = "";
   const parts: any[] = [{ inlineData: { mimeType: imageFile.type, data: base64Data } }];

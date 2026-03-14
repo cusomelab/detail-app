@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory, ProductInfoDisclosure } from './types';
-import { generateProductCopy } from './services/geminiService';
+import { generateProductCopy, setGeminiApiKey } from './services/geminiService';
 import { ProcessingStep } from './components/ProcessingStep';
 import { ResultPreview } from './components/ResultPreview';
 import { ArrowUpTrayIcon, PhotoIcon, SparklesIcon, KeyIcon, LinkIcon, ShoppingBagIcon, HomeIcon, FireIcon, CakeIcon, SwatchIcon } from '@heroicons/react/24/outline';
@@ -51,7 +51,7 @@ function App() {
       const saved = sessionStorage.getItem('GEMINI_API_KEY');
       if (saved && saved.length > 10) {
         setApiKey(saved);
-        (window as any).__GEMINI_API_KEY__ = saved;
+        setGeminiApiKey(saved);
       }
     } catch {}
   }, []);
@@ -175,8 +175,7 @@ function App() {
         alert('API Key를 입력해주세요.\n\nGoogle AI Studio에서 발급받은 키를 폼 상단에 붙여넣으세요.');
         return;
     }
-    (window as any).__GEMINI_API_KEY__ = key;
-    try { sessionStorage.setItem('GEMINI_API_KEY', key); } catch {}
+    setGeminiApiKey(key);
 
     setStep(AppStep.PROCESSING);
     setLogs([]);
@@ -197,7 +196,8 @@ function App() {
           productData.features, 
           productData.category,
           productData.benchmarkUrl,
-          productData.mainImage
+          productData.mainImage,
+          apiKey
       );
       setGeneratedCopy(copy);
       addLog("✅ 카피라이팅 생성 완료.");
@@ -253,7 +253,7 @@ function App() {
       
       if (errMsg.includes("Requested entity was not found") || errMsg.includes("API key") || errMsg.includes("API Key") || errMsg.includes("PERMISSION_DENIED") || errMsg.includes("API_KEY_INVALID") || errMsg.includes("403")) {
         alert(`API Key 오류: ${fullMsg}\n\nAPI Key를 확인하고 다시 입력해주세요.`);
-        (window as any).__GEMINI_API_KEY__ = null;
+        setGeminiApiKey('');
         setApiKey('');
         try { sessionStorage.removeItem('GEMINI_API_KEY'); } catch {}
         setStep(AppStep.INPUT);
@@ -309,8 +309,7 @@ function App() {
                     onChange={(e) => {
                         const key = e.target.value;
                         setApiKey(key);
-                        (window as any).__GEMINI_API_KEY__ = key;
-                        try { sessionStorage.setItem('GEMINI_API_KEY', key); } catch {}
+                        setGeminiApiKey(key);
                     }}
                 />
                 <p className="mt-1.5 text-xs text-indigo-400"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline hover:text-indigo-600">API Key 발급받기 →</a></p>
