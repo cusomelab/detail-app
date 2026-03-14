@@ -8,6 +8,17 @@ const IMAGE_MODEL = 'gemini-3-pro-image-preview';
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOVE_TEXT' | 'ERASE_PART' | 'CUSTOM';
 
+// ★ API Key 가져오기: Vite 빌드 시 주입 → 런타임 수동 입력 → fallback
+const getApiKey = (): string => {
+    // 1) 런타임 수동 입력 (App.tsx handleSelectKey에서 세팅)
+    const runtimeKey = (window as any).__GEMINI_API_KEY__;
+    if (runtimeKey) return runtimeKey;
+    // 2) Vite 빌드 시 process.env.API_KEY로 주입 (vite.config.ts define)
+    if (process.env.API_KEY && process.env.API_KEY !== 'PLACEHOLDER_API_KEY') return process.env.API_KEY;
+    // 3) fallback
+    throw new Error('API Key가 설정되지 않았습니다. 앱을 새로고침하고 API Key를 입력해주세요.');
+};
+
 /**
  * Converts a File object to a Base64 string suitable for Gemini API.
  */
@@ -28,7 +39,7 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
  * Analyzes a benchmark URL using Google Search Grounding to extract key selling points.
  */
 async function analyzeBenchmarkUrl(url: string): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -81,7 +92,7 @@ export const generateProductCopy = async (
   benchmarkUrl?: string,
   mainImage?: File | null
 ): Promise<GeneratedCopy> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   
   let benchmarkContext = "";
   if (benchmarkUrl) {
@@ -223,7 +234,7 @@ export const regenerateCopy = async (
   currentText: string,
   fieldLabel: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const prompt = `You are a Korean e-commerce copywriter. Rewrite the text below into ONE short, polished version.
 
 ABSOLUTE RULES:
@@ -272,7 +283,7 @@ export const processProductImage = async (
   maskFile?: File,
   customPrompt?: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const base64Data = await fileToGenerativePart(imageFile);
   let prompt = "";
   const parts: any[] = [{ inlineData: { mimeType: imageFile.type, data: base64Data } }];

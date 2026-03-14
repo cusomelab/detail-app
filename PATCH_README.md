@@ -1,57 +1,45 @@
-# detail-app 패치 v5 FINAL (2026-03-14)
+# detail-app 패치 v5.1 — API Key 수정 (2026-03-14)
 
-## 파일 교체 (5개)
+## 교체 파일
+
+⚠️ 이번 라운드에서는 **App.tsx + geminiService.ts 2개만** 변경됨.
+이전 v5에서 교체한 ResultPreview.tsx, index.html, types.ts는 그대로 유지.
+
 ```
-cusomelab/detail-app/
-├── index.html                        ← 교체 (프리미엄 폰트 추가)
-├── src/
-│   ├── App.tsx                       ← 교체 (★ 옵션 파일명 근본 수정)
-│   ├── types.ts                      ← 교체 (PlanSection, ProductInfoDisclosure)
-│   ├── components/
-│   │   └── ResultPreview.tsx         ← 교체
-│   └── services/
-│       └── geminiService.ts          ← 교체
+src/App.tsx                       ← 교체 (API 키 UI + 옵션 파일명)
+src/services/geminiService.ts     ← 교체 (getApiKey 헬퍼)
 ```
 
-## 핵심 수정 요약
+## 문제 원인
+`window.aistudio`는 Google AI Studio 전용 API.
+Vercel 배포에서는 존재하지 않음 → `hasApiKey` 영원히 false → 버튼 클릭 무반응.
 
-### ★ 옵션 파일명 근본 해결 (App.tsx)
-**원인**: forEach로 setProcessedImages를 여러 번 호출 → React batching 타이밍에 따라
-ResultPreview useEffect가 중간 상태에서 실행 → 옵션 이미지 아직 없음 → fallback 표시
+## 수정 내용
 
-**해결**: 모든 이미지(main + detail + option)를 배열에 모은 후 
-`setProcessedImages(allImages)` 한 번에 세팅.
-ResultPreview useEffect가 최종 완성된 images로 1회만 실행됨.
+### App.tsx
+1. **API 키 화면에 수동 입력 필드 추가**
+   - password 타입 input + "시작하기" 버튼
+   - 입력한 키는 `window.__GEMINI_API_KEY__`에 저장
+   - AI Studio 환경이면 기존 방식 유지
 
-### HERO 상단 상품명 표시
-- NEW ARRIVAL COLLECTION (text-xs 연한 영문)
-- **상품명** (text-3xl font-black)
-- 카피 문구 (text-lg 회색)
+2. **자동 감지 로직**
+   - `window.aistudio` 있으면 → AI Studio 모드
+   - `process.env.API_KEY` 있으면 (Vercel 환경변수) → 자동 통과
+   - 둘 다 없으면 → 수동 입력 화면
 
-### 프리미엄 폰트 Noto Serif KR
-- index.html에 Google Fonts 추가
-- .font-premium CSS 클래스 + tailwind config
-- 리뷰/추천/사이즈 등 제목에 자동 적용
-- 에디터에서도 "프리미엄 (세리프)" 옵션 선택 가능
+3. **에러 핸들러 개선**
+   - API Key 만료/무효 시 → 키 초기화 + 입력 화면으로 돌아감
+   - `window.aistudio.openSelectKey()` 호출 제거 (Vercel에서 에러 방지)
 
-### 리뷰 디자인 (── Real Review ──)
-- 영문 구분선 + 세리프 제목
-- 별점 4.9/5.0 별도 줄
-- 왼쪽 보더라인 카드 (border-l-4)
-- "후기N:" 접두사 + 따옴표 자동 제거
+### geminiService.ts
+- `getApiKey()` 헬퍼 함수 추가
+- 런타임 키(`__GEMINI_API_KEY__`) → 빌드 시 키(`process.env.API_KEY`) → 에러 순서로 조회
+- 모든 `new GoogleGenAI({ apiKey: ... })` 호출에 적용
 
-### 추천 디자인 (── For You ──)
-- 영문 구분선 + 세리프 제목
-- 번호 뱃지(01,02) + 카드형 레이아웃
+## Vercel 환경변수 설정 (선택)
+수동 입력 없이 자동 통과하려면:
+1. Vercel Dashboard → Settings → Environment Variables
+2. `GEMINI_API_KEY` = [실제 API 키] 추가
+3. Redeploy
 
-### 정보고시 항상 표시
-- infoDisclosure props 없어도 기본 데이터로 표시
-
-### AI 수정 서론 제거 강화
-- geminiService.ts: ONE version only 프롬프트
-- stripMarkdown: AI 서론 패턴 제거
-
-### 기타
-- MARKETPIA 텍스트 축소 (text-xs)
-- 세탁가이드(PRODUCT_GUIDE) 기본 비표시
-- 전체 폰트 사이즈 정리 (text-6xl → text-4xl 등)
+이렇게 하면 빌드 시 vite.config.ts가 process.env.API_KEY로 주입 → 자동 통과.

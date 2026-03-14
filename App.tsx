@@ -39,10 +39,19 @@ function App() {
   useEffect(() => {
     const checkKey = async () => {
       const win = window as any;
+      // 1) Google AI Studio 환경
       if (win.aistudio) {
         const hasKey = await win.aistudio.hasSelectedApiKey();
         setHasApiKey(hasKey);
+        return;
       }
+      // 2) Vercel 환경 — process.env.API_KEY가 빌드 시 주입됨
+      if (process.env.API_KEY && process.env.API_KEY !== 'PLACEHOLDER_API_KEY') {
+        setHasApiKey(true);
+        return;
+      }
+      // 3) 둘 다 없으면 → 수동 입력 필요
+      setHasApiKey(false);
     };
     checkKey();
   }, []);
@@ -63,8 +72,15 @@ function App() {
     const win = window as any;
     if (win.aistudio) {
       await win.aistudio.openSelectKey();
-      // Assume success after dialog closes
       setHasApiKey(true);
+    } else {
+      // Vercel 환경 — 수동 입력
+      const key = prompt('Gemini API Key를 입력하세요:');
+      if (key && key.trim()) {
+        // 런타임에 process.env.API_KEY를 덮어씌움 (Vite define은 빌드 시점이므로 런타임 변수로 세팅)
+        (window as any).__GEMINI_API_KEY__ = key.trim();
+        setHasApiKey(true);
+      }
     }
   };
 
@@ -238,16 +254,15 @@ function App() {
 
     } catch (error: any) {
       console.error(error);
-      if (error.message && error.message.includes("Requested entity was not found")) {
-        alert("API Key가 만료되었거나 유효하지 않습니다. 키를 다시 선택해주세요.");
+      const errMsg = error instanceof Error ? error.message : String(error);
+      if (errMsg.includes("Requested entity was not found") || errMsg.includes("API key") || errMsg.includes("API Key") || errMsg.includes("PERMISSION_DENIED")) {
+        alert("API Key가 만료되었거나 유효하지 않습니다. 키를 다시 입력해주세요.");
+        (window as any).__GEMINI_API_KEY__ = null;
         setHasApiKey(false);
-        const win = window as any;
-        await win.aistudio.openSelectKey();
-        setHasApiKey(true);
         setStep(AppStep.INPUT);
         return;
       }
-      addLog(`❌ 오류 발생: ${error instanceof Error ? error.message : "Unknown"}`);
+      addLog(`❌ 오류 발생: ${errMsg}`);
       alert("처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       setStep(AppStep.INPUT);
     }
@@ -259,9 +274,28 @@ function App() {
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
            <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6"><KeyIcon className="w-8 h-8 text-indigo-600" /></div>
            <h1 className="text-2xl font-bold text-gray-900 mb-2">API 키 연결 필요</h1>
-           <p className="text-gray-500 mb-8">Gemini 3 Pro 모델을 사용하기 위해 Google AI Studio의 유료 프로젝트 API 키가 필요합니다.</p>
-           <button onClick={handleSelectKey} className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"><KeyIcon className="w-5 h-5" /> API Key 선택하기</button>
-           <p className="mt-6 text-xs text-gray-400"><a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="underline hover:text-indigo-500">Billing 관련 문서 확인하기</a></p>
+           <p className="text-gray-500 mb-6">Gemini API 키를 입력하면 바로 시작할 수 있습니다.</p>
+           {/* ★ 수동 API Key 입력 */}
+           <div className="mb-4">
+               <input 
+                   type="password" 
+                   id="apiKeyInput"
+                   placeholder="Gemini API Key를 붙여넣으세요" 
+                   className="w-full py-3 px-4 border border-gray-300 rounded-xl text-center text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+               />
+           </div>
+           <button onClick={() => {
+               const input = document.getElementById('apiKeyInput') as HTMLInputElement;
+               const key = input?.value?.trim();
+               if (key) {
+                   (window as any).__GEMINI_API_KEY__ = key;
+                   setHasApiKey(true);
+               } else {
+                   // AI Studio 환경이면 기존 방식 시도
+                   handleSelectKey();
+               }
+           }} className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"><KeyIcon className="w-5 h-5" /> 시작하기</button>
+           <p className="mt-6 text-xs text-gray-400"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline hover:text-indigo-500">Google AI Studio에서 API Key 발급받기 →</a></p>
         </div>
       </div>
     );
