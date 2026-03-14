@@ -431,6 +431,40 @@ const stripMarkdown = (text: string): string => {
         .trim();
 };
 
+// --- Helper: planSection content를 항목별로 분리 ---
+// "1. 항목A / 2. 항목B / 3. 항목C" 또는 "\n" 구분 모두 지원
+const splitContentItems = (content: string): string[] => {
+    if (!content || !content.trim()) return [];
+    
+    // 1) " / " 구분자로 된 번호 리스트 감지: "1. xxx / 2. xxx / 3. xxx"
+    if (/\d+\.\s*.+\s*\/\s*\d+\./.test(content)) {
+        return content
+            .split(/\s*\/\s*/)
+            .map(s => s.replace(/^\d+\.\s*/, '').replace(/^['"]|['"]$/g, '').trim())
+            .filter(s => s.length > 0);
+    }
+    
+    // 2) 줄바꿈으로 된 번호 리스트: "1. xxx\n2. xxx"
+    if (/^\d+\.\s/m.test(content)) {
+        return content
+            .split(/\n/)
+            .map(s => s.replace(/^\d+\.\s*/, '').replace(/^['"]|['"]$/g, '').trim())
+            .filter(s => s.length > 0);
+    }
+    
+    // 3) 단순 줄바꿈
+    const lines = content.split('\n').filter(l => l.trim());
+    if (lines.length > 1) return lines.map(l => l.trim());
+    
+    // 4) " / " 구분 (번호 없이)
+    if (content.includes(' / ')) {
+        return content.split(' / ').map(s => s.trim()).filter(s => s.length > 0);
+    }
+    
+    // 5) 단일 항목
+    return [content.trim()];
+};
+
 // --- Helper Component for Text Rewriting ---
 const MagicRewriter = ({ text, onUpdate, label, className = "top-0 right-0" }: { text: string, onUpdate: (t: string) => void, label: string, className?: string }) => {
     const [loading, setLoading] = useState(false);
@@ -1111,11 +1145,15 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     setDetailBlocks(initialDetailBlocks);
 
     const propOptions = images.filter(img => img.type === 'option');
-    const initialOptionBlocks: OptionBlock[] = propOptions.map((img, idx) => ({
-        id: `opt-${Date.now()}-${idx}`,
-        image: img.processedUrl || img.originalUrl,
-        text: img.fileName ? stripExtension(img.fileName) : '옵션 설명을 입력하세요'
-    }));
+    const initialOptionBlocks: OptionBlock[] = propOptions.map((img, idx) => {
+        // ★ 디버그: fileName이 왜 안 오는지 추적
+        if (!img.fileName) console.warn(`[옵션 ${idx + 1}] fileName 누락 — App.tsx에서 processedImages에 fileName: file.name 전달 필요`, img);
+        return {
+            id: `opt-${Date.now()}-${idx}`,
+            image: img.processedUrl || img.originalUrl,
+            text: img.fileName ? stripExtension(img.fileName) : `컬러 ${idx + 1}`
+        };
+    });
     setOptionBlocks(initialOptionBlocks);
 
     const initialPointBlocks: PointBlock[] = copy.sellingPoints.map((p, i) => ({
@@ -1239,7 +1277,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   };
   
   const addOptionBlock = () => {
-      setOptionBlocks(prev => [...prev, { id: `opt-${Date.now()}`, image: '', text: '옵션 설명' }]);
+      setOptionBlocks(prev => [...prev, { id: `opt-${Date.now()}`, image: '', text: `컬러 ${prev.length + 1}` }]);
   };
   const updateOptionBlock = (id: string, field: keyof OptionBlock, value: string) => {
       setOptionBlocks(prev => prev.map(b => b.id === id ? { ...b, [field]: value } : b));
@@ -2177,10 +2215,10 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         case 'VISUAL_CLOSEUP': {
             const planType = getPlanData('VISUAL_CLOSEUP')?.type || 'CLOSEUP';
             return (
-                <div className={`w-full py-24 ${themeStyles.bg}`}>
-                    <div className="text-center mb-16 px-10">
-                        <EditableElement value={getPlanTitle(planType, '비주얼 클로즈업')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-5xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-6" toolbarPosition="right" />
-                        <EditableElement value={getPlanContent(planType, '제품의 디테일을 가까이에서 확인하세요')} onChange={(v) => updatePlanContent(planType, v)} isEditMode={isEditMode} aiLabel="Visual Closeup" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                <div className={`w-full py-20 ${themeStyles.bg}`}>
+                    <div className="text-center mb-14 px-10">
+                        <EditableElement value={getPlanTitle(planType, '비주얼 클로즈업')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="tracking-tight mb-4" toolbarPosition="right" />
+                        <EditableElement value={getPlanContent(planType, '제품의 디테일을 가까이에서 확인하세요')} onChange={(v) => updatePlanContent(planType, v)} isEditMode={isEditMode} aiLabel="Visual Closeup" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                     </div>
                     <div className="grid grid-cols-2 gap-1">
                         {detailBlocks.filter(b => b.type === 'IMAGE').slice(0, 4).map((block, idx) => (
@@ -2196,28 +2234,33 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         // ── 고객 후기 ───────────────────
         case 'REVIEW': {
             const planType = getPlanData('REVIEW')?.type || 'REVIEW';
-            const contentVal = getPlanContent(planType, '실제 구매 고객님의 후기입니다');
-            const reviews = contentVal.split('\n').filter(l => l.trim());
+            const contentVal = getPlanContent(planType, '');
+            const rawReviews = splitContentItems(contentVal);
+            const displayReviews = rawReviews.length >= 3 ? rawReviews : [
+                rawReviews[0] || '착용감이 정말 좋아요! 기대 이상이에요',
+                rawReviews[1] || '핏이 예쁘고 소재가 고급스러워요',
+                rawReviews[2] || '컬러가 사진과 동일해서 만족합니다',
+            ];
             return (
-                <div className={`w-full py-24 ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : themeStyles.cardBg}`}>
-                    <div className="text-center mb-16 px-10">
-                        <div className="text-6xl mb-4">💬</div>
-                        <EditableElement value={getPlanTitle(planType, '고객 후기')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-5xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight" toolbarPosition="right" />
+                <div className={`w-full py-20 ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : themeStyles.cardBg}`}>
+                    <div className="text-center mb-14 px-10">
+                        <div className="text-5xl mb-4">💬</div>
+                        <EditableElement value={getPlanTitle(planType, '고객 후기')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="tracking-tight" toolbarPosition="right" />
                     </div>
-                    <div className="max-w-3xl mx-auto px-10 space-y-6">
-                        {reviews.map((review, i) => (
-                            <div key={`review-${i}`} className={`${themeStyles.bg} rounded-2xl p-8 shadow-sm border border-gray-100 ${pageDesign === 'IMPACT' ? 'border-2 border-black' : ''}`}>
-                                <div className="flex items-center gap-1 mb-3">
+                    <div className="max-w-3xl mx-auto px-10 space-y-5">
+                        {displayReviews.map((review, i) => (
+                            <div key={`review-${i}`} className={`${themeStyles.bg} rounded-2xl p-6 shadow-sm border border-gray-100 ${pageDesign === 'IMPACT' ? 'border-2 border-black' : ''}`}>
+                                <div className="flex items-center gap-1 mb-2">
                                     {[...Array(5)].map((_, s) => (
-                                        <span key={s} className="text-yellow-400 text-lg">★</span>
+                                        <span key={s} className="text-yellow-400 text-base">★</span>
                                     ))}
                                 </div>
                                 <EditableElement value={review} onChange={(v) => {
-                                    const lines = contentVal.split('\n');
-                                    lines[i] = v;
-                                    updatePlanContent(planType, lines.join('\n'));
-                                }} isEditMode={isEditMode} aiLabel="Review" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
-                                <div className="mt-4 text-sm text-gray-400 font-medium">구매 고객 {String.fromCharCode(65 + i)}** 님</div>
+                                    const items = [...displayReviews];
+                                    items[i] = v;
+                                    updatePlanContent(planType, items.join('\n'));
+                                }} isEditMode={isEditMode} aiLabel="Review" defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
+                                <div className="mt-3 text-xs text-gray-400 font-medium">구매 고객 {String.fromCharCode(65 + i)}** 님</div>
                             </div>
                         ))}
                     </div>
@@ -2229,22 +2272,22 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         case 'RECOMMEND': {
             const planType = getPlanData('RECOMMEND')?.type || 'RECOMMEND';
             const contentVal = getPlanContent(planType, '모든 분께 추천드립니다');
-            const items = contentVal.split('\n').filter(l => l.trim());
+            const items = splitContentItems(contentVal);
             return (
-                <div className={`w-full py-24 ${themeStyles.bg}`}>
-                    <div className="text-center mb-16 px-10">
-                        <div className="text-6xl mb-4">🎯</div>
-                        <EditableElement value={getPlanTitle(planType, '이런 분께 추천합니다')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-5xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                <div className={`w-full py-20 ${themeStyles.bg}`}>
+                    <div className="text-center mb-14 px-10">
+                        <div className="text-5xl mb-4">🎯</div>
+                        <EditableElement value={getPlanTitle(planType, '이런 분께 추천합니다')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
                     </div>
-                    <div className="max-w-3xl mx-auto px-10 space-y-5">
+                    <div className="max-w-3xl mx-auto px-10 space-y-4">
                         {items.map((item, i) => (
-                            <div key={`recommend-${i}`} className={`flex items-start gap-5 p-6 rounded-xl ${theme.lightBg} ${pageDesign === 'IMPACT' ? 'border-l-4 border-black bg-gray-50' : ''}`}>
-                                <div className={`shrink-0 w-10 h-10 rounded-full ${theme.bg} text-white flex items-center justify-center font-bold text-lg`}>✓</div>
+                            <div key={`recommend-${i}`} className={`flex items-start gap-4 p-5 rounded-xl ${theme.lightBg} ${pageDesign === 'IMPACT' ? 'border-l-4 border-black bg-gray-50' : ''}`}>
+                                <div className={`shrink-0 w-8 h-8 rounded-full ${theme.bg} text-white flex items-center justify-center font-bold text-sm`}>✓</div>
                                 <EditableElement value={item} onChange={(v) => {
-                                    const lines = contentVal.split('\n');
-                                    lines[i] = v;
-                                    updatePlanContent(planType, lines.join('\n'));
-                                }} isEditMode={isEditMode} aiLabel="Recommend" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-800', align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed pt-1" toolbarPosition="right" />
+                                    const all = splitContentItems(contentVal);
+                                    all[i] = v;
+                                    updatePlanContent(planType, all.join('\n'));
+                                }} isEditMode={isEditMode} aiLabel="Recommend" defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-800', align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed pt-0.5" toolbarPosition="right" />
                             </div>
                         ))}
                     </div>
@@ -2256,17 +2299,17 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         case 'SIZE_GUIDE': {
             const planType = getPlanData('SIZE_GUIDE')?.type || 'SIZE';
             return (
-                <div className={`w-full py-24 ${themeStyles.cardBg}`}>
-                    <div className="text-center mb-16 px-10">
-                        <div className="text-6xl mb-4">📐</div>
-                        <EditableElement value={getPlanTitle(planType, '사이즈 가이드')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-5xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase" toolbarPosition="right" />
+                <div className={`w-full py-20 ${themeStyles.cardBg}`}>
+                    <div className="text-center mb-14 px-10">
+                        <div className="text-5xl mb-4">📐</div>
+                        <EditableElement value={getPlanTitle(planType, '사이즈 가이드')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
                     </div>
                     <div className="max-w-4xl mx-auto px-10">
-                        <div className={`${themeStyles.bg} rounded-2xl p-10 shadow-sm border ${themeStyles.tableBorder}`}>
-                            <EditableElement value={getPlanContent(planType, '상세 사이즈 정보를 확인하세요')} onChange={(v) => updatePlanContent(planType, v)} isEditMode={isEditMode} aiLabel="Size Guide" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-center', fontWeight: 'font-normal' }} className="leading-relaxed whitespace-pre-wrap" toolbarPosition="right" />
+                        <div className={`${themeStyles.bg} rounded-2xl p-8 shadow-sm border ${themeStyles.tableBorder}`}>
+                            <EditableElement value={getPlanContent(planType, '상세 사이즈 정보를 확인하세요')} onChange={(v) => updatePlanContent(planType, v)} isEditMode={isEditMode} aiLabel="Size Guide" defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-center', fontWeight: 'font-normal' }} className="leading-relaxed whitespace-pre-wrap" toolbarPosition="right" />
                         </div>
                         {detailBlocks.filter(b => b.type === 'SIZE_CHART').slice(0, 1).map(block => (
-                            <div key={block.id + '-size-ref'} className="mt-8">
+                            <div key={block.id + '-size-ref'} className="mt-6">
                                 <table className={`w-full text-sm border ${themeStyles.tableBorder}`}>
                                     <tbody>
                                         {block.tableData?.map((row, ri) => (
@@ -2287,29 +2330,37 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             );
         }
 
-        // ── 제품 가이드 (사용법/관리법) ───────────────────
+        // ── 제품 가이드 (세탁/관리법) ───────────────────
         case 'PRODUCT_GUIDE': {
             const planType = getPlanData('PRODUCT_GUIDE')?.type || 'GUIDE';
             const contentVal = getPlanContent(planType, '올바른 사용법을 확인하세요');
-            const steps = contentVal.split('\n').filter(l => l.trim());
+            const steps = splitContentItems(contentVal);
             return (
-                <div className={`w-full py-24 ${themeStyles.bg}`}>
-                    <div className="text-center mb-16 px-10">
-                        <div className="text-6xl mb-4">📋</div>
-                        <EditableElement value={getPlanTitle(planType, '제품 사용 가이드')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-5xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                <div className={`w-full py-20 ${themeStyles.bg}`}>
+                    <div className="text-center mb-14 px-10">
+                        <EditableElement value={getPlanTitle(planType, '제품 관리 가이드')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
                     </div>
-                    <div className="max-w-3xl mx-auto px-10 space-y-6">
+                    <div className="max-w-3xl mx-auto px-10 space-y-0">
                         {steps.map((step, i) => (
-                            <div key={`guide-${i}`} className={`flex items-start gap-6 ${pageDesign === 'IMPACT' ? 'border-b-2 border-black pb-6' : `border-b ${themeStyles.tableBorder} pb-6`}`}>
-                                <div className={`shrink-0 w-12 h-12 rounded-full ${theme.bg} text-white flex items-center justify-center font-black text-xl`}>{i + 1}</div>
+                            <div key={`guide-${i}`} className={`flex items-start gap-5 py-5 ${i < steps.length - 1 ? (pageDesign === 'IMPACT' ? 'border-b-2 border-black' : `border-b ${themeStyles.tableBorder}`) : ''}`}>
+                                <div className={`shrink-0 w-10 h-10 rounded-full ${theme.bg} text-white flex items-center justify-center font-black text-base`}>{i + 1}</div>
                                 <EditableElement value={step} onChange={(v) => {
-                                    const lines = contentVal.split('\n');
-                                    lines[i] = v;
-                                    updatePlanContent(planType, lines.join('\n'));
-                                }} isEditMode={isEditMode} aiLabel="Product Guide" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-800', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed pt-2" toolbarPosition="right" />
+                                    const all = splitContentItems(contentVal);
+                                    all[i] = v;
+                                    updatePlanContent(planType, all.join('\n'));
+                                }} isEditMode={isEditMode} aiLabel="Product Guide" defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: 'text-gray-800', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed pt-2" toolbarPosition="right" />
                             </div>
                         ))}
                     </div>
+                    {isEditMode && (
+                        <div className="max-w-3xl mx-auto px-10 mt-8">
+                            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center text-gray-400 hover:border-indigo-400 hover:text-indigo-500 transition-all cursor-pointer">
+                                <PhotoIcon className="w-8 h-8 mx-auto mb-2" />
+                                <span className="text-sm font-bold">세탁/관리 안내 이미지 추가 (선택)</span>
+                                <p className="text-xs text-gray-400 mt-1">세탁 기호 이미지를 여기에 드래그하세요</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
@@ -2318,27 +2369,27 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         case 'CAUTION_NOTE': {
             const planType = getPlanData('CAUTION_NOTE')?.type || 'CAUTION';
             const contentVal = getPlanContent(planType, '구매 전 꼭 확인해주세요');
-            const notes = contentVal.split('\n').filter(l => l.trim());
+            const notes = splitContentItems(contentVal);
             return (
-                <div className={`w-full py-24 ${themeStyles.cardBg}`}>
-                    <div className="text-center mb-16 px-10">
-                        <EditableElement value={getPlanTitle(planType, '구매 전 확인사항')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-5xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                <div className={`w-full py-20 ${themeStyles.cardBg}`}>
+                    <div className="text-center mb-14 px-10">
+                        <EditableElement value={getPlanTitle(planType, '구매 전 확인사항')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
                     </div>
                     <div className="max-w-3xl mx-auto px-10">
-                        <div className={`${pageDesign === 'IMPACT' ? 'bg-white border-4 border-black' : 'bg-amber-50 border-2 border-amber-200'} rounded-xl p-10`}>
-                            <div className="flex items-center gap-3 mb-6">
-                                <span className="text-3xl">⚠️</span>
-                                <span className={`text-xl font-bold ${pageDesign === 'IMPACT' ? 'text-black' : 'text-amber-700'}`}>반드시 확인해주세요</span>
+                        <div className={`${pageDesign === 'IMPACT' ? 'bg-white border-4 border-black' : 'bg-amber-50 border-2 border-amber-200'} rounded-xl p-8`}>
+                            <div className="flex items-center gap-3 mb-5">
+                                <span className="text-2xl">⚠️</span>
+                                <span className={`text-lg font-bold ${pageDesign === 'IMPACT' ? 'text-black' : 'text-amber-700'}`}>반드시 확인해주세요</span>
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 {notes.map((note, i) => (
                                     <div key={`caution-${i}`} className="flex items-start gap-3">
-                                        <span className={`shrink-0 mt-1 w-2 h-2 rounded-full ${pageDesign === 'IMPACT' ? 'bg-black' : 'bg-amber-500'}`}></span>
+                                        <span className={`shrink-0 mt-2 w-1.5 h-1.5 rounded-full ${pageDesign === 'IMPACT' ? 'bg-black' : 'bg-amber-500'}`}></span>
                                         <EditableElement value={note} onChange={(v) => {
-                                            const lines = contentVal.split('\n');
-                                            lines[i] = v;
-                                            updatePlanContent(planType, lines.join('\n'));
-                                        }} isEditMode={isEditMode} aiLabel="Caution" defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
+                                            const all = splitContentItems(contentVal);
+                                            all[i] = v;
+                                            updatePlanContent(planType, all.join('\n'));
+                                        }} isEditMode={isEditMode} aiLabel="Caution" defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
                                     </div>
                                 ))}
                             </div>
@@ -2347,6 +2398,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
             );
         }
+
 
         default: return null;
     }
