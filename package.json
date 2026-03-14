@@ -14,7 +14,8 @@
     "@google/genai": "^1.33.0",
     "@heroicons/react": "^2.2.0",
     "lucide-react": "^0.400.0",
-    "html2canvas": "^1.4.1"
+    "html2canvas": "^1.4.1",
+    "react-dropzone": "^14.2.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
