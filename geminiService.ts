@@ -224,31 +224,42 @@ export const regenerateCopy = async (
   fieldLabel: string
 ): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `Rewrite this '${fieldLabel}' text for a Korean e-commerce page. 
-  Rules:
-  1. No trailing periods (.).
-  2. Phrase-based breaks: Insert \\n only at natural semantic boundaries.
-  3. Do not split words.
-  4. Professional and emotional tone.
-  5. CRITICAL: Return PLAIN TEXT ONLY. No markdown formatting whatsoever - no **bold**, no *italic*, no # headings, no - bullet lists, no numbered lists, no backticks.
-  6. Do NOT include labels like "옵션1." or numbering prefixes.
-  
-  Current: "${currentText}"`;
+  const prompt = `You are a Korean e-commerce copywriter. Rewrite the text below into ONE short, polished version.
+
+ABSOLUTE RULES:
+- Return ONLY the rewritten text. Nothing else.
+- Do NOT provide multiple options or alternatives.
+- Do NOT include any explanation, intro, or preamble like "요청하신 규칙에 맞춰" or "제안해 드립니다".
+- Do NOT use markdown: no **, no *, no #, no - lists, no numbered lists, no backticks, no --- dividers.
+- Do NOT add labels like "옵션 1." or "[MD's Pick]".
+- No trailing periods.
+- Keep it concise - similar length or shorter than the original.
+- Use natural line breaks (\\n) at semantic boundaries only.
+- Professional, emotional Korean tone.
+
+Text to rewrite:
+${currentText}`;
   const response = await ai.models.generateContent({
     model: TEXT_MODEL, 
     contents: prompt,
-    config: { temperature: 0.85 }
+    config: { temperature: 0.8 }
   });
   let text = response.text?.trim() || currentText;
-  // 마크다운 잔여물 후처리
+  // 마크다운/번호/서론 잔여물 후처리
   text = text
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/\*(.+?)\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
     .replace(/^#+\s*/gm, '')
     .replace(/^[-*•]\s+/gm, '')
     .replace(/^\d+\.\s+/gm, '')
     .replace(/`(.+?)`/g, '$1')
+    .replace(/^---+$/gm, '')
     .replace(/\\n/g, '\n')
+    .replace(/^\s*\[?옵션\s*\d+\.?\]?\s*/gm, '')
+    .replace(/^\s*\(추천\)\s*/gm, '')
+    .replace(/^\s*\[MD'?s?\s*Pick\]\s*/gim, '')
+    .replace(/요청하신.*?제안해\s*드립니다\.?\s*/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
   if (text.endsWith('.')) text = text.slice(0, -1);

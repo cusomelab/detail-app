@@ -1,60 +1,43 @@
-# detail-app 패치 (2026-03-14)
+# detail-app 패치 v2 (2026-03-14)
 
 ## 파일 교체 경로
 ```
 cusomelab/detail-app/src/
 ├── components/ResultPreview.tsx  ← 교체
 ├── services/geminiService.ts     ← 교체
-└── types.ts                      ← 교체 (PlanSection, ProductInfoDisclosure 타입 추가)
+└── types.ts                      ← 교체
 ```
 
-## 수정 내역
+## v2 수정 내역 (스크린샷 피드백 6건 반영)
 
-### 1. 옵션 이미지 텍스트 → 파일명 초기값
-- `useEffect`에서 `getEnrichedCopy()` 사용으로 planSections 데이터 정상 반영
-- 옵션 블록: `img.fileName` → `stripExtension(file.name)` 로직 정상 동작 확인
-- 새 파일 업로드/드래그 시에도 파일명 자동 설정
+### 1. 글씨 잘림 해결
+- 모든 신규 섹션 제목: text-5xl → text-3xl
+- 본문/항목: text-2xl → text-base~text-lg
+- 리뷰 카드: text-xl → text-base
+- 전체 padding/margin 축소
 
-### 2. AI 수정 마크다운 버그 수정
-- **geminiService.ts**: 프롬프트에 "PLAIN TEXT ONLY. No markdown" 지시 추가
-- **geminiService.ts**: 응답 후처리에 정규식 strip 추가 (이중 방어)
-- **ResultPreview.tsx**: 모듈 레벨 `stripMarkdown()` 헬퍼 추가
-- **MagicRewriter**: `onUpdate(stripMarkdown(newText))` 적용
+### 2. 문단 줄바꿈 → splitContentItems() 스마트 파서 추가
+- "1. 항목A / 2. 항목B / 3. 항목C" 패턴 자동 분리
+- 줄바꿈 번호 리스트 자동 분리
+- 번호 prefix 자동 제거
+- REVIEW, RECOMMEND, PRODUCT_GUIDE, CAUTION_NOTE 모두 적용
 
-### 3. 정보고시 중복 삭제
-- INFO 섹션 내 **상단 Product Info 테이블** (소재/제조국/세탁방법 4x3 테이블) 완전 삭제
-- **하단 상품 정보고시** 테이블에 누락 데이터 보완:
-  - `제품명` 행 추가
-  - `원산지`, `소재/재질` → infoDisclosure 우선, 없으면 editableCopy fallback
-  - FASHION 카테고리: `세탁방법` 기본값 = "미지근한 물에 중성세제로 손세탁 또는 세탁망에 넣어 울코스 세탁을 권장합니다"
-- copyright 텍스트는 정보고시 상단에 유지
+### 3. AI 수정 프롬프트 전면 재작성
+- ONE version only, no alternatives
+- 서론/옵션번호/MD's Pick 라벨 후처리 제거
+- temperature 0.85 → 0.8
 
-### 4. 13개 기획안 → 실제 디자인 섹션 반영
-- **SectionType 확장**: 6개 신규 타입 추가
-  - `VISUAL_CLOSEUP` (비주얼 클로즈업) - 2x2 그리드 갤러리
-  - `REVIEW` (고객 후기) - 별점 카드 레이아웃
-  - `RECOMMEND` (추천 대상) - 체크마크 리스트
-  - `SIZE_GUIDE` (사이즈 가이드) - 사이즈표 연동
-  - `PRODUCT_GUIDE` (제품 가이드) - 스텝 바이 스텝
-  - `CAUTION_NOTE` (구매 전 확인사항) - 경고 박스
-- **getInitialSectionOrder()**: planSection.type → SectionType 1:1 매핑 (축소 금지)
-- **editablePlanData** state: 모든 신규 섹션의 title/content 편집 가능
-- **삭제 가능**: HERO/DETAILS/INFO 제외 모든 섹션에 삭제 버튼 활성화
-- 모든 신규 섹션이 3가지 디자인 무드(MODERN/EMOTIONAL/IMPACT) + 6가지 테마 컬러 지원
+### 4. 리뷰 3개 보장
+- 3개 미만이면 기본 리뷰 자동 보충
 
-## types.ts 추가 타입
-```typescript
-export interface PlanSection {
-  type: string;
-  title: string;
-  content: string;
-  enabled: boolean;
-}
+### 5. 옵션 텍스트 개선
+- fallback: "옵션 설명을 입력하세요" → "컬러 1"
+- fileName 누락 시 console.warn 디버그
 
-export interface ProductInfoDisclosure {
-  manufacturer?: string;
-  origin?: string;
-  material?: string;
-  // ... (총 15개 필드)
-}
-```
+### 6. 세탁 가이드 개선
+- 세탁 기호 이미지 업로드 슬롯 추가 (편집 모드)
+- 제목: "제품 관리 가이드"
+
+## App.tsx 주의사항
+옵션 이미지가 파일명 대신 "컬러 N"으로 나오면
+App.tsx processedImages에 fileName: file.name 전달 확인 필요
