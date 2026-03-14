@@ -137,7 +137,7 @@ function App() {
   if (activeTab==='detail') {
     if (step===AppStep.PROCESSING) return <ProcessingStep logs={logs} />;
     if (step===AppStep.PLAN) return <PlanStep sections={planSections} productName={productData.productName} category={productData.category} onConfirm={handleGenerateDetail} onBack={()=>setStep(AppStep.INPUT)} />;
-    if (step===AppStep.RESULT&&generatedCopy) return <ResultPreview copy={generatedCopy} images={processedImages} productName={productData.productName} category={productData.category} infoDisclosure={infoDisclosure} onReset={resetDetail} />;
+    if (step===AppStep.RESULT&&generatedCopy) return <ResultPreview copy={generatedCopy} images={processedImages} productName={productData.productName} category={productData.category} infoDisclosure={infoDisclosure} planSections={planSections} onReset={resetDetail} />;
   }
 
   return (
