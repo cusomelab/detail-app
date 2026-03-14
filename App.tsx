@@ -7,6 +7,7 @@ import { ArrowUpTrayIcon, PhotoIcon, SparklesIcon, KeyIcon, LinkIcon, ShoppingBa
 
 function App() {
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [apiKey, setApiKey] = useState('');
   const [step, setStep] = useState<AppStep>(AppStep.INPUT);
   const [logs, setLogs] = useState<string[]>([]);
   
@@ -51,20 +52,16 @@ function App() {
       win.aistudio.hasSelectedApiKey().then((hasKey: boolean) => setHasApiKey(hasKey));
       return;
     }
-    // 2) sessionStorage에서 복원 (이전에 입력한 키)
+    // 2) sessionStorage에서 복원
     try {
       const saved = sessionStorage.getItem('GEMINI_API_KEY');
       if (saved && saved.length > 10) {
+        setApiKey(saved);
         win.__GEMINI_API_KEY__ = saved;
         setHasApiKey(true);
         return;
       }
     } catch {}
-    // 3) window에 직접 설정된 키
-    if (win.__GEMINI_API_KEY__ && win.__GEMINI_API_KEY__.length > 10) {
-      setHasApiKey(true);
-      return;
-    }
     setHasApiKey(false);
   }, []);
 
@@ -197,6 +194,20 @@ function App() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // ★ API Key 최종 복원 + 확인
+    const win = window as any;
+    if (!win.__GEMINI_API_KEY__) {
+        try {
+            const saved = sessionStorage.getItem('GEMINI_API_KEY');
+            if (saved && saved.length > 10) win.__GEMINI_API_KEY__ = saved;
+        } catch {}
+    }
+    if (!win.__GEMINI_API_KEY__) {
+        alert('API Key가 설정되지 않았습니다.\n페이지를 새로고침하고 API Key를 다시 입력해주세요.');
+        setHasApiKey(false);
+        return;
+    }
+
     setStep(AppStep.PROCESSING);
     setLogs([]);
     setProcessedImages([]);
@@ -273,6 +284,7 @@ function App() {
       if (errMsg.includes("Requested entity was not found") || errMsg.includes("API key") || errMsg.includes("API Key") || errMsg.includes("PERMISSION_DENIED") || errMsg.includes("API_KEY_INVALID") || errMsg.includes("403")) {
         alert(`API Key 오류: ${fullMsg}\n\n키를 다시 입력해주세요.`);
         (window as any).__GEMINI_API_KEY__ = null;
+        setApiKey('');
         try { sessionStorage.removeItem('GEMINI_API_KEY'); } catch {}
         setHasApiKey(false);
         setStep(AppStep.INPUT);
@@ -308,9 +320,11 @@ function App() {
                    alert('API Key를 입력해주세요.');
                    return;
                }
-               // ★ 이중 저장: window + sessionStorage
+               // ★ 3중 저장: React state + window + sessionStorage
+               setApiKey(key);
                (window as any).__GEMINI_API_KEY__ = key;
                try { sessionStorage.setItem('GEMINI_API_KEY', key); } catch {}
+               console.log('API Key saved:', key.substring(0, 8) + '...');
                setHasApiKey(true);
            }} id="apiStartBtn" className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"><KeyIcon className="w-5 h-5" /> 시작하기</button>
            <p className="mt-6 text-xs text-gray-400"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline hover:text-indigo-500">Google AI Studio에서 API Key 발급받기 →</a></p>

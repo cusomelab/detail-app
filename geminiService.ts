@@ -8,24 +8,6 @@ const IMAGE_MODEL = 'gemini-3-pro-image-preview';
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOVE_TEXT' | 'ERASE_PART' | 'CUSTOM';
 
-// ★ API Key 가져오기 (window 전역변수 + sessionStorage 전용)
-const getApiKey = (): string => {
-    if (typeof window !== 'undefined') {
-        // 1) window 전역변수
-        const winKey = (window as any).__GEMINI_API_KEY__;
-        if (winKey && typeof winKey === 'string' && winKey.length > 10) return winKey;
-        // 2) sessionStorage에서 복원
-        try {
-            const saved = sessionStorage.getItem('GEMINI_API_KEY');
-            if (saved && saved.length > 10) {
-                (window as any).__GEMINI_API_KEY__ = saved;
-                return saved;
-            }
-        } catch {}
-    }
-    throw new Error('API 키가 설정되지 않았습니다. 페이지를 새로고침하고 API Key를 다시 입력해주세요.');
-};
-
 /**
  * Converts a File object to a Base64 string suitable for Gemini API.
  */
@@ -45,8 +27,8 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
 /**
  * Analyzes a benchmark URL using Google Search Grounding to extract key selling points.
  */
-async function analyzeBenchmarkUrl(url: string): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+async function analyzeBenchmarkUrl(url: string, apiKey: string): Promise<string> {
+    const ai = new GoogleGenAI({ apiKey });
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -97,13 +79,16 @@ export const generateProductCopy = async (
   features: string,
   category: ProductCategory,
   benchmarkUrl?: string,
-  mainImage?: File | null
+  mainImage?: File | null,
+  apiKey?: string
 ): Promise<GeneratedCopy> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const key = apiKey || (window as any).__GEMINI_API_KEY__ || '';
+  if (!key) throw new Error('API 키가 설정되지 않았습니다.');
+  const ai = new GoogleGenAI({ apiKey: key });
   
   let benchmarkContext = "";
   if (benchmarkUrl) {
-      benchmarkContext = await analyzeBenchmarkUrl(benchmarkUrl);
+      benchmarkContext = await analyzeBenchmarkUrl(benchmarkUrl, key);
   }
 
   // Dynamic Persona based on Category
@@ -241,7 +226,7 @@ export const regenerateCopy = async (
   currentText: string,
   fieldLabel: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const ai = new GoogleGenAI({ apiKey: (window as any).__GEMINI_API_KEY__ || "" });
   const prompt = `You are a Korean e-commerce copywriter. Rewrite the text below into ONE short, polished version.
 
 ABSOLUTE RULES:
@@ -290,7 +275,7 @@ export const processProductImage = async (
   maskFile?: File,
   customPrompt?: string
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const ai = new GoogleGenAI({ apiKey: (window as any).__GEMINI_API_KEY__ || "" });
   const base64Data = await fileToGenerativePart(imageFile);
   let prompt = "";
   const parts: any[] = [{ inlineData: { mimeType: imageFile.type, data: base64Data } }];
