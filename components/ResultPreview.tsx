@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GeneratedCopy, ProcessedImage, ProductCategory } from '../types';
@@ -84,6 +83,64 @@ const THEME_COLORS: Record<PointThemeColor, { bg: string, text: string, border: 
     ORANGE: { bg: 'bg-orange-500', text: 'text-orange-500', border: 'border-orange-500', lightBg: 'bg-orange-50', badge: 'bg-orange-500' },
 };
 
+// ── 카테고리별 감성 디자인 시스템 ─────────────────────
+const CATEGORY_DESIGN: Record<ProductCategory, {
+    heroBg: string; heroAccent: string; heroText: string;
+    storyBg: string; storyAccent: string;
+    pointBg: string; pointPanel: string; pointAccent: string; pointNum: string;
+    infoBg: string;
+    badge1: string; badge2: string;
+}> = {
+    FASHION: {
+        heroBg: 'linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+        heroAccent: '#c9a96e', heroText: '#fff8f0',
+        storyBg: 'linear-gradient(135deg, #faf8f5 0%, #f0ebe3 100%)',
+        storyAccent: '#8b6f5c',
+        pointBg: '#faf8f5',
+        pointPanel: 'linear-gradient(135deg, #1a1a2e 0%, #2d2d4e 100%)',
+        pointAccent: '#c9a96e', pointNum: '#c9a96e',
+        infoBg: '#f5f2ed',
+        badge1: 'linear-gradient(90deg, #1a1a2e, #0f3460)',
+        badge2: 'linear-gradient(90deg, #8b6f5c, #c9a96e)',
+    },
+    LIVING: {
+        heroBg: 'linear-gradient(160deg, #2d3b2d 0%, #3d5c3d 50%, #4a6741 100%)',
+        heroAccent: '#c8b97a', heroText: '#f8f5ee',
+        storyBg: 'linear-gradient(135deg, #f4f1eb 0%, #ede6d6 100%)',
+        storyAccent: '#6b7c5c',
+        pointBg: '#f8f5ee',
+        pointPanel: 'linear-gradient(135deg, #2d3b2d 0%, #4a6741 100%)',
+        pointAccent: '#c8b97a', pointNum: '#8fa870',
+        infoBg: '#f0ede5',
+        badge1: 'linear-gradient(90deg, #2d3b2d, #4a6741)',
+        badge2: 'linear-gradient(90deg, #7a8c5c, #c8b97a)',
+    },
+    KITCHEN: {
+        heroBg: 'linear-gradient(160deg, #1a1a1a 0%, #2c2c2c 50%, #3d3d3d 100%)',
+        heroAccent: '#e8e0d0', heroText: '#f5f5f5',
+        storyBg: 'linear-gradient(135deg, #f5f5f5 0%, #ebebeb 100%)',
+        storyAccent: '#555555',
+        pointBg: '#f8f8f8',
+        pointPanel: 'linear-gradient(135deg, #1a1a1a 0%, #3d3d3d 100%)',
+        pointAccent: '#e8e0d0', pointNum: '#888888',
+        infoBg: '#f0f0f0',
+        badge1: 'linear-gradient(90deg, #1a1a1a, #3d3d3d)',
+        badge2: 'linear-gradient(90deg, #555555, #888888)',
+    },
+    FOOD: {
+        heroBg: 'linear-gradient(160deg, #3d1f0d 0%, #6b3a1f 50%, #a0522d 100%)',
+        heroAccent: '#f5c842', heroText: '#fff9f0',
+        storyBg: 'linear-gradient(135deg, #fff9f0 0%, #fef0d8 100%)',
+        storyAccent: '#b5611a',
+        pointBg: '#fff9f0',
+        pointPanel: 'linear-gradient(135deg, #3d1f0d 0%, #7a3520 100%)',
+        pointAccent: '#f5c842', pointNum: '#e07a30',
+        infoBg: '#fef5e7',
+        badge1: 'linear-gradient(90deg, #3d1f0d, #7a3520)',
+        badge2: 'linear-gradient(90deg, #b5611a, #e07a30)',
+    },
+};
+
 const FONT_FAMILIES = [
     { name: '기본 (고딕)', value: 'font-sans' },
     { name: '명조체', value: 'font-serif-kr' },
@@ -103,44 +160,44 @@ const getThemeByCategory = (category: ProductCategory): PointThemeColor => {
 const getHeadersByCategory = (category: ProductCategory) => {
     switch (category) {
         case 'FOOD': return {
-            heroSubtitle: "Fresh & Delicious",
-            heroBadge: "Best Taste",
-            newArrival: "Fresh Food Market",
-            whyThisItem: "Why This Taste?",
-            whySub: "이 맛을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Delicious Recipe"
+            heroSubtitle: "TASTE OF THE SEASON",
+            heroBadge: "✦ LIMITED",
+            newArrival: "오늘의 추천 식품",
+            whyThisItem: "왜 이 맛인가요?",
+            whySub: "한 번 먹으면 잊을 수 없는 이유",
+            detailView: "상세 들여다보기",
+            productInfo: "상품 정보",
+            moodStory: "맛있는 이야기"
         };
         case 'LIVING': return {
-            heroSubtitle: "Home Styling",
-            heroBadge: "Best Item",
-            newArrival: "Home & Living Best",
-            whyThisItem: "Check Point",
-            whySub: "이 상품을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Space & Mood"
+            heroSubtitle: "YOUR SPACE, YOUR STORY",
+            heroBadge: "✦ CURATED",
+            newArrival: "공간을 바꾸는 아이템",
+            whyThisItem: "이 공간이 달라집니다",
+            whySub: "선택해야 하는 3가지 이유",
+            detailView: "디테일 확인하기",
+            productInfo: "상품 정보",
+            moodStory: "공간 & 무드"
         };
         case 'KITCHEN': return {
-            heroSubtitle: "Smart Kitchen",
-            heroBadge: "Chef's Choice",
-            newArrival: "Premium Kitchenware",
-            whyThisItem: "Smart Point",
-            whySub: "이 상품을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Kitchen Guide"
+            heroSubtitle: "SMART KITCHEN LIFE",
+            heroBadge: "✦ CHEF'S PICK",
+            newArrival: "주방을 바꾸는 선택",
+            whyThisItem: "스마트한 선택",
+            whySub: "요리가 즐거워지는 이유",
+            detailView: "상세 확인하기",
+            productInfo: "상품 정보",
+            moodStory: "키친 가이드"
         };
         default: return {
-            heroSubtitle: "Premium Quality",
-            heroBadge: "Best Seller",
-            newArrival: "New Arrival Collection",
-            whyThisItem: "Why This Item?",
-            whySub: "이 상품을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Mood & Story"
+            heroSubtitle: "NEW SEASON COLLECTION",
+            heroBadge: "✦ BEST SELLER",
+            newArrival: "이번 시즌 주목 아이템",
+            whyThisItem: "왜 이 옷인가요?",
+            whySub: "소장해야 하는 이유",
+            detailView: "디테일 확인하기",
+            productInfo: "상품 정보",
+            moodStory: "무드 & 스토리"
         };
     }
 };
@@ -450,6 +507,7 @@ interface EditableElementProps {
     enableVerticalAlign?: boolean;
     enableDrag?: boolean; 
     className?: string;
+    style?: React.CSSProperties;
     aiLabel?: string; 
     toolbarPosition?: 'default' | 'right';
 }
@@ -457,7 +515,7 @@ interface EditableElementProps {
 const EditableElement: React.FC<EditableElementProps> = ({
     value, onChange, onDelete, onStyleChange, isEditMode, placeholder, defaultStyle, 
     allowStyleChange = true, enableVerticalAlign = false, enableDrag = false, 
-    className = "", aiLabel, toolbarPosition = 'default'
+    className = "", style: externalStyle, aiLabel, toolbarPosition = 'default'
 }) => {
     const [style, setStyle] = useState<TextStyle>(defaultStyle);
     const [isFocused, setIsFocused] = useState(false);
@@ -538,6 +596,7 @@ const EditableElement: React.FC<EditableElementProps> = ({
     const inlineStyle: React.CSSProperties = {
         color: isHexColor ? style.color : undefined,
         backgroundColor: isHexBg ? style.backgroundColor : undefined,
+        ...externalStyle,
     };
     
     const positionStyle: React.CSSProperties = enableDrag ? {
@@ -1186,128 +1245,180 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
 
   const renderSectionContent = (type: SectionType) => {
     const theme = THEME_COLORS[pointTheme];
+    const catDesign = CATEGORY_DESIGN[category];
     switch (type) {
         case 'HERO': return (
-            <div className="w-full bg-white flex flex-col">
-                        <div 
-                            className={`relative w-full bg-gray-50 min-h-[500px] flex items-center justify-center overflow-hidden transition-all border-b-0 ${dragOverId === 'main' ? 'border-4 border-dashed border-indigo-500 bg-indigo-50' : ''}`}
-                            onDragEnter={(e) => handleDragEnter(e, 'main')}
-                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleImageDrop(e, 'main', (file) => {
-                                const url = URL.createObjectURL(file);
-                                setMainImage(url);
-                                openCropper('main', url, 'MAIN');
-                            })}
-                        >
-                            {mainImage ? (
-                                <>
-                                    <img src={mainImage} alt="Main" className="w-full h-auto block object-cover" crossOrigin="anonymous" />
-                                    {isEditMode && (
-                                        <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
-                                            <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all">
-                                                <ArrowPathIcon className="w-4 h-4" /> <span className="text-xs font-bold">교체</span>
-                                                <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
-                                            </label>
-                                            <button onClick={() => openCropper('main', mainImage, 'MAIN')} className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all text-xs font-bold">
-                                                <ScissorsIcon className="w-4 h-4" /> 자르기
-                                            </button>
-                                            <div className="relative">
-                                                <button onClick={() => setActiveAiMenuId(activeAiMenuId === 'MAIN' ? null : 'MAIN')} disabled={isProcessingMain} className="bg-indigo-600 text-white p-2 rounded-lg flex items-center gap-2 px-4 shadow-xl text-xs font-bold hover:bg-indigo-700 w-full justify-center">
-                                                    {isProcessingMain ? "..." : <SparklesIcon className="w-4 h-4" />} AI 편집 도구
-                                                </button>
-                                                {renderAiMenu('MAIN', (mode) => handleAiProcessMain(mode))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            ) : (
-                                <label className="w-full h-[500px] flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100">
-                                    <PhotoIcon className="w-20 h-20 mb-4" />
-                                    <span className="text-2xl font-bold">대표 이미지 업로드</span>
-                                    <span className="text-sm font-normal mt-2">또는 이미지를 드래그하세요</span>
-                                    <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
-                                </label>
-                            )}
-                            
-                            <div className="absolute top-10 left-10 z-10 flex gap-2">
-                                {visibleHeaders.heroSubtitle && (
-                                    <EditableElement key={`sub-${pointTheme}`} value={headers.heroSubtitle} onChange={(v) => handleHeaderChange('heroSubtitle', v)} isEditMode={isEditMode} onDelete={() => toggleHeaderVisibility('heroSubtitle')} defaultStyle={{ fontSize: 'text-4xl', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold' }} className={`${theme.bg} px-5 py-2 uppercase tracking-wider shadow-sm`} toolbarPosition="right" />
-                                )}
-                                {visibleHeaders.heroBadge && (
-                                     <EditableElement value={headers.heroBadge} onChange={(v) => handleHeaderChange('heroBadge', v)} isEditMode={isEditMode} onDelete={() => toggleHeaderVisibility('heroBadge')} defaultStyle={{ fontSize: 'text-4xl', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold' }} className="bg-black px-5 py-2 uppercase tracking-wider shadow-sm" toolbarPosition="right" />
-                                )}
-                            </div>
-                        </div>
-                        <div className="w-full bg-white px-10 py-16 text-center border-b border-gray-100 relative">
-                            {visibleHeaders.newArrival && (
-                                <div className="mb-6 flex justify-center">
-                                     <EditableElement key={`new-${pointTheme}`} value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: 'font-sans', color: theme.text, align: 'text-center', fontWeight: 'font-bold' }} className="uppercase tracking-[0.3em]" toolbarPosition="right" />
+            <div className="w-full flex flex-col">
+                {/* 이미지 영역 */}
+                <div
+                    className={`relative w-full overflow-hidden ${dragOverId === 'main' ? 'ring-4 ring-inset ring-white/50' : ''}`}
+                    style={{ background: catDesign.heroBg, minHeight: mainImage ? 'auto' : '560px' }}
+                    onDragEnter={(e) => handleDragEnter(e, 'main')}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleImageDrop(e, 'main', (file) => {
+                        const url = URL.createObjectURL(file);
+                        setMainImage(url);
+                        openCropper('main', url, 'MAIN');
+                    })}
+                >
+                    {mainImage ? (
+                        <>
+                            <img src={mainImage} alt="Main" className="w-full h-auto block" crossOrigin="anonymous" />
+                            {/* 하단 그라디언트 오버레이 */}
+                            <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none" style={{ background: `linear-gradient(to top, ${catDesign.heroBg.split(',')[0].replace('linear-gradient(160deg, ', '')} 0%, transparent 100%)` }} />
+                            {isEditMode && (
+                                <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
+                                    <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all">
+                                        <ArrowPathIcon className="w-4 h-4" /> <span className="text-xs font-bold">교체</span>
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
+                                    </label>
+                                    <button onClick={() => openCropper('main', mainImage, 'MAIN')} className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all text-xs font-bold">
+                                        <ScissorsIcon className="w-4 h-4" /> 자르기
+                                    </button>
+                                    <div className="relative">
+                                        <button onClick={() => setActiveAiMenuId(activeAiMenuId === 'MAIN' ? null : 'MAIN')} disabled={isProcessingMain} className="text-white p-2 rounded-lg flex items-center gap-2 px-4 shadow-xl text-xs font-bold w-full justify-center" style={{ background: catDesign.pointPanel }}>
+                                            {isProcessingMain ? "..." : <SparklesIcon className="w-4 h-4" />} AI 편집
+                                        </button>
+                                        {renderAiMenu('MAIN', (mode) => handleAiProcessMain(mode))}
+                                    </div>
                                 </div>
                             )}
-                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-6xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-black' }} className="mb-8 leading-normal" toolbarPosition="right" />
-                            <div className="w-20 h-2 bg-gray-900 mx-1"></div>
-                        </div>
+                        </>
+                    ) : (
+                        <label className="w-full h-[560px] flex flex-col items-center justify-center cursor-pointer group">
+                            <div className="w-24 h-24 rounded-full flex items-center justify-center mb-6 border-2 border-dashed" style={{ borderColor: catDesign.heroAccent }}>
+                                <PhotoIcon className="w-10 h-10" style={{ color: catDesign.heroAccent }} />
+                            </div>
+                            <span className="text-xl font-bold mb-2" style={{ color: catDesign.heroAccent }}>대표 이미지 업로드</span>
+                            <span className="text-sm" style={{ color: `${catDesign.heroAccent}88` }}>또는 드래그 & 드롭</span>
+                            <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
+                        </label>
+                    )}
+
+                    {/* 뱃지 - 이미지 위 */}
+                    <div className="absolute top-8 left-8 z-10 flex flex-col gap-3">
+                        {visibleHeaders.heroSubtitle && (
+                            <EditableElement key={`sub-${pointTheme}`} value={headers.heroSubtitle} onChange={(v) => handleHeaderChange('heroSubtitle', v)} isEditMode={isEditMode} onDelete={() => toggleHeaderVisibility('heroSubtitle')} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-white', align: 'text-left', fontWeight: 'font-bold' }} className="px-4 py-2 uppercase tracking-[0.25em] text-xs" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)', borderLeft: `3px solid ${catDesign.heroAccent}` }} toolbarPosition="right" />
+                        )}
+                        {visibleHeaders.heroBadge && (
+                            <EditableElement value={headers.heroBadge} onChange={(v) => handleHeaderChange('heroBadge', v)} isEditMode={isEditMode} onDelete={() => toggleHeaderVisibility('heroBadge')} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-white', align: 'text-left', fontWeight: 'font-bold' }} className="px-4 py-2 uppercase tracking-[0.2em] text-xs" style={{ background: `${catDesign.heroAccent}cc`, backdropFilter: 'blur(4px)' }} toolbarPosition="right" />
+                        )}
+                    </div>
                 </div>
+
+                {/* 메인 카피 영역 */}
+                <div className="w-full px-12 py-20 text-center relative" style={{ background: catDesign.heroBg }}>
+                    {/* 장식선 */}
+                    <div className="flex items-center justify-center gap-4 mb-8">
+                        <div className="h-px w-16" style={{ background: catDesign.heroAccent }}></div>
+                        {visibleHeaders.newArrival && (
+                            <EditableElement key={`new-${pointTheme}`} value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold' }} className="uppercase tracking-[0.4em] opacity-80" toolbarPosition="right" />
+                        )}
+                        <div className="h-px w-16" style={{ background: catDesign.heroAccent }}></div>
+                    </div>
+
+                    <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-5xl', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-black' }} className="leading-tight mb-10" toolbarPosition="right" />
+
+                    {/* 하단 장식 */}
+                    <div className="flex items-center justify-center gap-3 mt-8">
+                        <div className="w-2 h-2 rounded-full" style={{ background: catDesign.heroAccent }}></div>
+                        <div className="w-8 h-px" style={{ background: catDesign.heroAccent }}></div>
+                        <div className="w-2 h-2 rounded-full" style={{ background: catDesign.heroAccent }}></div>
+                    </div>
+                </div>
+            </div>
         );
         case 'STORY': return (
-            <div className="w-full bg-[#fdfbf7] py-24 px-12 text-center relative">
-                        <span className="text-8xl text-gray-300 font-serif mb-6 block leading-none">"</span>
-                        <EditableElement value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-4xl', fontFamily: 'font-serif-kr', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }} className="leading-normal mx-auto" toolbarPosition="right" />
-                        <span className="text-8xl text-gray-300 font-serif mt-6 block leading-none">"</span>
-                        {visibleHeaders.moodStory && (
-                            <div className="mt-16 flex justify-center items-center gap-6">
-                                <span className="h-[1px] w-32 bg-gray-300"></span>
-                                <EditableElement key={`mood-${pointTheme}`} value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: 'font-serif-kr', color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
-                                <span className="h-[1px] w-32 bg-gray-300"></span>
-                            </div>
-                        )}
+            <div className="w-full relative overflow-hidden" style={{ background: catDesign.storyBg }}>
+                {/* 장식 배경 원 */}
+                <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10 pointer-events-none" style={{ background: catDesign.storyAccent, transform: 'translate(30%, -30%)' }} />
+                <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full opacity-8 pointer-events-none" style={{ background: catDesign.storyAccent, transform: 'translate(-30%, 30%)' }} />
+
+                <div className="relative px-16 py-24 text-center">
+                    {/* 섹션 레이블 */}
+                    {visibleHeaders.moodStory && (
+                        <div className="flex items-center justify-center gap-4 mb-12">
+                            <div className="h-px w-12" style={{ background: catDesign.storyAccent }}></div>
+                            <EditableElement key={`mood-${pointTheme}`} value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: 'font-sans', color: 'text-gray-500', align: 'text-center', fontWeight: 'font-bold' }} className="uppercase tracking-[0.4em]" toolbarPosition="right" />
+                            <div className="h-px w-12" style={{ background: catDesign.storyAccent }}></div>
+                        </div>
+                    )}
+
+                    {/* 대형 인용부호 */}
+                    <div className="text-9xl leading-none mb-4 font-serif" style={{ color: `${catDesign.storyAccent}30` }}>"</div>
+
+                    <EditableElement value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-4xl', fontFamily: 'font-serif-kr', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }} className="leading-loose mx-auto" toolbarPosition="right" />
+
+                    {/* 닫는 인용부호 + 장식 */}
+                    <div className="text-9xl leading-none mt-4 font-serif" style={{ color: `${catDesign.storyAccent}30` }}>"</div>
+
+                    {/* 하단 장식 */}
+                    <div className="mt-12 flex items-center justify-center gap-3">
+                        <div className="w-1 h-1 rounded-full" style={{ background: catDesign.storyAccent }}></div>
+                        <div className="w-6 h-px" style={{ background: catDesign.storyAccent }}></div>
+                        <div className="w-3 h-3 rounded-full border" style={{ borderColor: catDesign.storyAccent }}></div>
+                        <div className="w-6 h-px" style={{ background: catDesign.storyAccent }}></div>
+                        <div className="w-1 h-1 rounded-full" style={{ background: catDesign.storyAccent }}></div>
+                    </div>
                 </div>
+            </div>
         );
         case 'POINTS': return (
-            <div className="w-full py-24 bg-white relative">
+            <div className="w-full relative" style={{ background: catDesign.pointBg }}>
                         {isEditMode && (
-                             <div className="absolute top-4 right-10 flex gap-2 flex-wrap justify-end">
-                                <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
-                                    <button onClick={() => setPointIconStyle('EMOJI')} className={`px-3 py-1 text-xs font-bold rounded ${pointIconStyle === 'EMOJI' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}>😊 이모지</button>
-                                    <button onClick={() => setPointIconStyle('NUMBER')} className={`px-3 py-1 text-xs font-bold rounded ${pointIconStyle === 'NUMBER' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}>🔢 숫자</button>
-                                    <button onClick={() => setPointIconStyle('NONE')} className={`px-3 py-1 text-xs font-bold rounded ${pointIconStyle === 'NONE' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}>🚫 없음</button>
-                                </div>
-                                <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200 gap-1">
-                                    <div className="px-2 text-xs font-bold text-gray-400 flex items-center gap-1"><PaintBrushIcon className="w-3 h-3"/> 테마</div>
-                                    {(Object.keys(THEME_COLORS) as PointThemeColor[]).map(c => (
-                                        <button key={c} onClick={() => setPointTheme(c)} className={`w-5 h-5 rounded-full border-2 ${pointTheme === c ? 'border-gray-400 scale-110' : 'border-transparent'} ${THEME_COLORS[c].bg}`} title={c} />
-                                    ))}
+                             <div className="absolute top-4 right-10 flex gap-2 flex-wrap justify-end z-10">
+                                <div className="flex items-center bg-white/80 rounded-lg p-1 border border-gray-200 shadow-sm">
+                                    <button onClick={() => setPointIconStyle('EMOJI')} className={`px-3 py-1 text-xs font-bold rounded ${pointIconStyle === 'EMOJI' ? 'bg-white shadow text-gray-800' : 'text-gray-400'}`}>😊</button>
+                                    <button onClick={() => setPointIconStyle('NUMBER')} className={`px-3 py-1 text-xs font-bold rounded ${pointIconStyle === 'NUMBER' ? 'bg-white shadow text-gray-800' : 'text-gray-400'}`}>01</button>
+                                    <button onClick={() => setPointIconStyle('NONE')} className={`px-3 py-1 text-xs font-bold rounded ${pointIconStyle === 'NONE' ? 'bg-white shadow text-gray-800' : 'text-gray-400'}`}>—</button>
                                 </div>
                              </div>
                         )}
-                        <div className="text-center mb-20 px-10">
-                            <EditableElement key={`why-${pointTheme}`} value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-6xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-4" toolbarPosition="right" />
-                            {visibleHeaders.whySub && (
-                                <EditableElement key={`whysub-${pointTheme}`} value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: 'font-sans', color: 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
-                            )}
+
+                        {/* 섹션 헤더 */}
+                        <div className="text-center pt-24 pb-16 px-10">
+                            <div className="flex items-center justify-center gap-4 mb-6">
+                                <div className="h-px w-8" style={{ background: catDesign.pointAccent }}></div>
+                                {visibleHeaders.whySub && (
+                                    <EditableElement key={`whysub-${pointTheme}`} value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: 'font-sans', color: 'text-gray-400', align: 'text-center', fontWeight: 'font-bold' }} className="uppercase tracking-[0.4em]" toolbarPosition="right" />
+                                )}
+                                <div className="h-px w-8" style={{ background: catDesign.pointAccent }}></div>
+                            </div>
+                            <EditableElement key={`why-${pointTheme}`} value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-5xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-black' }} className="leading-tight" toolbarPosition="right" />
                         </div>
-                        <div className={`px-10 ${pointLayout === 'CARDS' ? 'grid gap-10' : pointLayout === 'SIMPLE' ? 'space-y-12' : 'flex flex-wrap'}`}>
+
+                        <div className={`px-10 pb-24 ${pointLayout === 'CARDS' ? 'grid gap-6' : pointLayout === 'SIMPLE' ? 'space-y-8' : 'flex flex-wrap'}`}>
                             {pointBlocks.map((block, idx) => {
                                 if (block.type === 'POINT_ITEM') {
                                     return (
-                                        <div key={block.id} className={`relative group/point w-full ${pointLayout === 'ZIGZAG' ? `flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-stretch min-h-[400px] border-b border-gray-100 last:border-0` : ''} ${pointLayout === 'CARDS' ? `bg-gray-50 rounded-3xl p-12 border border-gray-100` : ''} ${pointLayout === 'SIMPLE' ? `flex flex-col items-start border-l-8 ${theme.border} pl-10 py-4` : ''}`}>   
+                                        <div key={block.id} className={`relative group/point w-full ${pointLayout === 'ZIGZAG' ? `flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-stretch min-h-[420px]` : ''} ${pointLayout === 'CARDS' ? 'rounded-2xl overflow-hidden' : ''} ${pointLayout === 'SIMPLE' ? 'flex flex-col items-start pl-10 py-6' : ''}`} style={pointLayout === 'CARDS' ? { background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,0.07)' } : pointLayout === 'SIMPLE' ? { borderLeft: `4px solid ${catDesign.pointAccent}` } : {}}>
                                             {isEditMode && (
                                                 <div className="absolute top-2 left-2 z-30 flex gap-1 opacity-0 group-hover/point:opacity-100 transition-opacity">
-                                                    <button onClick={() => movePointBlock(idx, -1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronUpIcon className="w-3 h-3"/></button>
-                                                    <button onClick={() => movePointBlock(idx, 1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronDownIcon className="w-3 h-3"/></button>
-                                                    <button onClick={() => removePointBlock(block.id)} className="p-2 bg-red-50 text-red-500 rounded-full shadow border border-gray-200 hover:bg-red-100"><TrashIcon className="w-3 h-3" /></button>
+                                                    <button onClick={() => movePointBlock(idx, -1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200"><ChevronUpIcon className="w-3 h-3"/></button>
+                                                    <button onClick={() => movePointBlock(idx, 1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200"><ChevronDownIcon className="w-3 h-3"/></button>
+                                                    <button onClick={() => removePointBlock(block.id)} className="p-2 bg-red-50 text-red-500 rounded-full shadow border border-gray-200"><TrashIcon className="w-3 h-3" /></button>
                                                 </div>
                                             )}
                                             {pointLayout === 'ZIGZAG' && (
                                                 <>
-                                                    <div className="flex-1 p-12 flex flex-col justify-center bg-white relative">
-                                                        {pointIconStyle !== 'NONE' && <div className="text-6xl mb-6">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div>}
-                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-5xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-6 leading-tight" toolbarPosition="right" />
-                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-normal" toolbarPosition="right" />
+                                                    <div className="flex-1 p-14 flex flex-col justify-center bg-white relative">
+                                                        {pointIconStyle !== 'NONE' && (
+                                                            <div className="mb-6">
+                                                                {pointIconStyle === 'NUMBER'
+                                                                    ? <span className="text-7xl font-black opacity-15" style={{ color: catDesign.pointAccent }}>{`0${idx + 1}`}</span>
+                                                                    : <span className="text-5xl">{block.icon}</span>
+                                                                }
+                                                            </div>
+                                                        )}
+                                                        {/* 악센트 라인 */}
+                                                        <div className="w-10 h-1 mb-6 rounded-full" style={{ background: catDesign.pointAccent }}></div>
+                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-left', fontWeight: 'font-black', maxWidth: 'max-w-2xl' }} className="mb-5 leading-tight" toolbarPosition="right" />
+                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: 'font-sans', color: 'text-gray-500', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-loose" toolbarPosition="right" />
                                                     </div>
-                                                    <div 
-                                                        className={`w-1/3 ${theme.lightBg} flex items-center justify-center relative group/side overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
+                                                    <div
+                                                        className={`w-2/5 flex items-center justify-center relative group/side overflow-hidden ${dragOverId === block.id ? 'ring-4 ring-inset ring-white/50' : ''}`}
+                                                        style={{ background: block.sideImage ? 'transparent' : catDesign.pointPanel }}
                                                         onDragEnter={(e) => handleDragEnter(e, block.id)}
                                                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                                         onDragLeave={handleDragLeave}
@@ -1332,12 +1443,16 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                                 )}
                                                             </>
                                                         ) : (
-                                                            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100/50 hover:bg-gray-100 transition-colors p-4">
-                                                                <span className="text-gray-900 font-bold border-4 border-gray-900 p-4 text-2xl opacity-10 mb-4">POINT {idx+1}</span>
+                                                            <div className="w-full h-full flex flex-col items-center justify-center p-8 relative overflow-hidden" style={{ background: catDesign.pointPanel }}>
+                                                                {/* 장식 원 */}
+                                                                <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-10" style={{ background: catDesign.pointAccent, transform: 'translate(30%, -30%)' }} />
+                                                                <div className="absolute bottom-0 left-0 w-24 h-24 rounded-full opacity-10" style={{ background: catDesign.pointAccent, transform: 'translate(-30%, 30%)' }} />
+                                                                {/* 번호 */}
+                                                                <div className="text-8xl font-black mb-4 opacity-20" style={{ color: catDesign.pointAccent }}>{`0${idx+1}`}</div>
                                                                 {isEditMode && (
-                                                                    <label className="flex flex-col items-center cursor-pointer bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-indigo-400 group/upload">
-                                                                        <div className="bg-gray-50 p-3 rounded-full mb-2 group-hover/upload:bg-indigo-50"><PhotoIcon className="w-6 h-6 text-gray-400 group-hover:text-indigo-600" /></div>
-                                                                        <span className="text-xs font-bold text-gray-500 group-hover/upload:text-indigo-600">이미지 추가</span>
+                                                                    <label className="flex flex-col items-center cursor-pointer px-5 py-3 rounded-xl border border-dashed group/upload relative z-10" style={{ borderColor: `${catDesign.pointAccent}60` }}>
+                                                                        <PhotoIcon className="w-6 h-6 mb-2" style={{ color: catDesign.pointAccent }} />
+                                                                        <span className="text-xs font-bold" style={{ color: catDesign.pointAccent }}>이미지 추가</span>
                                                                         <input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} />
                                                                     </label>
                                                                 )}
@@ -1347,19 +1462,30 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                 </>
                                             )}
                                             {pointLayout === 'CARDS' && (
-                                                <div className="flex flex-col items-center text-center w-full">
-                                                    <div className={`absolute top-0 right-0 ${theme.badge} text-white font-bold text-xl px-4 py-2 rounded-bl-2xl`}>POINT {idx+1}</div>
-                                                    {pointIconStyle !== 'NONE' && ( <div className="bg-white w-24 h-24 rounded-full flex items-center justify-center text-5xl shadow-md mb-6">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div> )}
-                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-black' }} className="mb-4" toolbarPosition="right" />
-                                                    <div className="w-10 h-1 bg-gray-300 mb-6"></div>
-                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-2xl' }} className="leading-normal" toolbarPosition="right" />
+                                                <div className="flex flex-col items-center text-center w-full p-12 relative overflow-hidden">
+                                                    {/* 배경 장식 */}
+                                                    <div className="absolute top-0 left-0 right-0 h-2" style={{ background: catDesign.pointAccent }}></div>
+                                                    {/* 번호 배지 */}
+                                                    <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-black text-xl mb-6 shadow-lg" style={{ background: catDesign.pointPanel }}>
+                                                        {pointIconStyle === 'NUMBER' ? `0${idx+1}` : pointIconStyle === 'EMOJI' ? block.icon : `0${idx+1}`}
+                                                    </div>
+                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-black' }} className="mb-3" toolbarPosition="right" />
+                                                    <div className="w-8 h-0.5 mb-5 rounded-full" style={{ background: catDesign.pointAccent }}></div>
+                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-gray-500', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-2xl' }} className="leading-loose" toolbarPosition="right" />
                                                 </div>
                                             )}
                                             {pointLayout === 'SIMPLE' && (
-                                                <div className="w-full">
-                                                    {pointIconStyle !== 'NONE' && ( <div className="flex items-center gap-4 mb-2"><span className="text-4xl">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</span></div> )}
-                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-left', fontWeight: 'font-bold' }} className="mb-2" toolbarPosition="right" />
-                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-500', align: 'text-left', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }} className="leading-normal" toolbarPosition="right" />
+                                                <div className="w-full py-4">
+                                                    <div className="flex items-center gap-4 mb-3">
+                                                        {pointIconStyle !== 'NONE' && (
+                                                            <span className="text-3xl">{pointIconStyle === 'NUMBER'
+                                                                ? <span className="font-black text-2xl" style={{ color: catDesign.pointAccent }}>{`0${idx + 1}`}</span>
+                                                                : block.icon}
+                                                            </span>
+                                                        )}
+                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-left', fontWeight: 'font-bold' }} className="" toolbarPosition="right" />
+                                                    </div>
+                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-gray-500', align: 'text-left', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }} className="leading-loose pl-2" toolbarPosition="right" />
                                                 </div>
                                             )}
                                         </div>
@@ -1605,40 +1731,58 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                     </div>
             );
         case 'INFO': return (
-                    <div className="w-full bg-white pt-24 pb-40 px-10">
-                        <div className="mb-8 text-center text-gray-500 space-y-1">
-                             <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                    <div className="w-full pt-24 pb-40 px-10" style={{ background: catDesign.infoBg }}>
+                        {/* 주의사항 */}
+                        <div className="mb-10 text-center">
+                            <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                         </div>
-                        <div className="bg-red-50 border-2 border-red-100 p-12 text-center rounded-lg mb-24">
-                            <h4 className="text-red-600 font-black text-4xl mb-4 uppercase tracking-wide flex items-center justify-center gap-3">⚠️ Check Point</h4>
-                            <EditableElement key={`size-${pointTheme}`} value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
-                        </div>
-                        <div className="max-w-4xl mx-auto">
-                            <div className="flex justify-center mb-10">
-                                <EditableElement key={`info-${pointTheme}`} value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-bold' }} className="border-b-4 border-gray-900 pb-3 px-10" toolbarPosition="right" />
+
+                        {/* 체크포인트 */}
+                        <div className="rounded-2xl p-12 text-center mb-16 relative overflow-hidden" style={{ background: catDesign.pointPanel }}>
+                            <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10 pointer-events-none" style={{ background: catDesign.pointAccent, transform: 'translate(20%, -20%)' }} />
+                            <div className="flex items-center justify-center gap-3 mb-4">
+                                <div className="h-px w-8" style={{ background: catDesign.pointAccent }}></div>
+                                <span className="text-sm font-black uppercase tracking-[0.3em]" style={{ color: catDesign.pointAccent }}>✦ CHECK POINT</span>
+                                <div className="h-px w-8" style={{ background: catDesign.pointAccent }}></div>
                             </div>
-                            <table className="w-full text-2xl border-t-[3px] border-gray-900 table-fixed">
-                                <colgroup><col className="w-[20%] bg-gray-50" /><col className="w-[30%]" /><col className="w-[20%] bg-gray-50" /><col className="w-[30%]" /></colgroup>
+                            <EditableElement key={`size-${pointTheme}`} value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold' }} className="relative z-10" toolbarPosition="right" />
+                        </div>
+
+                        {/* 상품 정보 테이블 */}
+                        <div className="max-w-4xl mx-auto">
+                            <div className="flex items-center justify-center gap-4 mb-10">
+                                <div className="h-px flex-1" style={{ background: catDesign.storyAccent, opacity: 0.3 }}></div>
+                                <EditableElement key={`info-${pointTheme}`} value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-[0.2em] px-6" toolbarPosition="right" />
+                                <div className="h-px flex-1" style={{ background: catDesign.storyAccent, opacity: 0.3 }}></div>
+                            </div>
+                            <table className="w-full text-base border-t-2 table-fixed" style={{ borderColor: catDesign.storyAccent }}>
+                                <colgroup><col className="w-[22%]" /><col className="w-[28%]" /><col className="w-[22%]" /><col className="w-[28%]" /></colgroup>
                                 <tbody>
                                     <tr className="border-b border-gray-200">
-                                        <th className="py-6 px-6 text-left font-bold text-gray-700 align-top"><EditableElement value={infoLabels.product} onChange={(v) => handleInfoLabelChange('product', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className="py-6 px-6 text-gray-600 align-top" colSpan={3}><EditableElement value={editableProductName} onChange={setEditableProductName} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
+                                        <th className="py-5 px-5 text-left font-bold text-gray-600 align-top bg-white/60 text-sm"><EditableElement value={infoLabels.product} onChange={(v) => handleInfoLabelChange('product', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
+                                        <td className="py-5 px-5 text-gray-700 align-top text-sm" colSpan={3}><EditableElement value={editableProductName} onChange={setEditableProductName} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
                                     </tr>
                                     <tr className="border-b border-gray-200">
-                                        <th className="py-6 px-6 text-left font-bold text-gray-700 align-top"><EditableElement value={infoLabels.material} onChange={(v) => handleInfoLabelChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className="py-6 px-6 text-gray-600 align-top"><EditableElement value={editableCopy.productInfo.material} onChange={(v) => handleProductInfoChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                        <th className="py-6 px-6 text-left font-bold text-gray-700 align-top"><EditableElement value={infoLabels.color} onChange={(v) => handleInfoLabelChange('color', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className="py-6 px-6 text-gray-600 align-top"><EditableElement value={infoLabels.imgRef} onChange={(v) => handleInfoLabelChange('imgRef', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
+                                        <th className="py-5 px-5 text-left font-bold text-gray-600 align-top bg-white/60 text-sm"><EditableElement value={infoLabels.material} onChange={(v) => handleInfoLabelChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
+                                        <td className="py-5 px-5 text-gray-700 align-top text-sm"><EditableElement value={editableCopy.productInfo.material} onChange={(v) => handleProductInfoChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
+                                        <th className="py-5 px-5 text-left font-bold text-gray-600 align-top bg-white/60 text-sm"><EditableElement value={infoLabels.color} onChange={(v) => handleInfoLabelChange('color', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
+                                        <td className="py-5 px-5 text-gray-700 align-top text-sm"><EditableElement value={infoLabels.imgRef} onChange={(v) => handleInfoLabelChange('imgRef', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
                                     </tr>
-                                    <tr className="border-b border-gray-900">
-                                        <th className="py-6 px-6 text-left font-bold text-gray-700 align-top"><EditableElement value={infoLabels.origin} onChange={(v) => handleInfoLabelChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className="py-6 px-6 text-gray-600 align-top"><EditableElement value={editableCopy.productInfo.origin} onChange={(v) => handleProductInfoChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                        <th className="py-6 px-6 text-left font-bold text-gray-700 align-top"><EditableElement value={infoLabels.wash} onChange={(v) => handleInfoLabelChange('wash', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className="py-6 px-6 text-gray-600 align-top"><EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
+                                    <tr className="border-b border-gray-200">
+                                        <th className="py-5 px-5 text-left font-bold text-gray-600 align-top bg-white/60 text-sm"><EditableElement value={infoLabels.origin} onChange={(v) => handleInfoLabelChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
+                                        <td className="py-5 px-5 text-gray-700 align-top text-sm"><EditableElement value={editableCopy.productInfo.origin} onChange={(v) => handleProductInfoChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
+                                        <th className="py-5 px-5 text-left font-bold text-gray-600 align-top bg-white/60 text-sm"><EditableElement value={infoLabels.wash} onChange={(v) => handleInfoLabelChange('wash', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
+                                        <td className="py-5 px-5 text-gray-700 align-top text-sm"><EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
                                     </tr>
                                 </tbody>
                             </table>
-                            <div className="mt-12 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: 'font-sans', color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
+
+                            {/* 푸터 브랜드 */}
+                            <div className="mt-16 flex items-center justify-center gap-4">
+                                <div className="h-px w-20" style={{ background: catDesign.storyAccent, opacity: 0.3 }}></div>
+                                <EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: 'font-sans', color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="uppercase tracking-[0.3em]" toolbarPosition="right" />
+                                <div className="h-px w-20" style={{ background: catDesign.storyAccent, opacity: 0.3 }}></div>
+                            </div>
                         </div>
                     </div>
             );
