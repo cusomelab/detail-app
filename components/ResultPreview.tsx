@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
-import { GeneratedCopy, ProcessedImage, ProductCategory } from '../types';
+import { GeneratedCopy, ProcessedImage, ProductCategory, ProductInfoDisclosure } from '../types';
 import { processProductImage, regenerateCopy, ImageProcessMode } from '../services/geminiService';
 import { 
     ArrowDownTrayIcon, ArrowPathIcon, SwatchIcon, ViewColumnsIcon, ListBulletIcon, Square2StackIcon, 
@@ -16,6 +16,7 @@ interface ResultPreviewProps {
   images: ProcessedImage[];
   productName: string; 
   category: ProductCategory;
+  infoDisclosure?: ProductInfoDisclosure;
   onReset: () => void;
 }
 
@@ -900,7 +901,7 @@ const SectionControlWrapper: React.FC<{
     );
 };
 
-export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, productName, category, onReset }) => {
+export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, productName, category, infoDisclosure, onReset }) => {
   const [isEditMode, setIsEditMode] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   
@@ -2040,6 +2041,43 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                             </table>
                             <div className="mt-12 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
                         </div>
+
+                        {/* ── 정보고시 섹션 ───────────────── */}
+                        {infoDisclosure && (infoDisclosure.manufacturer || infoDisclosure.origin || infoDisclosure.customerService) && (
+                            <div className="max-w-4xl mx-auto mt-16">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="h-px flex-1 bg-gray-200"></div>
+                                    <span className="text-sm font-black text-gray-500 uppercase tracking-[0.2em]">상품 정보고시</span>
+                                    <div className="h-px flex-1 bg-gray-200"></div>
+                                </div>
+                                <table className="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
+                                    <tbody>
+                                        {[
+                                            { label: '제조자/수입자', value: infoDisclosure.manufacturer },
+                                            { label: '원산지', value: infoDisclosure.origin },
+                                            { label: '소재/재질', value: infoDisclosure.material },
+                                            { label: '사이즈', value: infoDisclosure.size },
+                                            { label: '색상', value: infoDisclosure.color },
+                                            { label: '세탁방법', value: infoDisclosure.wash },
+                                            { label: '원재료명', value: infoDisclosure.ingredients },
+                                            { label: '용량/중량', value: infoDisclosure.capacity },
+                                            { label: '유통기한', value: infoDisclosure.expiry },
+                                            { label: '보관방법', value: infoDisclosure.storage },
+                                            { label: '인증여부', value: infoDisclosure.haccp },
+                                            { label: '인증/허가', value: infoDisclosure.certifications },
+                                            { label: '품질보증', value: infoDisclosure.warranty },
+                                            { label: '주의사항', value: infoDisclosure.caution },
+                                            { label: '고객센터', value: infoDisclosure.customerService },
+                                        ].filter(row => row.value).map((row, i) => (
+                                            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                                <th className="py-3 px-5 text-left text-xs font-bold text-gray-500 w-28 border-b border-gray-100 whitespace-nowrap">{row.label}</th>
+                                                <td className="py-3 px-5 text-xs text-gray-700 border-b border-gray-100">{row.value}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
             );
         default: return null;
