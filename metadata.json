@@ -1,0 +1,5 @@
+{
+  "name": "상세페이지 제작앱 카테고리",
+  "description": "Automated Coupang product detail page generator using Gemini 3 Pro (Nano Banana 3) for image localization and copywriting.",
+  "requestFramePermissions": []
+}
