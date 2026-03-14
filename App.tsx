@@ -288,36 +288,15 @@ function App() {
                    className="w-full py-3 px-4 border border-gray-300 rounded-xl text-center text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                />
            </div>
-           <button onClick={async () => {
+           <button onClick={() => {
                const input = document.getElementById('apiKeyInput') as HTMLInputElement;
                const key = input?.value?.trim();
                if (!key) {
-                   handleSelectKey();
+                   alert('API Key를 입력해주세요.');
                    return;
                }
-               // ★ 입력한 키로 간단한 API 호출 테스트
-               try {
-                   input.disabled = true;
-                   const testBtn = document.getElementById('apiStartBtn') as HTMLButtonElement;
-                   if (testBtn) testBtn.textContent = '키 확인 중...';
-                   
-                   const { GoogleGenAI } = await import('@google/genai');
-                   const ai = new GoogleGenAI({ apiKey: key });
-                   await ai.models.generateContent({
-                       model: 'gemini-3-flash-preview',
-                       contents: 'Say OK',
-                       config: { maxOutputTokens: 5 }
-                   });
-                   // 성공 → 키 저장 후 진입
-                   (window as any).__GEMINI_API_KEY__ = key;
-                   setHasApiKey(true);
-               } catch (e: any) {
-                   const msg = e?.message || String(e);
-                   alert(`API Key가 유효하지 않습니다.\n\n${msg}\n\n확인사항:\n1. Google AI Studio에서 발급한 키인지\n2. Billing이 활성화되어 있는지\n3. gemini-3-flash-preview 모델 접근 권한이 있는지`);
-                   input.disabled = false;
-                   const testBtn = document.getElementById('apiStartBtn') as HTMLButtonElement;
-                   if (testBtn) testBtn.textContent = '🔑 시작하기';
-               }
+               (window as any).__GEMINI_API_KEY__ = key;
+               setHasApiKey(true);
            }} id="apiStartBtn" className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"><KeyIcon className="w-5 h-5" /> 시작하기</button>
            <p className="mt-6 text-xs text-gray-400"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline hover:text-indigo-500">Google AI Studio에서 API Key 발급받기 →</a></p>
         </div>

@@ -8,15 +8,22 @@ const IMAGE_MODEL = 'gemini-3-pro-image-preview';
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOVE_TEXT' | 'ERASE_PART' | 'CUSTOM';
 
-// ★ API Key 가져오기: Vite 빌드 시 주입 → 런타임 수동 입력 → fallback
+// ★ API Key 가져오기
 const getApiKey = (): string => {
-    // 1) 런타임 수동 입력 (App.tsx handleSelectKey에서 세팅)
-    const runtimeKey = (window as any).__GEMINI_API_KEY__;
-    if (runtimeKey) return runtimeKey;
-    // 2) Vite 빌드 시 process.env.API_KEY로 주입 (vite.config.ts define)
-    if (process.env.API_KEY && process.env.API_KEY !== 'PLACEHOLDER_API_KEY') return process.env.API_KEY;
-    // 3) fallback
-    throw new Error('API Key가 설정되지 않았습니다. 앱을 새로고침하고 API Key를 입력해주세요.');
+    // 1) 런타임 수동 입력
+    const runtimeKey = (window as any)?.__GEMINI_API_KEY__;
+    if (runtimeKey && typeof runtimeKey === 'string' && runtimeKey.length > 10) return runtimeKey;
+    // 2) Vite 빌드 시 주입
+    try {
+        const envKey = process.env.API_KEY;
+        if (envKey && typeof envKey === 'string' && envKey !== 'PLACEHOLDER_API_KEY' && envKey.length > 10) return envKey;
+    } catch {}
+    // 3) Gemini API Key 환경변수 직접 참조
+    try {
+        const geminiKey = process.env.GEMINI_API_KEY;
+        if (geminiKey && typeof geminiKey === 'string' && geminiKey !== 'PLACEHOLDER_API_KEY' && geminiKey.length > 10) return geminiKey;
+    } catch {}
+    throw new Error('API 키가 설정되지 않았습니다. 앱을 새로고침하고 API Key를 입력해주세요.');
 };
 
 /**
