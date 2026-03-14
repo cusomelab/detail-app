@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { StudioScene, SCENE_PROMPTS } from "../../types/imageGen";
+import { StudioScene, SCENE_PROMPTS } from "../types/imageGen";
 
 // ── API 키 전역 참조 (App.tsx에서 setApiKey로 주입)
 import { getApiKey } from "./geminiService";

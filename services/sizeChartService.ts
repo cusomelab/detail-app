@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { SizeChartData } from "../../types/sizeChart";
+import { SizeChartData } from "../types/sizeChart";
 import { getApiKey } from "./geminiService";
 
 export const analyzeSizeChart = async (base64Image: string): Promise<SizeChartData> => {

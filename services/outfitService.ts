@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Part } from "@google/genai";
 import { getApiKey } from "./geminiService";
-import { AccessoryOptions, AccessoryOption, ModelStyle, Background, Pose, ClothingFocus, ShotFocus, FaceConsistency, AccessoryType } from "../../types/outfit";
+import { AccessoryOptions, AccessoryOption, ModelStyle, Background, Pose, ClothingFocus, ShotFocus, FaceConsistency, AccessoryType } from "../types/outfit";
 
 const generateConsistentFaceDescriptionLocal = (modelStyle: ModelStyle): string => {
     const eyeShapes = ['크고 동그란 눈', '아몬드 모양의 눈', '가늘고 긴 눈'];
