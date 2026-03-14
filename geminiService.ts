@@ -8,30 +8,22 @@ const IMAGE_MODEL = 'gemini-3-pro-image-preview';
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOVE_TEXT' | 'ERASE_PART' | 'CUSTOM';
 
-// ★ API Key 가져오기
+// ★ API Key 가져오기 (window 전역변수 + sessionStorage 전용)
 const getApiKey = (): string => {
-    // 1) Vite 빌드 시 주입 (최우선 - Vercel 환경변수)
-    try {
-        if (typeof process !== 'undefined' && process.env && process.env.API_KEY && 
-            process.env.API_KEY !== 'PLACEHOLDER_API_KEY' && process.env.API_KEY.length > 10) {
-            return process.env.API_KEY;
-        }
-    } catch {}
-    // 2) window 전역 변수
     if (typeof window !== 'undefined') {
+        // 1) window 전역변수
         const winKey = (window as any).__GEMINI_API_KEY__;
         if (winKey && typeof winKey === 'string' && winKey.length > 10) return winKey;
+        // 2) sessionStorage에서 복원
+        try {
+            const saved = sessionStorage.getItem('GEMINI_API_KEY');
+            if (saved && saved.length > 10) {
+                (window as any).__GEMINI_API_KEY__ = saved;
+                return saved;
+            }
+        } catch {}
     }
-    // 3) sessionStorage (window 변수가 유실된 경우 복원)
-    try {
-        const saved = sessionStorage.getItem('GEMINI_API_KEY');
-        if (saved && saved.length > 10) {
-            // 복원해서 window에도 세팅
-            if (typeof window !== 'undefined') (window as any).__GEMINI_API_KEY__ = saved;
-            return saved;
-        }
-    } catch {}
-    throw new Error('API 키가 설정되지 않았습니다.\n\n해결 방법:\n1. 페이지 새로고침 후 API Key를 다시 입력하세요.\n2. 또는 Vercel Dashboard → Settings → Environment Variables에서\n   GEMINI_API_KEY를 추가하고 Redeploy 하세요.');
+    throw new Error('API 키가 설정되지 않았습니다. 페이지를 새로고침하고 API Key를 다시 입력해주세요.');
 };
 
 /**

@@ -51,14 +51,7 @@ function App() {
       win.aistudio.hasSelectedApiKey().then((hasKey: boolean) => setHasApiKey(hasKey));
       return;
     }
-    // 2) Vercel 환경 — 빌드 시 주입된 키 확인
-    try {
-      if (process.env.API_KEY && process.env.API_KEY !== 'PLACEHOLDER_API_KEY' && process.env.API_KEY.length > 10) {
-        setHasApiKey(true);
-        return;
-      }
-    } catch {}
-    // 3) sessionStorage에서 복원 (이전에 입력한 키)
+    // 2) sessionStorage에서 복원 (이전에 입력한 키)
     try {
       const saved = sessionStorage.getItem('GEMINI_API_KEY');
       if (saved && saved.length > 10) {
@@ -67,8 +60,8 @@ function App() {
         return;
       }
     } catch {}
-    // 4) window에 직접 설정된 키
-    if (win.__GEMINI_API_KEY__) {
+    // 3) window에 직접 설정된 키
+    if (win.__GEMINI_API_KEY__ && win.__GEMINI_API_KEY__.length > 10) {
       setHasApiKey(true);
       return;
     }
