@@ -17,11 +17,21 @@ const getApiKey = (): string => {
             return process.env.API_KEY;
         }
     } catch {}
-    // 2) 런타임 수동 입력
-    if (typeof window !== 'undefined' && (window as any).__GEMINI_API_KEY__) {
-        return (window as any).__GEMINI_API_KEY__;
+    // 2) window 전역 변수
+    if (typeof window !== 'undefined') {
+        const winKey = (window as any).__GEMINI_API_KEY__;
+        if (winKey && typeof winKey === 'string' && winKey.length > 10) return winKey;
     }
-    throw new Error('API 키가 설정되지 않았습니다.\n\nVercel Dashboard → Settings → Environment Variables에서\nGEMINI_API_KEY를 추가하고 Redeploy 해주세요.');
+    // 3) sessionStorage (window 변수가 유실된 경우 복원)
+    try {
+        const saved = sessionStorage.getItem('GEMINI_API_KEY');
+        if (saved && saved.length > 10) {
+            // 복원해서 window에도 세팅
+            if (typeof window !== 'undefined') (window as any).__GEMINI_API_KEY__ = saved;
+            return saved;
+        }
+    } catch {}
+    throw new Error('API 키가 설정되지 않았습니다.\n\n해결 방법:\n1. 페이지 새로고침 후 API Key를 다시 입력하세요.\n2. 또는 Vercel Dashboard → Settings → Environment Variables에서\n   GEMINI_API_KEY를 추가하고 Redeploy 하세요.');
 };
 
 /**

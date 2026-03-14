@@ -51,14 +51,23 @@ function App() {
       win.aistudio.hasSelectedApiKey().then((hasKey: boolean) => setHasApiKey(hasKey));
       return;
     }
-    // 2) Vercel 환경 — 빌드 시 주입된 키 확인 (vite define으로 리터럴 치환됨)
+    // 2) Vercel 환경 — 빌드 시 주입된 키 확인
     try {
       if (process.env.API_KEY && process.env.API_KEY !== 'PLACEHOLDER_API_KEY' && process.env.API_KEY.length > 10) {
         setHasApiKey(true);
         return;
       }
     } catch {}
-    // 3) 런타임에 이미 입력된 키 확인
+    // 3) sessionStorage에서 복원 (이전에 입력한 키)
+    try {
+      const saved = sessionStorage.getItem('GEMINI_API_KEY');
+      if (saved && saved.length > 10) {
+        win.__GEMINI_API_KEY__ = saved;
+        setHasApiKey(true);
+        return;
+      }
+    } catch {}
+    // 4) window에 직접 설정된 키
     if (win.__GEMINI_API_KEY__) {
       setHasApiKey(true);
       return;
@@ -271,6 +280,7 @@ function App() {
       if (errMsg.includes("Requested entity was not found") || errMsg.includes("API key") || errMsg.includes("API Key") || errMsg.includes("PERMISSION_DENIED") || errMsg.includes("API_KEY_INVALID") || errMsg.includes("403")) {
         alert(`API Key 오류: ${fullMsg}\n\n키를 다시 입력해주세요.`);
         (window as any).__GEMINI_API_KEY__ = null;
+        try { sessionStorage.removeItem('GEMINI_API_KEY'); } catch {}
         setHasApiKey(false);
         setStep(AppStep.INPUT);
         return;
@@ -305,7 +315,9 @@ function App() {
                    alert('API Key를 입력해주세요.');
                    return;
                }
+               // ★ 이중 저장: window + sessionStorage
                (window as any).__GEMINI_API_KEY__ = key;
+               try { sessionStorage.setItem('GEMINI_API_KEY', key); } catch {}
                setHasApiKey(true);
            }} id="apiStartBtn" className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"><KeyIcon className="w-5 h-5" /> 시작하기</button>
            <p className="mt-6 text-xs text-gray-400"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline hover:text-indigo-500">Google AI Studio에서 API Key 발급받기 →</a></p>
