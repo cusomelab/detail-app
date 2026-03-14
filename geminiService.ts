@@ -10,20 +10,18 @@ export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOV
 
 // ★ API Key 가져오기
 const getApiKey = (): string => {
-    // 1) 런타임 수동 입력
-    const runtimeKey = (window as any)?.__GEMINI_API_KEY__;
-    if (runtimeKey && typeof runtimeKey === 'string' && runtimeKey.length > 10) return runtimeKey;
-    // 2) Vite 빌드 시 주입
+    // 1) Vite 빌드 시 주입 (최우선 - Vercel 환경변수)
     try {
-        const envKey = process.env.API_KEY;
-        if (envKey && typeof envKey === 'string' && envKey !== 'PLACEHOLDER_API_KEY' && envKey.length > 10) return envKey;
+        if (typeof process !== 'undefined' && process.env && process.env.API_KEY && 
+            process.env.API_KEY !== 'PLACEHOLDER_API_KEY' && process.env.API_KEY.length > 10) {
+            return process.env.API_KEY;
+        }
     } catch {}
-    // 3) Gemini API Key 환경변수 직접 참조
-    try {
-        const geminiKey = process.env.GEMINI_API_KEY;
-        if (geminiKey && typeof geminiKey === 'string' && geminiKey !== 'PLACEHOLDER_API_KEY' && geminiKey.length > 10) return geminiKey;
-    } catch {}
-    throw new Error('API 키가 설정되지 않았습니다. 앱을 새로고침하고 API Key를 입력해주세요.');
+    // 2) 런타임 수동 입력
+    if (typeof window !== 'undefined' && (window as any).__GEMINI_API_KEY__) {
+        return (window as any).__GEMINI_API_KEY__;
+    }
+    throw new Error('API 키가 설정되지 않았습니다.\n\nVercel Dashboard → Settings → Environment Variables에서\nGEMINI_API_KEY를 추가하고 Redeploy 해주세요.');
 };
 
 /**

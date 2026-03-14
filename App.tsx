@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory } from './types';
+import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory, ProductInfoDisclosure } from './types';
 import { generateProductCopy } from './services/geminiService';
 import { ProcessingStep } from './components/ProcessingStep';
 import { ResultPreview } from './components/ResultPreview';
@@ -34,26 +34,36 @@ function App() {
   // Result State
   const [generatedCopy, setGeneratedCopy] = useState<GeneratedCopy | null>(null);
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
+  
+  // ★ 상품 정보고시
+  const [infoDisclosure, setInfoDisclosure] = useState<ProductInfoDisclosure>({
+    manufacturer: '',
+    origin: '',
+    material: '',
+    customerService: '',
+  });
 
   // Check for API Key on mount
   useEffect(() => {
-    const checkKey = async () => {
-      const win = window as any;
-      // 1) Google AI Studio 환경
-      if (win.aistudio) {
-        const hasKey = await win.aistudio.hasSelectedApiKey();
-        setHasApiKey(hasKey);
-        return;
-      }
-      // 2) Vercel 환경 — process.env.API_KEY가 빌드 시 주입됨
-      if (process.env.API_KEY && process.env.API_KEY !== 'PLACEHOLDER_API_KEY') {
+    const win = window as any;
+    // 1) AI Studio 환경
+    if (win.aistudio) {
+      win.aistudio.hasSelectedApiKey().then((hasKey: boolean) => setHasApiKey(hasKey));
+      return;
+    }
+    // 2) Vercel 환경 — 빌드 시 주입된 키 확인 (vite define으로 리터럴 치환됨)
+    try {
+      if (process.env.API_KEY && process.env.API_KEY !== 'PLACEHOLDER_API_KEY' && process.env.API_KEY.length > 10) {
         setHasApiKey(true);
         return;
       }
-      // 3) 둘 다 없으면 → 수동 입력 필요
-      setHasApiKey(false);
-    };
-    checkKey();
+    } catch {}
+    // 3) 런타임에 이미 입력된 키 확인
+    if (win.__GEMINI_API_KEY__) {
+      setHasApiKey(true);
+      return;
+    }
+    setHasApiKey(false);
   }, []);
 
   // Prevent accidental refresh
@@ -313,6 +323,7 @@ function App() {
         images={processedImages} 
         productName={productData.productName}
         category={productData.category}
+        infoDisclosure={infoDisclosure}
         onReset={() => {
             setStep(AppStep.INPUT);
             setProductData({ productName: '', category: 'FASHION', features: '', mainImage: null, detailImages: [], optionImages: [], benchmarkUrl: '' });
@@ -418,6 +429,38 @@ function App() {
             </div>
 
           </div>
+          
+          {/* ★ 상품 정보고시 입력란 */}
+          <div className="border border-gray-200 rounded-xl p-6 space-y-4 bg-gray-50">
+              <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">📋 상품 정보고시 (선택)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">제조자/수입자</label>
+                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: (주)폰이지" value={infoDisclosure.manufacturer || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, manufacturer: e.target.value}))} />
+                  </div>
+                  <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">원산지</label>
+                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: 중국" value={infoDisclosure.origin || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, origin: e.target.value}))} />
+                  </div>
+                  <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">소재/재질</label>
+                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: 폴리에스테르 95%, 스판 5%" value={infoDisclosure.material || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, material: e.target.value}))} />
+                  </div>
+                  <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">고객센터</label>
+                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: 02-1234-5678" value={infoDisclosure.customerService || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, customerService: e.target.value}))} />
+                  </div>
+                  <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">색상</label>
+                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: 블랙, 화이트, 그레이" value={infoDisclosure.color || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, color: e.target.value}))} />
+                  </div>
+                  <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">사이즈</label>
+                      <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="예: FREE (44~66)" value={infoDisclosure.size || ''} onChange={(e) => setInfoDisclosure(prev => ({...prev, size: e.target.value}))} />
+                  </div>
+              </div>
+          </div>
+
           <div><button type="submit" className="w-full flex justify-center py-4 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg transition-all transform hover:scale-[1.01]"><SparklesIcon className="h-5 w-5 mr-2" /> 상세페이지 기획 생성 (즉시 시작)</button></div>
         </form>
       </div>
