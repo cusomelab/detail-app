@@ -253,17 +253,21 @@ function App() {
       setTimeout(() => setStep(AppStep.RESULT), 800);
 
     } catch (error: any) {
-      console.error(error);
+      console.error('Full error:', error);
       const errMsg = error instanceof Error ? error.message : String(error);
-      if (errMsg.includes("Requested entity was not found") || errMsg.includes("API key") || errMsg.includes("API Key") || errMsg.includes("PERMISSION_DENIED")) {
-        alert("API Key가 만료되었거나 유효하지 않습니다. 키를 다시 입력해주세요.");
+      const errDetail = error?.response?.data?.error?.message || error?.statusText || '';
+      const fullMsg = errDetail ? `${errMsg}\n\n상세: ${errDetail}` : errMsg;
+      
+      if (errMsg.includes("Requested entity was not found") || errMsg.includes("API key") || errMsg.includes("API Key") || errMsg.includes("PERMISSION_DENIED") || errMsg.includes("API_KEY_INVALID") || errMsg.includes("403")) {
+        alert(`API Key 오류: ${fullMsg}\n\n키를 다시 입력해주세요.`);
         (window as any).__GEMINI_API_KEY__ = null;
         setHasApiKey(false);
         setStep(AppStep.INPUT);
         return;
       }
       addLog(`❌ 오류 발생: ${errMsg}`);
-      alert("처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      // ★ 실제 에러 메시지를 사용자에게 표시 (디버깅용)
+      alert(`오류 발생:\n${fullMsg}`);
       setStep(AppStep.INPUT);
     }
   };
@@ -284,17 +288,37 @@ function App() {
                    className="w-full py-3 px-4 border border-gray-300 rounded-xl text-center text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                />
            </div>
-           <button onClick={() => {
+           <button onClick={async () => {
                const input = document.getElementById('apiKeyInput') as HTMLInputElement;
                const key = input?.value?.trim();
-               if (key) {
+               if (!key) {
+                   handleSelectKey();
+                   return;
+               }
+               // ★ 입력한 키로 간단한 API 호출 테스트
+               try {
+                   input.disabled = true;
+                   const testBtn = document.getElementById('apiStartBtn') as HTMLButtonElement;
+                   if (testBtn) testBtn.textContent = '키 확인 중...';
+                   
+                   const { GoogleGenAI } = await import('@google/genai');
+                   const ai = new GoogleGenAI({ apiKey: key });
+                   await ai.models.generateContent({
+                       model: 'gemini-3-flash-preview',
+                       contents: 'Say OK',
+                       config: { maxOutputTokens: 5 }
+                   });
+                   // 성공 → 키 저장 후 진입
                    (window as any).__GEMINI_API_KEY__ = key;
                    setHasApiKey(true);
-               } else {
-                   // AI Studio 환경이면 기존 방식 시도
-                   handleSelectKey();
+               } catch (e: any) {
+                   const msg = e?.message || String(e);
+                   alert(`API Key가 유효하지 않습니다.\n\n${msg}\n\n확인사항:\n1. Google AI Studio에서 발급한 키인지\n2. Billing이 활성화되어 있는지\n3. gemini-3-flash-preview 모델 접근 권한이 있는지`);
+                   input.disabled = false;
+                   const testBtn = document.getElementById('apiStartBtn') as HTMLButtonElement;
+                   if (testBtn) testBtn.textContent = '🔑 시작하기';
                }
-           }} className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"><KeyIcon className="w-5 h-5" /> 시작하기</button>
+           }} id="apiStartBtn" className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"><KeyIcon className="w-5 h-5" /> 시작하기</button>
            <p className="mt-6 text-xs text-gray-400"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="underline hover:text-indigo-500">Google AI Studio에서 API Key 발급받기 →</a></p>
         </div>
       </div>
