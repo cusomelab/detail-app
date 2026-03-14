@@ -33,19 +33,17 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
 async function analyzeBenchmarkUrl(url: string): Promise<string> {
     const ai = getAI();
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
-            contents: `You are a market researcher. Analyze the product at this URL: ${url}.
-            Find:
-            1. Key Selling Points (Why do people buy it?)
-            2. Any unique marketing copy style or keywords used.
-            3. Overall mood.
-            
-            Return a summary in Korean.`,
-            config: {
-                tools: [{ googleSearch: {} }]
-            }
-        });
+       const response = await ai.models.generateContent({
+    model: TEXT_MODEL,
+    contents: requestContents,
+    config: {
+      systemInstruction: systemInstruction,
+      responseMimeType: "application/json",
+      responseSchema: schema,
+      temperature: 0.95,
+      maxOutputTokens: 4096
+    }
+  });
         return response.text || "";
     } catch (error) {
         console.warn("Benchmarking failed:", error);
