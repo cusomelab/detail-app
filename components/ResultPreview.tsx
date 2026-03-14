@@ -415,54 +415,75 @@ const CustomPromptModal: React.FC<CustomPromptModalProps> = ({ isOpen, onClose, 
     );
 }
 
-// --- Helper: AI 응답 마크다운 제거 ---
+// --- Helper: AI 응답 마크다운 + 서론 제거 ---
 const stripMarkdown = (text: string): string => {
     return text
-        .replace(/\*\*(.+?)\*\*/g, '$1')    // **볼드** → 볼드
-        .replace(/\*(.+?)\*/g, '$1')          // *이탤릭* → 이탤릭
-        .replace(/__(.+?)__/g, '$1')          // __볼드__ → 볼드
-        .replace(/_(.+?)_/g, '$1')            // _이탤릭_ → 이탤릭
-        .replace(/^#+\s*/gm, '')              // # 헤딩 → 헤딩
-        .replace(/^[-*•]\s+/gm, '')           // - 리스트 → 리스트
-        .replace(/^\d+\.\s+/gm, '')           // 1. 번호 리스트 → 리스트
-        .replace(/`(.+?)`/g, '$1')            // `코드` → 코드
-        .replace(/\\n/g, '\n')                // 리터럴 \n → 실제 줄바꿈
-        .replace(/\n{3,}/g, '\n\n')           // 연속 줄바꿈 정리
+        .replace(/\*\*(.+?)\*\*/g, '$1')    // **볼드**
+        .replace(/\*(.+?)\*/g, '$1')          // *이탤릭*
+        .replace(/__(.+?)__/g, '$1')          // __볼드__
+        .replace(/_(.+?)_/g, '$1')            // _이탤릭_
+        .replace(/^#+\s*/gm, '')              // # 헤딩
+        .replace(/^[-*•]\s+/gm, '')           // - 리스트
+        .replace(/`(.+?)`/g, '$1')            // `코드`
+        .replace(/^---+$/gm, '')              // --- 구분선
+        .replace(/\\n/g, '\n')                // 리터럴 \n
+        // ★ AI 서론/옵션 패턴 제거
+        .replace(/요청하신.*?(?:드립니다|드릴게요|하겠습니다)\.?\s*/g, '')
+        .replace(/규칙에\s*맞춰.*?(?:드립니다|드릴게요)\.?\s*/g, '')
+        .replace(/^\s*옵션\s*\d+\.?\s*[.:：]?\s*/gm, '')
+        .replace(/^\s*\[?MD'?s?\s*Pick\]?\s*/gim, '')
+        .replace(/^\s*\(추천\)\s*/gm, '')
+        .replace(/^\s*후기\s*\d+\s*[:：]\s*/gm, '')
+        .replace(/^\s*\d+\.\s+/gm, '')       // 번호 리스트
+        .replace(/\n{3,}/g, '\n\n')
         .trim();
 };
 
 // --- Helper: planSection content를 항목별로 분리 ---
-// "1. 항목A / 2. 항목B / 3. 항목C" 또는 "\n" 구분 모두 지원
 const splitContentItems = (content: string): string[] => {
     if (!content || !content.trim()) return [];
     
-    // 1) " / " 구분자로 된 번호 리스트 감지: "1. xxx / 2. xxx / 3. xxx"
-    if (/\d+\.\s*.+\s*\/\s*\d+\./.test(content)) {
-        return content
+    // 0) "후기N:" 또는 "후기 N:" 패턴 제거 전처리
+    let cleaned = content
+        .replace(/후기\s*\d+\s*[:：]\s*/g, '')
+        .replace(/^['"""'']+|['"""'']+$/gm, '')  // 따옴표 제거
+        .trim();
+    
+    // 1) " / " 구분자로 된 번호 리스트: "1. xxx / 2. xxx"
+    if (/\d+\.\s*.+\s*\/\s*\d+\./.test(cleaned)) {
+        return cleaned
             .split(/\s*\/\s*/)
-            .map(s => s.replace(/^\d+\.\s*/, '').replace(/^['"]|['"]$/g, '').trim())
+            .map(s => s.replace(/^\d+\.\s*/, '').replace(/^['"""'']+|['"""'']+$/g, '').trim())
             .filter(s => s.length > 0);
     }
     
-    // 2) 줄바꿈으로 된 번호 리스트: "1. xxx\n2. xxx"
-    if (/^\d+\.\s/m.test(content)) {
-        return content
+    // 2) ". " 뒤에 번호가 오는 패턴: "...분. 2. ...분. 3. ...분"
+    if (/\.\s*\d+\.\s/.test(cleaned)) {
+        return cleaned
+            .split(/(?<=\.)\s*(?=\d+\.\s)/)
+            .map(s => s.replace(/^\d+\.\s*/, '').trim())
+            .filter(s => s.length > 0);
+    }
+    
+    // 3) 줄바꿈으로 된 번호 리스트: "1. xxx\n2. xxx"
+    if (/^\d+\.\s/m.test(cleaned)) {
+        return cleaned
             .split(/\n/)
-            .map(s => s.replace(/^\d+\.\s*/, '').replace(/^['"]|['"]$/g, '').trim())
+            .map(s => s.replace(/^\d+\.\s*/, '').replace(/^['"""'']+|['"""'']+$/g, '').trim())
             .filter(s => s.length > 0);
     }
     
-    // 3) 단순 줄바꿈
-    const lines = content.split('\n').filter(l => l.trim());
+    // 4) 단순 줄바꿈
+    const lines = cleaned.split('\n').filter(l => l.trim());
     if (lines.length > 1) return lines.map(l => l.trim());
     
-    // 4) " / " 구분 (번호 없이)
-    if (content.includes(' / ')) {
-        return content.split(' / ').map(s => s.trim()).filter(s => s.length > 0);
+    // 5) " / " 구분 (번호 없이)
+    if (cleaned.includes(' / ')) {
+        return cleaned.split(' / ').map(s => s.trim()).filter(s => s.length > 0);
     }
     
-    // 5) 단일 항목
-    return [content.trim()];
+    // 6) 단일 항목
+    return [cleaned.trim()];
 };
 
 // --- Helper Component for Text Rewriting ---
@@ -2165,11 +2186,32 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                             <EditableElement key={`size-${pointTheme}`} value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
                         </div>
                         <div className="max-w-4xl mx-auto">
-                            <div className="mt-12 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
+                            <div className="mt-8 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: themeStyles.fontBody as any, color: 'text-gray-300', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
                         </div>
 
                         {/* ── 상품 정보고시 ─────────────────── */}
-                        {infoDisclosure && (infoDisclosure.manufacturer || infoDisclosure.customerService) && (
+                        {(() => {
+                            // ★ infoDisclosure가 없어도 기본 상품 정보는 표시
+                            const rows = [
+                                { label: '제품명', value: editableProductName },
+                                { label: '제조자/수입자', value: infoDisclosure?.manufacturer },
+                                { label: '원산지', value: infoDisclosure?.origin || editableCopy.productInfo.origin },
+                                { label: '소재/재질', value: infoDisclosure?.material || editableCopy.productInfo.material },
+                                { label: '사이즈', value: infoDisclosure?.size },
+                                { label: '색상', value: infoDisclosure?.color },
+                                { label: '세탁방법', value: infoDisclosure?.wash || (category === 'FASHION' ? '미지근한 물에 중성세제로 손세탁 또는 세탁망에 넣어 울코스 세탁을 권장합니다' : undefined) },
+                                { label: '원재료명', value: infoDisclosure?.ingredients },
+                                { label: '용량/중량', value: infoDisclosure?.capacity },
+                                { label: '유통기한', value: infoDisclosure?.expiry },
+                                { label: '보관방법', value: infoDisclosure?.storage },
+                                { label: '인증여부', value: infoDisclosure?.haccp || infoDisclosure?.certifications },
+                                { label: '품질보증', value: infoDisclosure?.warranty },
+                                { label: '주의사항', value: infoDisclosure?.caution },
+                                { label: '고객센터', value: infoDisclosure?.customerService },
+                            ].filter(r => r.value);
+                            
+                            if (rows.length === 0) return null;
+                            return (
                             <div className="max-w-4xl mx-auto px-10 pb-16">
                                 <div className="flex items-center gap-3 mb-6">
                                     <div className="h-px flex-1 bg-gray-200"></div>
@@ -2178,23 +2220,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 </div>
                                 <table className="w-full text-sm border border-gray-200">
                                     <tbody>
-                                        {[
-                                            { label: '제품명', value: editableProductName },
-                                            { label: '제조자/수입자', value: infoDisclosure.manufacturer },
-                                            { label: '원산지', value: infoDisclosure.origin || editableCopy.productInfo.origin },
-                                            { label: '소재/재질', value: infoDisclosure.material || editableCopy.productInfo.material },
-                                            { label: '사이즈', value: infoDisclosure.size },
-                                            { label: '색상', value: infoDisclosure.color },
-                                            { label: '세탁방법', value: infoDisclosure.wash || (category === 'FASHION' ? '미지근한 물에 중성세제로 손세탁 또는 세탁망에 넣어 울코스 세탁을 권장합니다' : undefined) },
-                                            { label: '원재료명', value: infoDisclosure.ingredients },
-                                            { label: '용량/중량', value: infoDisclosure.capacity },
-                                            { label: '유통기한', value: infoDisclosure.expiry },
-                                            { label: '보관방법', value: infoDisclosure.storage },
-                                            { label: '인증여부', value: infoDisclosure.haccp || infoDisclosure.certifications },
-                                            { label: '품질보증', value: infoDisclosure.warranty },
-                                            { label: '주의사항', value: infoDisclosure.caution },
-                                            { label: '고객센터', value: infoDisclosure.customerService },
-                                        ].filter(r => r.value).map((row, i) => (
+                                        {rows.map((row, i) => (
                                             <tr key={i} style={{ background: i % 2 === 0 ? '#ffffff' : '#f9fafb' }}>
                                                 <th className="py-3 px-5 text-left text-xs font-bold text-gray-500 w-32 border-b border-gray-100 whitespace-nowrap">{row.label}</th>
                                                 <td className="py-3 px-5 text-xs text-gray-700 border-b border-gray-100">{row.value}</td>
@@ -2203,7 +2229,8 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                     </tbody>
                                 </table>
                             </div>
-                        )}
+                            );
+                        })()}
                     </div>
             );
 
@@ -2237,35 +2264,33 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             const contentVal = getPlanContent(planType, '');
             const rawReviews = splitContentItems(contentVal);
             const displayReviews = rawReviews.length >= 3 ? rawReviews : [
-                rawReviews[0] || '화면보다 실물이 훨씬 고급스러워요. 디테일이 포인트가 되어서 얼굴이 확 살아나네요',
-                rawReviews[1] || '재질이 너무 부드러워서 단독으로 입어도 깔깔함이 전혀 없어요. 핏도 예술입니다',
-                rawReviews[2] || '소개팅 룩으로 입었는데 예쁘다는 소리 정말 많이 들었어요. 무조건 추천합니다!',
+                rawReviews[0] || '소개팅 나갈 때 입었는데 친구들이 다 어디서 샀냐고 물어봐요! 몸매가 정말 예뻐 보입니다',
+                rawReviews[1] || '피부가 예민한 편인데 소재가 너무 부드러워서 단독으로 입어도 전혀 가렵지 않아요',
+                rawReviews[2] || '리본이 너무 유치하지 않을까 걱정했는데, 실제로 보니까 세련된 느낌이라 데일리룩으로 딱이에요',
             ];
             return (
                 <div className={`w-full py-20 ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : themeStyles.cardBg}`}>
-                    <div className="text-center mb-6 px-10">
-                        <div className="text-4xl mb-3">💬</div>
-                        <EditableElement value={getPlanTitle(planType, '실제 구매 고객이 증명하는 핏과 분위기')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="tracking-tight" toolbarPosition="right" />
+                    <div className="text-center mb-4 px-10">
+                        <EditableElement value={getPlanTitle(planType, '실제 구매자가 증명하는 핏과 분위기')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="tracking-tight" toolbarPosition="right" />
                     </div>
-                    {/* ★ 평점 별도 줄 */}
-                    <div className="text-center mb-12">
-                        <span className="text-yellow-400 text-lg tracking-wider">★★★★★</span>
-                        <span className="ml-2 text-sm text-gray-500 font-medium">평점 4.9 / 5.0</span>
+                    <div className="text-center mb-10">
+                        <span className="text-yellow-400 text-base tracking-wider">★★★★★</span>
+                        <span className="ml-2 text-xs text-gray-500 font-medium">평점 4.9 / 5.0</span>
                     </div>
-                    <div className="max-w-3xl mx-auto px-10 space-y-5">
+                    <div className="max-w-3xl mx-auto px-10 space-y-4">
                         {displayReviews.map((review, i) => (
-                            <div key={`review-${i}`} className={`${themeStyles.bg} rounded-2xl p-6 shadow-sm border border-gray-100 ${pageDesign === 'IMPACT' ? 'border-2 border-black' : ''}`}>
+                            <div key={`review-${i}`} className={`${themeStyles.bg} rounded-xl p-5 border border-gray-200 ${pageDesign === 'IMPACT' ? 'border-2 border-black' : ''}`}>
                                 <div className="flex items-center gap-1 mb-2">
                                     {[...Array(5)].map((_, s) => (
-                                        <span key={s} className="text-yellow-400 text-sm">★</span>
+                                        <span key={s} className="text-yellow-400 text-xs">★</span>
                                     ))}
                                 </div>
                                 <EditableElement value={review} onChange={(v) => {
                                     const items = [...displayReviews];
                                     items[i] = v;
                                     updatePlanContent(planType, items.join('\n'));
-                                }} isEditMode={isEditMode} aiLabel="Review" defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
-                                <div className="mt-3 text-xs text-gray-400 font-medium">구매 고객 {String.fromCharCode(65 + i)}** 님</div>
+                                }} isEditMode={isEditMode} aiLabel="Review" defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
+                                <div className="mt-2 text-xs text-gray-400">구매 고객 {String.fromCharCode(65 + i)}** 님</div>
                             </div>
                         ))}
                     </div>
@@ -2279,19 +2304,19 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             const contentVal = getPlanContent(planType, '모든 분께 추천드립니다');
             const items = splitContentItems(contentVal);
             return (
-                <div className={`w-full py-20 ${themeStyles.bg}`}>
+                <div className={`w-full py-20 ${themeStyles.cardBg}`}>
                     <div className="text-center mb-12 px-10">
-                        <EditableElement value={getPlanTitle(planType, '이런 분들께 추천합니다')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                        <EditableElement value={getPlanTitle(planType, '이런 분들께 추천합니다!')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
                     </div>
-                    <div className="max-w-2xl mx-auto px-10 space-y-3">
+                    <div className="max-w-3xl mx-auto px-10 grid gap-4">
                         {items.map((item, i) => (
-                            <div key={`recommend-${i}`} className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
-                                <span className={`shrink-0 ${theme.text} text-lg`}>✓</span>
+                            <div key={`recommend-${i}`} className={`flex items-center gap-5 p-5 ${themeStyles.bg} rounded-xl border ${themeStyles.tableBorder} ${pageDesign === 'IMPACT' ? 'border-2 border-black' : ''}`}>
+                                <div className={`shrink-0 w-10 h-10 rounded-full ${theme.bg} text-white flex items-center justify-center font-black text-sm`}>{String(i + 1).padStart(2, '0')}</div>
                                 <EditableElement value={item} onChange={(v) => {
                                     const all = splitContentItems(contentVal);
                                     all[i] = v;
                                     updatePlanContent(planType, all.join('\n'));
-                                }} isEditMode={isEditMode} aiLabel="Recommend" defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
+                                }} isEditMode={isEditMode} aiLabel="Recommend" defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
                             </div>
                         ))}
                     </div>
