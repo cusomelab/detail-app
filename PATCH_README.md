@@ -1,43 +1,55 @@
-# detail-app 패치 v2 (2026-03-14)
+# detail-app 패치 v3 (2026-03-14)
 
-## 파일 교체 경로
+## 파일 교체
 ```
-cusomelab/detail-app/src/
-├── components/ResultPreview.tsx  ← 교체
-├── services/geminiService.ts     ← 교체
-└── types.ts                      ← 교체
+src/components/ResultPreview.tsx  ← 교체
+src/services/geminiService.ts     ← 교체
+src/types.ts                      ← 교체
 ```
 
-## v2 수정 내역 (스크린샷 피드백 6건 반영)
+## v3 수정 요약
 
-### 1. 글씨 잘림 해결
-- 모든 신규 섹션 제목: text-5xl → text-3xl
-- 본문/항목: text-2xl → text-base~text-lg
-- 리뷰 카드: text-xl → text-base
-- 전체 padding/margin 축소
+### 글씨 잘림 — 기존 섹션 포함 전체 폰트 축소
+| 섹션 | 항목 | 변경 전 | 변경 후 |
+|------|------|---------|---------|
+| HERO | 상품명 (mainHook) | text-6xl | text-4xl |
+| STORY | 감성 문구 | text-4xl | text-2xl |
+| POINTS | 섹션 제목 | text-6xl | text-4xl |
+| POINTS | 서브 제목 | text-4xl | text-xl |
+| POINTS ZIGZAG | 포인트 제목 | text-5xl | text-3xl |
+| POINTS ZIGZAG | 포인트 설명 | text-2xl | text-lg |
+| POINTS CARDS | 포인트 제목 | text-4xl | text-2xl |
+| POINTS SIMPLE | 포인트 제목 | text-4xl | text-2xl |
+| MD's Pick | 본문 | text-4xl | text-2xl |
+| INFO Check Point | 헤더 | text-4xl | text-2xl |
+| INFO sizeTip | 본문 | text-3xl | text-xl |
 
-### 2. 문단 줄바꿈 → splitContentItems() 스마트 파서 추가
-- "1. 항목A / 2. 항목B / 3. 항목C" 패턴 자동 분리
-- 줄바꿈 번호 리스트 자동 분리
-- 번호 prefix 자동 제거
-- REVIEW, RECOMMEND, PRODUCT_GUIDE, CAUTION_NOTE 모두 적용
+### 후기 섹션 개선
+- 제목 아래 별도 줄: ★★★★★ 평점 4.9 / 5.0
+- 후기 기본 텍스트 2~3줄로 변경 (더 자연스럽게)
+- 폰트: text-sm (글씨 잘림 방지)
 
-### 3. AI 수정 프롬프트 전면 재작성
-- ONE version only, no alternatives
-- 서론/옵션번호/MD's Pick 라벨 후처리 제거
-- temperature 0.85 → 0.8
+### 추천 섹션 디자인 전면 교체
+- 이모지(🎯) 제거
+- 배경색 칩/라운드 아이콘 제거
+- 깔끔한 ✓ 리스트 + border-bottom 구분선
+- max-w-2xl 중앙정렬
+- text-sm 폰트
 
-### 4. 리뷰 3개 보장
-- 3개 미만이면 기본 리뷰 자동 보충
+### 세탁 가이드(PRODUCT_GUIDE) 기본 비표시
+- planTypeMap에서 'GUIDE' 매핑 주석처리
+- planSections에 GUIDE 타입이 없으면 섹션 자체가 안 나옴
 
-### 5. 옵션 텍스트 개선
-- fallback: "옵션 설명을 입력하세요" → "컬러 1"
-- fileName 누락 시 console.warn 디버그
+### AI 수정 프롬프트 (geminiService.ts)
+- ONE version only, 서론/옵션번호 절대 금지
+- 후처리: [MD's Pick], 옵션 1., (추천), --- 자동 제거
 
-### 6. 세탁 가이드 개선
-- 세탁 기호 이미지 업로드 슬롯 추가 (편집 모드)
-- 제목: "제품 관리 가이드"
+### 옵션 파일명
+- App.tsx에 이미 fileName: file.name 존재 (212줄)
+- ResultPreview에서 정상 수신 시 파일명 표시
+- 미수신 시 fallback: "컬러 N" + console.warn 디버그
+- ⚠️ 배포된 App.tsx가 최신인지 확인 필요
 
-## App.tsx 주의사항
-옵션 이미지가 파일명 대신 "컬러 N"으로 나오면
-App.tsx processedImages에 fileName: file.name 전달 확인 필요
+## types.ts 추가 타입
+- PlanSection (기획안 섹션)
+- ProductInfoDisclosure (상품 정보고시)
