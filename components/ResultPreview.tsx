@@ -982,7 +982,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       'OPTIONS': 'OPTIONS',
       'RECOMMEND': 'RECOMMEND',
       'SIZE': 'SIZE_GUIDE',
-      'GUIDE': 'PRODUCT_GUIDE',
+      // 'GUIDE': 'PRODUCT_GUIDE',  // ★ 제거 - 세탁가이드는 기본 비표시
       'CAUTION': 'CAUTION_NOTE',
       'DETAIL': 'DETAILS',
       'INFO': 'INFO',
@@ -1139,7 +1139,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             type: 'TEXT',
             content: `[MD's Pick]\n\n${copy.mdComment}`,
             width: 'FULL',
-            style: { fontSize: 'text-4xl', fontFamily: 'font-sans', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-yellow-50' }
+            style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-yellow-50' }
         });
     }
     setDetailBlocks(initialDetailBlocks);
@@ -1795,7 +1795,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                      <EditableElement key={`new-${pointTheme}`} value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'EMOTIONAL' ? theme.text : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="uppercase tracking-[0.3em]" toolbarPosition="right" />
                                 </div>
                             )}
-                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-6xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-8 leading-normal" toolbarPosition="right" />
+                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-8 leading-normal" toolbarPosition="right" />
                             {pageDesign !== 'EMOTIONAL' && <div className={`w-20 h-2 ${pageDesign === 'IMPACT' ? 'bg-black' : 'bg-gray-900'} mx-auto`}></div>}
                         </div>
                 </div>
@@ -1803,7 +1803,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         case 'STORY': return (
             <div className={`w-full ${themeStyles.bg} py-24 px-12 text-center relative`}>
                         <span className={`text-8xl ${themeStyles.storyQuote} mb-6 block leading-none`}>"</span>
-                        <EditableElement value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontBody as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }} className="leading-normal mx-auto" toolbarPosition="right" />
+                        <EditableElement value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }} className="leading-normal mx-auto" toolbarPosition="right" />
                         <span className={`text-8xl ${themeStyles.storyQuote} mt-6 block leading-none`}>"</span>
                         {visibleHeaders.moodStory && (
                             <div className="mt-16 flex justify-center items-center gap-6">
@@ -1832,9 +1832,9 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                              </div>
                         )}
                         <div className="text-center mb-20 px-10">
-                            <EditableElement key={`why-${pointTheme}`} value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-6xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-4" toolbarPosition="right" />
+                            <EditableElement key={`why-${pointTheme}`} value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-4" toolbarPosition="right" />
                             {visibleHeaders.whySub && (
-                                <EditableElement key={`whysub-${pointTheme}`} value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                <EditableElement key={`whysub-${pointTheme}`} value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                             )}
                         </div>
                         <div className={`px-10 ${pointLayout === 'CARDS' ? 'grid gap-10' : pointLayout === 'SIMPLE' ? 'space-y-12' : 'flex flex-wrap'}`}>
@@ -1853,8 +1853,8 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                 <>
                                                     <div className={`flex-1 p-12 flex flex-col justify-center ${themeStyles.bg} relative`}>
                                                         {pointIconStyle !== 'NONE' && <div className="text-6xl mb-6">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div>}
-                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-5xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-6 leading-tight" toolbarPosition="right" />
-                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-600', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-normal" toolbarPosition="right" />
+                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-6 leading-tight" toolbarPosition="right" />
+                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-600', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-full' }} className="leading-normal" toolbarPosition="right" />
                                                     </div>
                                                     <div 
                                                         className={`w-1/3 ${theme.lightBg} flex items-center justify-center relative group/side overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
@@ -1900,7 +1900,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                 <div className="flex flex-col items-center text-center w-full">
                                                     <div className={`absolute top-0 right-0 ${theme.badge} text-white font-bold text-xl px-4 py-2 rounded-bl-2xl`}>POINT {idx+1}</div>
                                                     {pointIconStyle !== 'NONE' && ( <div className="bg-white w-24 h-24 rounded-full flex items-center justify-center text-5xl shadow-md mb-6">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div> )}
-                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-4" toolbarPosition="right" />
+                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-4" toolbarPosition="right" />
                                                     <div className="w-10 h-1 bg-gray-300 mb-6"></div>
                                                     <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-2xl' }} className="leading-normal" toolbarPosition="right" />
                                                 </div>
@@ -1908,7 +1908,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                             {pointLayout === 'SIMPLE' && (
                                                 <div className="w-full">
                                                     {pointIconStyle !== 'NONE' && ( <div className="flex items-center gap-4 mb-2"><span className="text-4xl">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</span></div> )}
-                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2" toolbarPosition="right" />
+                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2" toolbarPosition="right" />
                                                     <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-500', align: 'text-left', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }} className="leading-normal" toolbarPosition="right" />
                                                 </div>
                                             )}
@@ -2161,8 +2161,8 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                              <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                         </div>
                         <div className={`bg-red-50 border-2 border-red-100 p-12 text-center rounded-lg mb-24 ${pageDesign === 'IMPACT' ? 'border-4 border-red-600 bg-white' : ''}`}>
-                            <h4 className="text-red-600 font-black text-4xl mb-4 uppercase tracking-wide flex items-center justify-center gap-3">⚠️ Check Point</h4>
-                            <EditableElement key={`size-${pointTheme}`} value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                            <h4 className="text-red-600 font-black text-2xl mb-4 uppercase tracking-wide flex items-center justify-center gap-3">⚠️ Check Point</h4>
+                            <EditableElement key={`size-${pointTheme}`} value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
                         </div>
                         <div className="max-w-4xl mx-auto">
                             <div className="mt-12 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
@@ -2237,29 +2237,34 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             const contentVal = getPlanContent(planType, '');
             const rawReviews = splitContentItems(contentVal);
             const displayReviews = rawReviews.length >= 3 ? rawReviews : [
-                rawReviews[0] || '착용감이 정말 좋아요! 기대 이상이에요',
-                rawReviews[1] || '핏이 예쁘고 소재가 고급스러워요',
-                rawReviews[2] || '컬러가 사진과 동일해서 만족합니다',
+                rawReviews[0] || '화면보다 실물이 훨씬 고급스러워요. 디테일이 포인트가 되어서 얼굴이 확 살아나네요',
+                rawReviews[1] || '재질이 너무 부드러워서 단독으로 입어도 깔깔함이 전혀 없어요. 핏도 예술입니다',
+                rawReviews[2] || '소개팅 룩으로 입었는데 예쁘다는 소리 정말 많이 들었어요. 무조건 추천합니다!',
             ];
             return (
                 <div className={`w-full py-20 ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : themeStyles.cardBg}`}>
-                    <div className="text-center mb-14 px-10">
-                        <div className="text-5xl mb-4">💬</div>
-                        <EditableElement value={getPlanTitle(planType, '고객 후기')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="tracking-tight" toolbarPosition="right" />
+                    <div className="text-center mb-6 px-10">
+                        <div className="text-4xl mb-3">💬</div>
+                        <EditableElement value={getPlanTitle(planType, '실제 구매 고객이 증명하는 핏과 분위기')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="tracking-tight" toolbarPosition="right" />
+                    </div>
+                    {/* ★ 평점 별도 줄 */}
+                    <div className="text-center mb-12">
+                        <span className="text-yellow-400 text-lg tracking-wider">★★★★★</span>
+                        <span className="ml-2 text-sm text-gray-500 font-medium">평점 4.9 / 5.0</span>
                     </div>
                     <div className="max-w-3xl mx-auto px-10 space-y-5">
                         {displayReviews.map((review, i) => (
                             <div key={`review-${i}`} className={`${themeStyles.bg} rounded-2xl p-6 shadow-sm border border-gray-100 ${pageDesign === 'IMPACT' ? 'border-2 border-black' : ''}`}>
                                 <div className="flex items-center gap-1 mb-2">
                                     {[...Array(5)].map((_, s) => (
-                                        <span key={s} className="text-yellow-400 text-base">★</span>
+                                        <span key={s} className="text-yellow-400 text-sm">★</span>
                                     ))}
                                 </div>
                                 <EditableElement value={review} onChange={(v) => {
                                     const items = [...displayReviews];
                                     items[i] = v;
                                     updatePlanContent(planType, items.join('\n'));
-                                }} isEditMode={isEditMode} aiLabel="Review" defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
+                                }} isEditMode={isEditMode} aiLabel="Review" defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
                                 <div className="mt-3 text-xs text-gray-400 font-medium">구매 고객 {String.fromCharCode(65 + i)}** 님</div>
                             </div>
                         ))}
@@ -2275,19 +2280,18 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             const items = splitContentItems(contentVal);
             return (
                 <div className={`w-full py-20 ${themeStyles.bg}`}>
-                    <div className="text-center mb-14 px-10">
-                        <div className="text-5xl mb-4">🎯</div>
-                        <EditableElement value={getPlanTitle(planType, '이런 분께 추천합니다')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                    <div className="text-center mb-12 px-10">
+                        <EditableElement value={getPlanTitle(planType, '이런 분들께 추천합니다')} onChange={(v) => updatePlanTitle(planType, v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
                     </div>
-                    <div className="max-w-3xl mx-auto px-10 space-y-4">
+                    <div className="max-w-2xl mx-auto px-10 space-y-3">
                         {items.map((item, i) => (
-                            <div key={`recommend-${i}`} className={`flex items-start gap-4 p-5 rounded-xl ${theme.lightBg} ${pageDesign === 'IMPACT' ? 'border-l-4 border-black bg-gray-50' : ''}`}>
-                                <div className={`shrink-0 w-8 h-8 rounded-full ${theme.bg} text-white flex items-center justify-center font-bold text-sm`}>✓</div>
+                            <div key={`recommend-${i}`} className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
+                                <span className={`shrink-0 ${theme.text} text-lg`}>✓</span>
                                 <EditableElement value={item} onChange={(v) => {
                                     const all = splitContentItems(contentVal);
                                     all[i] = v;
                                     updatePlanContent(planType, all.join('\n'));
-                                }} isEditMode={isEditMode} aiLabel="Recommend" defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-800', align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed pt-0.5" toolbarPosition="right" />
+                                }} isEditMode={isEditMode} aiLabel="Recommend" defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
                             </div>
                         ))}
                     </div>
