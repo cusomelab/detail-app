@@ -352,15 +352,15 @@ function getStyledShotPrompts(category: ProductCategory): { prompt: string; labe
   switch (category) {
     case 'FASHION':
       return [
-        { prompt: 'Generate a lifestyle photo of a Korean woman wearing this exact clothing item. She is walking on a sunny Seoul street with cherry blossoms. Natural lighting, editorial fashion photography style. Keep the clothing design and color exactly the same.', label: '라이프스타일 연출' },
-        { prompt: 'Generate a close-up detail shot focusing on the fabric texture and stitching of this clothing item. Macro photography, soft studio lighting, showing material quality. Keep the clothing design exactly the same.', label: '소재 클로즈업' },
-        { prompt: 'Generate a flat lay styling photo of this clothing item arranged beautifully on a clean white surface with minimal accessories (a watch, sunglasses, a bag). Top-down view, magazine styling. Keep the clothing design and color exactly the same.', label: '코디 스타일링' },
+        { prompt: 'Generate a full-body fashion photo of a trendy Korean woman wearing this exact clothing item in a clean white studio with soft diffused lighting. Professional editorial fashion photography. Keep the clothing design and color exactly the same.', label: 'studio' },
+        { prompt: 'Generate a close-up detail shot focusing on the fabric texture and stitching of this clothing item on a clean white background. Macro photography, soft studio lighting, showing material quality. Keep the clothing design exactly the same.', label: 'detail' },
+        { prompt: 'Generate a flat lay styling photo of this clothing item arranged beautifully on a clean white surface with minimal accessories. Top-down view, clean studio lighting, magazine styling. Keep the clothing design and color exactly the same.', label: 'flatlay' },
       ];
     case 'LIVING':
       return [
-        { prompt: 'Place this product in a beautiful modern Korean living room interior. Warm lighting, cozy atmosphere, Scandinavian minimal style. Keep the product exactly the same.', label: '인테리어 연출' },
-        { prompt: 'Generate a close-up detail shot of this product showing material quality and craftsmanship. Soft studio lighting, macro photography. Keep the product exactly the same.', label: '디테일 클로즈업' },
-        { prompt: 'Show this product being used in a real home setting with a person enjoying it. Natural warm lighting, lifestyle photography. Keep the product exactly the same.', label: '사용 장면' },
+        { prompt: 'Place this product in a clean, bright Scandinavian-style room with white walls and natural wood furniture. Soft warm studio lighting. Keep the product exactly the same.', label: 'interior' },
+        { prompt: 'Generate a close-up detail shot of this product showing material quality and craftsmanship. Clean white background, soft studio lighting, macro photography. Keep the product exactly the same.', label: 'detail' },
+        { prompt: 'Show this product being used in a minimalist home setting with a person. Clean studio-like environment with warm lighting. Keep the product exactly the same.', label: 'lifestyle' },
       ];
     case 'KITCHEN':
       return [

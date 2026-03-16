@@ -1019,7 +1019,6 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     if (newCopy.productInfo) {
         newCopy.productInfo.origin = "Made in China";
     }
-    // 스토리 길이 제한 (모바일 가독성)
     if (newCopy.story && newCopy.story.length > 60) {
         const lines = newCopy.story.split('\n').filter((l: string) => l.trim());
         newCopy.story = lines.slice(0, 2).join('\n');
@@ -1030,46 +1029,129 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     
     if (category !== 'FASHION') {
         const info = {...infoLabels};
-        if (copy.productInfo.caution) {
-            info.washGuide = copy.productInfo.caution;
-        } else {
-            info.washGuide = "14세 이상 사용가능\n화기에 주의 하세요";
-        }
+        if (copy.productInfo.caution) { info.washGuide = copy.productInfo.caution; }
+        else { info.washGuide = "14세 이상 사용가능\n화기에 주의 하세요"; }
         setInfoLabels(info);
     }
 
     const propMain = images.find(img => img.type === 'main')?.processedUrl;
     if (propMain) setMainImage(propMain);
 
-    // AI 연출 샷 추출
-    const styledImages = images.filter(img => img.type === 'styled').map(img => img.processedUrl).filter(Boolean) as string[];
+    // ══════════════════════════════════════════════
+    // 13개 기획안에서 배너 카피 추출
+    // ══════════════════════════════════════════════
+    const enabledPlan = planSections?.filter(s => s.enabled) || [];
+    const overviewPlan = enabledPlan.find(s => s.type === 'OVERVIEW');
+    const detailPlan = enabledPlan.find(s => s.type === 'DETAIL');
+    const reviewPlan = enabledPlan.find(s => s.type === 'REVIEW');
+    const recommendPlan = enabledPlan.find(s => s.type === 'RECOMMEND');
+    const guidePlan = enabledPlan.find(s => s.type === 'GUIDE');
+    const sizePlan = enabledPlan.find(s => s.type === 'SIZE');
+    
+    // 배너용 카피 큐 (이미지 사이사이 삽입)
+    const bannerQueue: { title: string; content: string; bg: string }[] = [];
+    if (overviewPlan) bannerQueue.push({ title: overviewPlan.title, content: overviewPlan.content, bg: 'bg-gray-900' });
+    if (detailPlan) bannerQueue.push({ title: detailPlan.title, content: detailPlan.content, bg: pageDesign === 'IMPACT' ? 'bg-black' : 'bg-indigo-600' });
+    if (reviewPlan) bannerQueue.push({ title: '⭐ ' + reviewPlan.title, content: reviewPlan.content, bg: 'bg-gray-800' });
+    if (guidePlan) bannerQueue.push({ title: guidePlan.title, content: guidePlan.content, bg: pageDesign === 'EMOTIONAL' ? 'bg-[#8b7355]' : 'bg-gray-700' });
+    // sellingPoint 제목도 배너로
+    copy.sellingPoints.forEach(sp => {
+        if (sp.title) bannerQueue.push({ title: sp.icon + ' ' + sp.title, content: sp.description, bg: 'bg-gray-900' });
+    });
 
-    // 상세이미지 + AI 연출 교차 배치
+    // ══════════════════════════════════════════════
+    // 상세이미지 + AI연출 + 기획안 배너 교차 배치
+    // ══════════════════════════════════════════════
+    const styledImages = images.filter(img => img.type === 'styled').map(img => img.processedUrl).filter(Boolean) as string[];
     const propDetails = images.filter(img => img.type === 'detail').map(img => img.processedUrl).filter(Boolean) as string[];
     const initialDetailBlocks: DetailBlock[] = [];
     const ts = Date.now();
     let styledIdx = 0;
+    let bannerIdx = 0;
+    const totalImages = propDetails.length + styledImages.length;
+    const useHalfWidth = totalImages > 4; // 이미지 많으면 2분할
 
+    // MD Comment
     if (copy.mdComment) {
         initialDetailBlocks.push({
             id: `text-md-${ts}`, type: 'TEXT',
             content: `[MD's Pick]\n${copy.mdComment}`, width: 'FULL',
-            style: { fontSize: 'text-xl', fontFamily: 'font-sans', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-yellow-50' }
+            style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-yellow-50' }
         });
     }
     
+    // OVERVIEW 기획안 → 첫 배너
+    if (overviewPlan) {
+        initialDetailBlocks.push({
+            id: `banner-overview-${ts}`, type: 'TEXT',
+            content: `${overviewPlan.title}\n${overviewPlan.content}`, width: 'FULL',
+            style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold', maxWidth: 'max-w-4xl', backgroundColor: 'bg-gray-900' }
+        });
+        bannerIdx++;
+    }
+    
+    // 이미지 교차 배치: [상세1] → [AI연출1] → [배너] → [상세2+상세3 2분할] → [AI연출2] → [배너] ...
     propDetails.forEach((url, idx) => {
-        initialDetailBlocks.push({ id: `img-${ts}-${idx}`, type: 'IMAGE', content: url, width: 'FULL' });
-        // AI 연출 샷 교차 삽입 (라벨 없이 이미지만)
-        if (styledIdx < styledImages.length) {
+        const imgWidth = useHalfWidth && idx > 0 && idx % 2 === 1 ? 'HALF' as BlockWidth : useHalfWidth && idx > 0 && idx % 2 === 0 ? 'HALF' as BlockWidth : 'FULL' as BlockWidth;
+        initialDetailBlocks.push({ id: `img-${ts}-${idx}`, type: 'IMAGE', content: url, width: imgWidth });
+        
+        // 매 2장 상세이미지 뒤에 AI 연출 + 배너 삽입
+        if (idx % 2 === 0 && styledIdx < styledImages.length) {
             initialDetailBlocks.push({ id: `styled-${ts}-${styledIdx}`, type: 'IMAGE', content: styledImages[styledIdx], width: 'FULL' });
             styledIdx++;
+            
+            // 기획안 배너 삽입
+            if (bannerIdx < bannerQueue.length) {
+                const b = bannerQueue[bannerIdx];
+                initialDetailBlocks.push({
+                    id: `banner-${ts}-${bannerIdx}`, type: 'TEXT',
+                    content: `${b.title}\n${b.content}`, width: 'FULL',
+                    style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold', maxWidth: 'max-w-4xl', backgroundColor: b.bg }
+                });
+                bannerIdx++;
+            }
         }
     });
-    // 남은 연출 샷
+
+    // 남은 AI 연출 샷 + 배너
     while (styledIdx < styledImages.length) {
         initialDetailBlocks.push({ id: `styled-${ts}-${styledIdx}`, type: 'IMAGE', content: styledImages[styledIdx], width: 'FULL' });
         styledIdx++;
+        if (bannerIdx < bannerQueue.length) {
+            const b = bannerQueue[bannerIdx];
+            initialDetailBlocks.push({
+                id: `banner-${ts}-${bannerIdx}`, type: 'TEXT',
+                content: `${b.title}\n${b.content}`, width: 'FULL',
+                style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold', maxWidth: 'max-w-4xl', backgroundColor: b.bg }
+            });
+            bannerIdx++;
+        }
+    }
+
+    // 추천 대상 → 박스형 카드
+    if (recommendPlan?.content) {
+        initialDetailBlocks.push({
+            id: `text-recommend-title-${ts}`, type: 'TEXT',
+            content: `이런 분들께 강력 추천합니다`, width: 'FULL',
+            style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-black', maxWidth: 'max-w-4xl' }
+        });
+        const items = recommendPlan.content.split('\n').filter((l: string) => l.trim());
+        items.forEach((item: string, i: number) => {
+            initialDetailBlocks.push({
+                id: `recommend-card-${ts}-${i}`, type: 'TEXT',
+                content: item.replace(/^\d+[\.\)]\s*/, '').trim(), width: items.length <= 3 ? 'FULL' : 'HALF',
+                style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-gray-100' }
+            });
+        });
+    }
+
+    // 사이즈 가이드
+    if (sizePlan?.content) {
+        initialDetailBlocks.push({
+            id: `banner-size-${ts}`, type: 'TEXT',
+            content: `📏 ${sizePlan.title}\n${sizePlan.content}`, width: 'FULL',
+            style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-blue-50' }
+        });
     }
     
     setDetailBlocks(initialDetailBlocks);
@@ -1082,7 +1164,6 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     }));
     setOptionBlocks(initialOptionBlocks);
 
-    // 포인트: AI 연출 샷을 sideImage에 자동 배치
     const allStyled = images.filter(img => img.type === 'styled').map(img => img.processedUrl).filter(Boolean) as string[];
     const initialPointBlocks: PointBlock[] = copy.sellingPoints.map((p, i) => ({
         id: `pt-${ts}-${i}`, type: 'POINT_ITEM',
@@ -1758,7 +1839,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                             {pointBlocks.map((block, idx) => {
                                 if (block.type === 'POINT_ITEM') {
                                     return (
-                                        <div key={block.id} className={`relative group/point w-full ${pointLayout === 'ZIGZAG' ? `flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-stretch min-h-[400px] border-b ${themeStyles.tableBorder} last:border-0` : ''} ${pointLayout === 'CARDS' ? `${themeStyles.cardBg} rounded-3xl p-12 border border-gray-200` : ''} ${pointLayout === 'SIMPLE' ? `flex flex-col items-start border-l-8 ${theme.border} pl-10 py-4` : ''}`}>   
+                                        <div key={block.id} className={`relative group/point w-full ${pointLayout === 'ZIGZAG' ? `flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-stretch min-h-[350px] border-b ${themeStyles.tableBorder} last:border-0` : ''} ${pointLayout === 'CARDS' ? `${pageDesign === 'IMPACT' ? 'bg-black text-white' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#d4d1c9]' : themeStyles.cardBg + ' border border-gray-200'} rounded-2xl p-10` : ''} ${pointLayout === 'SIMPLE' ? `flex flex-col items-start ${pageDesign === 'IMPACT' ? 'border-l-8 border-red-600 bg-gray-50' : pageDesign === 'EMOTIONAL' ? 'border-l-4 border-[#d4d1c9] bg-[#fdfbf7]' : `border-l-8 ${theme.border}`} pl-10 py-4` : ''}`}>   
                                             {isEditMode && (
                                                 <div className="absolute top-2 left-2 z-30 flex gap-1 opacity-0 group-hover/point:opacity-100 transition-opacity">
                                                     <button onClick={() => movePointBlock(idx, -1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronUpIcon className="w-3 h-3"/></button>
@@ -1815,18 +1896,18 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                             )}
                                             {pointLayout === 'CARDS' && (
                                                 <div className="flex flex-col items-center text-center w-full">
-                                                    <div className={`absolute top-0 right-0 ${theme.badge} text-white font-bold text-xl px-4 py-2 rounded-bl-2xl`}>POINT {idx+1}</div>
-                                                    {pointIconStyle !== 'NONE' && ( <div className="bg-white w-24 h-24 rounded-full flex items-center justify-center text-5xl shadow-md mb-6">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div> )}
-                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-4" toolbarPosition="right" />
-                                                    <div className="w-10 h-1 bg-gray-300 mb-6"></div>
-                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-2xl' }} className="leading-normal" toolbarPosition="right" />
+                                                    <div className={`absolute top-0 right-0 ${pageDesign === 'IMPACT' ? 'bg-red-600' : theme.badge} text-white font-bold text-lg px-4 py-2 rounded-bl-2xl`}>POINT {idx+1}</div>
+                                                    {pointIconStyle !== 'NONE' && ( <div className={`${pageDesign === 'IMPACT' ? 'bg-gray-800' : 'bg-white'} w-20 h-20 rounded-full flex items-center justify-center text-4xl shadow-md mb-4`}>{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${pageDesign === 'IMPACT' ? 'text-white' : theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div> )}
+                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-3" toolbarPosition="right" />
+                                                    <div className={`w-10 h-1 ${pageDesign === 'IMPACT' ? 'bg-red-600' : 'bg-gray-300'} mb-4`}></div>
+                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-2xl' }} className="leading-relaxed" toolbarPosition="right" />
                                                 </div>
                                             )}
                                             {pointLayout === 'SIMPLE' && (
                                                 <div className="w-full">
-                                                    {pointIconStyle !== 'NONE' && ( <div className="flex items-center gap-4 mb-2"><span className="text-4xl">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</span></div> )}
-                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2" toolbarPosition="right" />
-                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-500', align: 'text-left', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }} className="leading-normal" toolbarPosition="right" />
+                                                    {pointIconStyle !== 'NONE' && ( <div className="flex items-center gap-4 mb-2"><span className="text-3xl">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</span></div> )}
+                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2" toolbarPosition="right" />
+                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-500', align: 'text-left', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }} className="leading-relaxed" toolbarPosition="right" />
                                                 </div>
                                             )}
                                         </div>
@@ -2014,8 +2095,8 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         </div>
                                     )}
                                     {block.type === 'TEXT' && (
-                                        <div className={`w-full ${pageDesign === 'EMOTIONAL' ? 'bg-[#f4f1ea]' : 'bg-gray-100'} p-12 relative group/textblock h-full flex items-center`}>
-                                            <EditableElement value={block.content} onChange={(v) => updateBlockContent(block.id, v)} onStyleChange={(s) => setDetailBlocks(prev => prev.map(b => b.id === block.id ? { ...b, style: s } : b))} isEditMode={isEditMode} aiLabel="Detail Text" defaultStyle={block.style || { fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }} className="leading-normal" toolbarPosition="right" />
+                                        <div className={`w-full ${block.style?.backgroundColor || (pageDesign === 'EMOTIONAL' ? 'bg-[#f4f1ea]' : 'bg-gray-100')} p-10 relative group/textblock h-full flex items-center justify-center`}>
+                                            <EditableElement value={block.content} onChange={(v) => updateBlockContent(block.id, v)} onStyleChange={(s) => setDetailBlocks(prev => prev.map(b => b.id === block.id ? { ...b, style: s } : b))} isEditMode={isEditMode} aiLabel="Detail Text" defaultStyle={block.style || { fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }} className="leading-relaxed" toolbarPosition="right" />
                                         </div>
                                     )}
                                     {block.type === 'SIZE_CHART' && block.tableData && (
@@ -2115,9 +2196,14 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                     </tr>
                                     {infoDisclosure && [
                                         { label: '제조사/수입자', value: infoDisclosure.manufacturer },
-                                        { label: '고객센터', value: infoDisclosure.customerService },
+                                        { label: '소재/재질', value: infoDisclosure.material },
+                                        { label: '사이즈', value: infoDisclosure.size },
+                                        { label: '색상', value: infoDisclosure.color },
+                                        { label: '세탁방법', value: infoDisclosure.wash },
                                         { label: '인증여부', value: infoDisclosure.haccp || infoDisclosure.certifications },
                                         { label: '품질보증', value: infoDisclosure.warranty },
+                                        { label: '주의사항', value: infoDisclosure.caution },
+                                        { label: '고객센터', value: infoDisclosure.customerService },
                                     ].filter(r => r.value).map((row, i) => (
                                         <tr key={`info-${i}`} className="border-b border-gray-200">
                                             <th className={`py-4 px-4 text-left font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top text-lg`}>{row.label}</th>
