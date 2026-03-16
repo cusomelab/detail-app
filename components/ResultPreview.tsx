@@ -1005,6 +1005,8 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         newCopy.story = lines.slice(0, 2).join('\n');
         if (newCopy.story.length > 60) newCopy.story = newCopy.story.substring(0, 60);
     }
+    // 정보고시에서 입력한 소재/색상이 있으면 상단 테이블에 반영
+    if (infoDisclosure?.material) newCopy.productInfo.material = infoDisclosure.material;
     setEditableCopy(newCopy);
     setEditableProductName(productName);
     
@@ -2134,9 +2136,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                     </tr>
                                     {infoDisclosure && [
                                         { label: '제조사/수입자', value: infoDisclosure.manufacturer },
-                                        { label: '소재/재질', value: infoDisclosure.material },
                                         { label: '사이즈', value: infoDisclosure.size },
-                                        { label: '색상', value: infoDisclosure.color },
                                         { label: '세탁방법', value: infoDisclosure.wash },
                                         { label: '인증여부', value: infoDisclosure.haccp || infoDisclosure.certifications },
                                         { label: '품질보증', value: infoDisclosure.warranty },
@@ -2173,7 +2173,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                             {['👩', '👨', '👩‍💼'][i % 3]}
                                         </div>
                                         <div>
-                                            <p className={`text-sm font-bold ${pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-800'}`}>구매자 {i + 1}</p>
+                                            <p className={`text-sm font-bold ${pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-800'}`}>{['kh**', '김0진', 'sun****'][i % 3]}</p>
                                             <p className="text-xs text-yellow-500">★★★★★</p>
                                         </div>
                                     </div>
@@ -2199,8 +2199,8 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         <EditableElement value={recommendData.title} onChange={(v) => setRecommendData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
                     </div>
                     {recommendData.items.length > 0 ? (
-                        <div className={`grid ${recommendData.items.length <= 3 ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-                            {recommendData.items.map((item, i) => (
+                        <div className="grid grid-cols-2 gap-4">
+                            {recommendData.items.slice(0, 4).map((item, i) => (
                                 <div key={i} className={`flex items-start gap-4 p-6 rounded-2xl transition-all ${
                                     pageDesign === 'IMPACT' ? 'bg-gray-900 border border-gray-800 hover:border-red-600' : 
                                     pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0] hover:shadow-md' :
