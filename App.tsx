@@ -159,8 +159,7 @@ function App() {
               originalUrl: shot.imageUrl,
               processedUrl: shot.imageUrl,
               type: 'styled',
-              status: 'done',
-              label: shot.label
+              status: 'done'
             }]);
           });
           addLog(`✅ 연출 이미지 ${styledShots.length}장 생성 완료!`);

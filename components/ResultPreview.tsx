@@ -1,14 +1,17 @@
 
-import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, forwardRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { GeneratedCopy, ProcessedImage, ProductCategory, ProductInfoDisclosure, PlanSection } from '../types';
-import { processProductImage, regenerateCopy, ImageProcessMode } from '../services/geminiService';
+import { processProductImage, ImageProcessMode } from '../services/geminiService';
+import { EditableElement, AutoResizeTextarea, TextStyle } from './shared/EditableElement';
+import { ImageCropper, MaskEditor, CustomPromptModal } from './shared/ImageTools';
+import { getPreset, getThemeStyles, THEME_COLORS, FONT_FAMILIES, getBannerPositionClass,
+    PageDesignType, PointLayoutType, PointIconStyle, PointThemeColor, SectionType, LayoutPreset } from '../presets/layoutPresets';
 import { 
     ArrowDownTrayIcon, ArrowPathIcon, SwatchIcon, ViewColumnsIcon, ListBulletIcon, Square2StackIcon, 
-    PhotoIcon, PlusIcon, SparklesIcon, TrashIcon, DocumentTextIcon, CheckIcon, PencilSquareIcon, 
-    ChevronUpIcon, ChevronDownIcon, ScissorsIcon, XMarkIcon, LanguageIcon, EllipsisHorizontalIcon,
-    UserCircleIcon, HomeModernIcon, PaintBrushIcon, ArrowsUpDownIcon, HandRaisedIcon, ArrowsPointingOutIcon,
-    TableCellsIcon, ChatBubbleBottomCenterTextIcon, ComputerDesktopIcon, HeartIcon, BoltIcon
+    PhotoIcon, PlusIcon, SparklesIcon, TrashIcon, CheckIcon, PencilSquareIcon, 
+    ChevronUpIcon, ChevronDownIcon, ScissorsIcon, LanguageIcon,
+    UserCircleIcon, HomeModernIcon, PaintBrushIcon, ChatBubbleBottomCenterTextIcon, 
+    ComputerDesktopIcon, Bars3Icon
 } from '@heroicons/react/24/outline';
 
 interface ResultPreviewProps {
@@ -21,868 +24,57 @@ interface ResultPreviewProps {
   onReset: () => void;
 }
 
-type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE';
-type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
-type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
-type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
-type SectionType = 'HERO' | 'STORY' | 'POINTS' | 'OPTIONS' | 'DETAILS' | 'INFO';
-
-// Detail Block System
+// ── Block Types ──
 type BlockType = 'IMAGE' | 'TEXT' | 'SIZE_CHART';
 type PointBlockType = 'POINT_ITEM' | 'IMAGE' | 'TEXT'; 
 type BlockWidth = 'FULL' | 'HALF' | 'THIRD';
 
-interface TextStyle {
-    fontSize: 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl' | 'text-3xl' | 'text-4xl' | 'text-5xl' | 'text-6xl';
-    fontFamily: 'font-sans' | 'font-serif-kr' | 'font-dodum' | 'font-pen';
-    color: string; 
-    backgroundColor?: string; 
-    align: 'text-left' | 'text-center' | 'text-right';
-    verticalAlign?: 'justify-start' | 'justify-center' | 'justify-end';
-    fontWeight: 'font-normal' | 'font-medium' | 'font-bold' | 'font-black';
-    maxWidth?: 'max-w-full' | 'max-w-6xl' | 'max-w-4xl' | 'max-w-2xl' | 'max-w-xl'; 
-    x?: number; 
-    y?: number; 
-}
-
 interface DetailBlock {
-    id: string;
-    type: BlockType;
-    content: string; 
-    width: BlockWidth;
-    isProcessing?: boolean;
-    style?: TextStyle; 
-    overlayText?: string;
-    overlayStyle?: TextStyle;
-    tableData?: string[][]; // For Size Chart
+    id: string; type: BlockType; content: string; width: BlockWidth;
+    isProcessing?: boolean; style?: TextStyle;
+    overlayText?: string; overlayStyle?: TextStyle;
+    tableData?: string[][];
+    bannerText?: string; // 자동 배너 카피
 }
 
 interface PointBlock {
-    id: string;
-    type: PointBlockType;
-    icon?: string;
-    title?: string;
-    description?: string;
-    content?: string; 
-    width?: BlockWidth; 
-    style?: TextStyle;
-    isProcessing?: boolean;
-    sideImage?: string; 
+    id: string; type: PointBlockType;
+    icon?: string; title?: string; description?: string;
+    content?: string; width?: BlockWidth; style?: TextStyle;
+    isProcessing?: boolean; sideImage?: string;
 }
 
 interface OptionBlock {
-    id: string;
-    image: string;
-    text: string;
-    isProcessing?: boolean;
+    id: string; image: string; text: string; isProcessing?: boolean;
 }
 
-// Theme Config
-const THEME_COLORS: Record<PointThemeColor, { bg: string, text: string, border: string, lightBg: string, badge: string }> = {
-    INDIGO: { bg: 'bg-indigo-600', text: 'text-indigo-600', border: 'border-indigo-600', lightBg: 'bg-indigo-50', badge: 'bg-indigo-600' },
-    BLACK: { bg: 'bg-gray-900', text: 'text-gray-900', border: 'border-gray-900', lightBg: 'bg-gray-100', badge: 'bg-gray-900' },
-    PINK: { bg: 'bg-pink-500', text: 'text-pink-500', border: 'border-pink-500', lightBg: 'bg-pink-50', badge: 'bg-pink-500' },
-    BLUE: { bg: 'bg-blue-600', text: 'text-blue-600', border: 'border-blue-600', lightBg: 'bg-blue-50', badge: 'bg-blue-600' },
-    GREEN: { bg: 'bg-emerald-600', text: 'text-emerald-600', border: 'border-emerald-600', lightBg: 'bg-emerald-50', badge: 'bg-emerald-600' },
-    ORANGE: { bg: 'bg-orange-500', text: 'text-orange-500', border: 'border-orange-500', lightBg: 'bg-orange-50', badge: 'bg-orange-500' },
-};
-
-const FONT_FAMILIES = [
-    { name: '기본 (고딕)', value: 'font-sans' },
-    { name: '명조체', value: 'font-serif-kr' },
-    { name: '돋움체', value: 'font-dodum' },
-    { name: '손글씨', value: 'font-pen' },
-];
-
-const getThemeByCategory = (category: ProductCategory): PointThemeColor => {
-    switch (category) {
-        case 'FOOD': return 'ORANGE';
-        case 'LIVING': return 'GREEN';
-        case 'KITCHEN': return 'BLACK';
-        default: return 'INDIGO';
-    }
-};
-
-const getHeadersByCategory = (category: ProductCategory) => {
-    switch (category) {
-        case 'FOOD': return {
-            newArrival: "Fresh Food Market",
-            whyThisItem: "Why This Taste?",
-            whySub: "이 맛을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Delicious Recipe"
-        };
-        case 'LIVING': return {
-            newArrival: "Home & Living Best",
-            whyThisItem: "Check Point",
-            whySub: "이 상품을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Space & Mood"
-        };
-        case 'KITCHEN': return {
-            newArrival: "Premium Kitchenware",
-            whyThisItem: "Smart Point",
-            whySub: "이 상품을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Kitchen Guide"
-        };
-        default: return {
-            newArrival: "New Arrival Collection",
-            whyThisItem: "Why This Item?",
-            whySub: "이 상품을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Mood & Story"
-        };
-    }
-};
-
-// --- Image Cropper Component ---
-interface ImageCropperProps {
-    imageUrl: string;
-    onCrop: (croppedUrl: string) => void;
-    onCancel: () => void;
-}
-
-const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, onCancel }) => {
-    const imageRef = useRef<HTMLElement>(null);
-    const cropperRef = useRef<any>(null);
-
-    useEffect(() => {
-        if (imageRef.current && (window as any).Cropper) {
-            cropperRef.current = new (window as any).Cropper(imageRef.current, {
-                viewMode: 1, 
-                dragMode: 'move',
-                autoCropArea: 1, 
-                restore: false,
-                guides: true,
-                center: true,
-                highlight: false,
-                cropBoxMovable: true,
-                cropBoxResizable: true,
-                toggleDragModeOnDblclick: false,
-                minContainerWidth: 300,
-                minContainerHeight: 300,
-                checkCrossOrigin: false,
-            });
-        }
-        return () => {
-            if (cropperRef.current) {
-                cropperRef.current.destroy();
-            }
-        };
-    }, [imageUrl]);
-
-    const handleCrop = () => {
-        if (cropperRef.current) {
-            const canvas = cropperRef.current.getCroppedCanvas();
-            if (canvas) {
-                onCrop(canvas.toDataURL());
-            }
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-xl overflow-hidden shadow-2xl w-full max-w-5xl flex flex-col h-[80vh] z-[110]">
-                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                        <ScissorsIcon className="w-5 h-5" /> 이미지 자르기
-                    </h3>
-                    <button onClick={onCancel} className="p-2 hover:bg-gray-200 rounded-full">
-                        <XMarkIcon className="w-6 h-6 text-gray-500" />
-                    </button>
-                </div>
-                <div className="flex-1 bg-gray-900 relative flex items-center justify-center overflow-hidden">
-                     <img ref={imageRef as any} src={imageUrl} alt="Crop Target" className="block max-w-full max-h-full" crossOrigin="anonymous" />
-                </div>
-                <div className="p-4 bg-white border-t border-gray-100 flex justify-end gap-3">
-                    <button onClick={onCancel} className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-lg">
-                        취소
-                    </button>
-                    <button onClick={handleCrop} className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg flex items-center gap-2">
-                        <CheckIcon className="w-5 h-5" /> 자르기 완료
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// --- Mask Editor Component ---
-interface MaskEditorProps {
-    imageUrl: string;
-    onSave: (maskFile: File) => void;
-    onCancel: () => void;
-}
-
-const MaskEditor: React.FC<MaskEditorProps> = ({ imageUrl, onSave, onCancel }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [isDrawing, setIsDrawing] = useState(false);
-    const [brushSize, setBrushSize] = useState(30);
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        const container = containerRef.current;
-        if (!canvas || !container) return;
-
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = imageUrl;
-        img.onload = () => {
-            const containerWidth = container.clientWidth;
-            const containerHeight = container.clientHeight;
-            
-            const scale = Math.min(containerWidth / img.width, containerHeight / img.height);
-            const width = img.width * scale;
-            const height = img.height * scale;
-
-            canvas.width = width;
-            canvas.height = height;
-
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                ctx.lineWidth = brushSize;
-            }
-        };
-    }, [imageUrl]);
-
-    useEffect(() => {
-        const ctx = canvasRef.current?.getContext('2d');
-        if (ctx) ctx.lineWidth = brushSize;
-    }, [brushSize]);
-
-    const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            setIsDrawing(true);
-        }
-    };
-
-    const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        if (!isDrawing) return;
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            ctx.lineTo(x, y);
-            ctx.stroke();
-        }
-    };
-
-    const stopDrawing = () => {
-        setIsDrawing(false);
-        const ctx = canvasRef.current?.getContext('2d');
-        if (ctx) ctx.closePath();
-    };
-
-    const handleSave = () => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        const maskCanvas = document.createElement('canvas');
-        maskCanvas.width = canvas.width;
-        maskCanvas.height = canvas.height;
-        const maskCtx = maskCanvas.getContext('2d');
-        if (!maskCtx) return;
-
-        maskCtx.fillStyle = '#000000';
-        maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-
-        maskCtx.drawImage(canvas, 0, 0);
-        
-        const imageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-        const data = imageData.data;
-        for (let i = 0; i < data.length; i += 4) {
-             if (data[i] > 0 || data[i+1] > 0 || data[i+2] > 0) {
-                 data[i] = 255;
-                 data[i+1] = 255;
-                 data[i+2] = 255;
-                 data[i+3] = 255;
-             }
-        }
-        maskCtx.putImageData(imageData, 0, 0);
-
-        maskCanvas.toBlob((blob) => {
-            if (blob) {
-                const file = new File([blob], "mask.png", { type: "image/png" });
-                onSave(file);
-            }
-        });
-    };
-
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4">
-             <div className="w-full max-w-5xl h-[85vh] flex flex-col bg-gray-900 rounded-xl overflow-hidden">
-                <div className="p-4 border-b border-gray-800 flex justify-between items-center">
-                    <h3 className="text-white font-bold flex items-center gap-2"><PaintBrushIcon className="w-5 h-5"/> 지울 영역 선택 (색칠하기)</h3>
-                    <button onClick={onCancel}><XMarkIcon className="w-6 h-6 text-gray-400 hover:text-white"/></button>
-                </div>
-                <div ref={containerRef} className="flex-1 relative flex items-center justify-center bg-gray-900 overflow-hidden cursor-crosshair">
-                     <img src={imageUrl} alt="Target" className="absolute max-w-full max-h-full object-contain pointer-events-none" crossOrigin="anonymous"/>
-                     <canvas 
-                        ref={canvasRef}
-                        onMouseDown={startDrawing}
-                        onMouseMove={draw}
-                        onMouseUp={stopDrawing}
-                        onMouseLeave={stopDrawing}
-                        className="absolute"
-                     />
-                </div>
-                <div className="p-4 bg-gray-800 border-t border-gray-700 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <span className="text-gray-400 text-sm">브러쉬 크기</span>
-                        <input 
-                            type="range" 
-                            min="10" 
-                            max="100" 
-                            value={brushSize} 
-                            onChange={(e) => setBrushSize(Number(e.target.value))} 
-                            className="w-40"
-                        />
-                    </div>
-                    <div className="flex gap-2">
-                        <button onClick={onCancel} className="px-6 py-2 bg-gray-700 text-white rounded hover:bg-gray-600">취소</button>
-                        <button onClick={handleSave} className="px-6 py-2 bg-indigo-600 text-white font-bold rounded hover:bg-indigo-700 flex items-center gap-2"><CheckIcon className="w-5 h-5"/> 지우기 실행</button>
-                    </div>
-                </div>
-             </div>
-        </div>
-    );
-};
-
-// --- Custom Prompt Modal ---
-interface CustomPromptModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onSubmit: (prompt: string) => void;
-}
-
-const CustomPromptModal: React.FC<CustomPromptModalProps> = ({ isOpen, onClose, onSubmit }) => {
-    const [prompt, setPrompt] = useState("");
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-                    <ChatBubbleBottomCenterTextIcon className="w-6 h-6 text-indigo-600" /> 직접 입력 (프롬프트)
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                    원하는 편집 내용을 AI에게 구체적으로 명령하세요. (예: "배경에 벚꽃을 추가해줘", "상품 색상을 파스텔 톤으로 변경해줘")
-                </p>
-                <textarea 
-                    className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none mb-4 text-gray-800"
-                    placeholder="편집 요청 사항 입력..."
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                />
-                <div className="flex justify-end gap-2">
-                    <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium">취소</button>
-                    <button 
-                        onClick={() => {
-                            if (prompt.trim()) onSubmit(prompt);
-                            setPrompt("");
-                        }} 
-                        disabled={!prompt.trim()}
-                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                        <SparklesIcon className="w-4 h-4"/> 생성하기
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// --- Helper Component for Text Rewriting ---
-const MagicRewriter = ({ text, onUpdate, label, className = "top-0 right-0" }: { text: string, onUpdate: (t: string) => void, label: string, className?: string }) => {
-    const [loading, setLoading] = useState(false);
-  
-    const handleRewrite = async (e: React.MouseEvent) => {
-      e.stopPropagation(); 
-      if (!text) return;
-      setLoading(true);
-      try {
-          const newText = await regenerateCopy(text, label);
-          onUpdate(newText);
-      } catch(e) {
-          console.error(e);
-          alert("텍스트 생성에 실패했습니다.");
-      } finally {
-          setLoading(false);
-      }
-    };
-  
-    return (
-      <button 
-          onClick={handleRewrite} 
-          disabled={loading}
-          className={`absolute z-20 p-2 bg-white text-indigo-600 rounded-full shadow-md border border-indigo-200 transition-all hover:bg-indigo-50 hover:scale-110 hover:border-indigo-400 ${className}`}
-          title="AI로 문구 다듬기 (다른 표현 추천)"
-          onMouseDown={(e) => e.stopPropagation()}
-      >
-          {loading ? (
-             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          ) : (
-             <div className="flex items-center gap-1">
-                <SparklesIcon className="w-4 h-4" />
-                <span className="text-[10px] font-bold whitespace-nowrap hidden md:inline-block">AI 수정</span>
-             </div>
-          )}
-      </button>
-    );
-};
-
-// --- Independent Toolbar Component ---
-interface ToolbarProps {
-    style: TextStyle;
-    setStyle: React.Dispatch<React.SetStateAction<TextStyle>>;
-    onDelete?: () => void;
-    enableDrag?: boolean;
-    handleDragStart: (e: React.MouseEvent) => void;
-}
-
-const Toolbar = forwardRef<HTMLDivElement, ToolbarProps>(({ style, setStyle, onDelete, enableDrag, handleDragStart }, ref) => {
-    const handleFontSizeChange = (delta: number) => {
-        const sizes = ['text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl'];
-        const currentIndex = sizes.indexOf(style.fontSize);
-        const newIndex = Math.min(Math.max(currentIndex + delta, 0), sizes.length - 1);
-        setStyle(prev => ({ ...prev, fontSize: sizes[newIndex] as any }));
-    };
-
-    const handleFontWeightToggle = () => {
-        setStyle(prev => ({
-            ...prev,
-            fontWeight: prev.fontWeight === 'font-bold' ? 'font-normal' : 'font-bold'
-        }));
-    };
-
-    const colors = [
-        { name: 'Black', value: 'text-gray-900' },
-        { name: 'Gray', value: 'text-gray-500' },
-        { name: 'White', value: 'text-white' },
-        { name: 'Navy', value: 'text-indigo-900' },
-        { name: 'Blue', value: 'text-blue-600' },
-        { name: 'Red', value: 'text-red-600' },
-        { name: 'Green', value: 'text-emerald-600' },
-    ];
-
-    const bgColors = [
-        { name: 'None', value: '' },
-        { name: 'White', value: 'bg-white' },
-        { name: 'Black', value: 'bg-gray-900' },
-        { name: 'Gray', value: 'bg-gray-100' },
-        { name: 'Yellow', value: 'bg-yellow-50' },
-        { name: 'Blue', value: 'bg-blue-50' },
-        { name: 'Pink', value: 'bg-pink-50' },
-        { name: 'Green', value: 'bg-emerald-50' },
-    ];
-
-    const stopPropagationAndKeepFocus = (e: React.MouseEvent) => {
-        if (!(e.target instanceof HTMLSelectElement)) {
-            e.preventDefault();
-        }
-        e.stopPropagation();
-    };
-
-    return (
-        <div 
-            ref={ref}
-            className="fixed top-24 z-[9999] bg-gray-900/95 backdrop-blur text-white p-4 rounded-xl shadow-2xl flex flex-col gap-3 min-w-[260px] animate-fade-in border border-gray-700 select-none"
-            style={{ left: 'calc(50% + 440px)' }}
-            onMouseDown={stopPropagationAndKeepFocus}
-        >
-            <div className="text-xs font-bold text-gray-400 mb-1 flex items-center justify-between">
-                <span>텍스트 편집</span>
-                <span className="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-gray-300">편집 중</span>
-            </div>
-            <div className="flex items-center gap-2 border-b border-gray-700 pb-3 w-full">
-                <select 
-                    value={style.fontFamily} 
-                    onChange={(e) => setStyle(prev => ({...prev, fontFamily: e.target.value as any}))}
-                    className="bg-gray-800 text-xs text-white rounded p-1.5 border border-gray-600 outline-none w-28 cursor-pointer"
-                    onMouseDown={(e) => e.stopPropagation()} 
-                >
-                    {FONT_FAMILIES.map(f => <option key={f.value} value={f.value}>{f.name}</option>)}
-                </select>
-                <button onMouseDown={stopPropagationAndKeepFocus} onClick={handleFontWeightToggle} className={`p-1.5 w-7 h-7 rounded text-xs font-serif flex items-center justify-center ${style.fontWeight === 'font-bold' ? 'bg-white text-black' : 'bg-gray-800 hover:bg-gray-700'}`}>B</button>
-                <div className="w-[1px] h-4 bg-gray-600"></div>
-                <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => handleFontSizeChange(-1)} className="p-1.5 bg-gray-800 hover:bg-gray-700 rounded text-xs font-bold w-7 h-7">A-</button>
-                <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => handleFontSizeChange(1)} className="p-1.5 bg-gray-800 hover:bg-gray-700 rounded text-xs font-bold w-7 h-7">A+</button>
-            </div>
-            <div className="flex items-center gap-2 border-b border-gray-700 pb-3 w-full justify-between">
-                <div className="flex gap-1">
-                    <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => setStyle(prev => ({ ...prev, align: 'text-left' }))} className={`p-1.5 rounded text-[10px] w-7 h-7 ${style.align === 'text-left' ? 'bg-indigo-600' : 'bg-gray-800 hover:bg-gray-700'}`}>L</button>
-                    <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => setStyle(prev => ({ ...prev, align: 'text-center' }))} className={`p-1.5 rounded text-[10px] w-7 h-7 ${style.align === 'text-center' ? 'bg-indigo-600' : 'bg-gray-800 hover:bg-gray-700'}`}>C</button>
-                    <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => setStyle(prev => ({ ...prev, align: 'text-right' }))} className={`p-1.5 rounded text-[10px] w-7 h-7 ${style.align === 'text-right' ? 'bg-indigo-600' : 'bg-gray-800 hover:bg-gray-700'}`}>R</button>
-                </div>
-            </div>
-            <div>
-                <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-gray-400">텍스트 색상</span>
-                    <label className="text-[10px] text-gray-400 flex items-center gap-1 cursor-pointer hover:text-white" onMouseDown={stopPropagationAndKeepFocus}>
-                        <span className="w-3 h-3 rounded-full bg-gradient-to-br from-red-500 to-blue-500 block"></span>
-                        커스텀
-                        <input type="color" className="w-0 h-0 opacity-0" onChange={(e) => setStyle(prev => ({ ...prev, color: e.target.value }))} />
-                    </label>
-                </div>
-                <div className="flex items-center gap-2 w-full overflow-x-auto hide-scrollbar pb-1">
-                    {colors.map(c => (
-                        <button 
-                            key={c.name}
-                            onMouseDown={stopPropagationAndKeepFocus}
-                            onClick={() => setStyle(prev => ({ ...prev, color: c.value }))}
-                            className={`w-6 h-6 rounded-full border border-gray-600 shrink-0 ${c.value.replace('text-', 'bg-')}`}
-                            title={c.name}
-                        />
-                    ))}
-                </div>
-            </div>
-            <div>
-                <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-gray-400">배경 색상</span>
-                    <label className="text-[10px] text-gray-400 flex items-center gap-1 cursor-pointer hover:text-white" onMouseDown={stopPropagationAndKeepFocus}>
-                        <span className="w-3 h-3 rounded-full bg-gradient-to-br from-white to-black block"></span>
-                        커스텀
-                        <input type="color" className="w-0 h-0 opacity-0" onChange={(e) => setStyle(prev => ({ ...prev, backgroundColor: e.target.value }))} />
-                    </label>
-                </div>
-                <div className="flex items-center gap-2 w-full overflow-x-auto hide-scrollbar pb-1">
-                    {bgColors.map(c => (
-                        <button 
-                            key={c.name}
-                            onMouseDown={stopPropagationAndKeepFocus}
-                            onClick={() => setStyle(prev => ({ ...prev, backgroundColor: c.value }))}
-                            className={`w-6 h-6 rounded-full border border-gray-600 shrink-0 ${c.value.startsWith('bg-') ? c.value : 'bg-transparent text-red-400 text-[8px] flex items-center justify-center font-bold'}`}
-                            title={c.name}
-                        >
-                            {!c.value && 'X'}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            <div className="flex items-center gap-2 pt-2 border-t border-gray-700 w-full">
-                <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => setStyle(prev => ({ ...prev, maxWidth: 'max-w-full' }))} className={`px-2 py-1 hover:bg-gray-700 rounded text-[10px] ${!style.maxWidth || style.maxWidth === 'max-w-full' ? 'text-green-400 font-bold' : ''}`}>100%</button>
-                <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => setStyle(prev => ({ ...prev, maxWidth: 'max-w-2xl' }))} className={`px-2 py-1 hover:bg-gray-700 rounded text-[10px] ${style.maxWidth === 'max-w-2xl' ? 'text-green-400 font-bold' : ''}`}>50%</button>
-                <div className="flex-1"></div>
-                {onDelete && (
-                    <button onMouseDown={stopPropagationAndKeepFocus} onClick={onDelete} className="p-1.5 hover:bg-red-600 bg-red-500 rounded text-white flex items-center gap-1 text-xs">
-                        <TrashIcon className="w-3 h-3" /> 삭제
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-});
-
-// --- Auto-Resize Textarea for Table ---
-interface AutoResizeTextareaProps {
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-    className?: string;
-    readOnly?: boolean;
-}
-
-const AutoResizeTextarea: React.FC<AutoResizeTextareaProps> = ({ value, onChange, className, readOnly }) => {
-    const ref = useRef<HTMLTextAreaElement>(null);
-
-    useLayoutEffect(() => {
-        if (ref.current) {
-            ref.current.style.height = '0px';
-            ref.current.style.height = `${ref.current.scrollHeight + 10}px`;
-        }
-    }, [value, className]); 
-
-    useEffect(() => {
-        const handleResize = () => {
-            if (ref.current) {
-                ref.current.style.height = '0px';
-                ref.current.style.height = `${ref.current.scrollHeight + 10}px`;
-            }
-        };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    return (
-        <textarea
-            ref={ref}
-            value={value}
-            onChange={onChange}
-            readOnly={readOnly}
-            className={`w-full bg-transparent resize-none overflow-hidden outline-none leading-normal ${className}`}
-            rows={1}
-        />
-    );
-};
-
-// --- Editable Element Component ---
-interface EditableElementProps {
-    value: string;
-    onChange: (val: string) => void;
-    onDelete?: () => void;
-    onStyleChange?: (style: TextStyle) => void; 
-    isEditMode: boolean;
-    placeholder?: string;
-    defaultStyle: TextStyle;
-    allowStyleChange?: boolean;
-    enableVerticalAlign?: boolean;
-    enableDrag?: boolean; 
-    className?: string;
-    aiLabel?: string; 
-    toolbarPosition?: 'default' | 'right';
-    onDragStart?: (e: React.MouseEvent) => void;
-}
-
-const EditableElement: React.FC<EditableElementProps> = ({
-    value, onChange, onDelete, onStyleChange, isEditMode, placeholder, defaultStyle, 
-    allowStyleChange = true, enableVerticalAlign = false, enableDrag = false, 
-    className = "", aiLabel, toolbarPosition = 'default'
-}) => {
-    const [style, setStyle] = useState<TextStyle>(defaultStyle);
-    const [isFocused, setIsFocused] = useState(false);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-    const toolbarRef = useRef<HTMLDivElement>(null);
-    const dragRef = useRef({ isDragging: false, startX: 0, startY: 0, initialLeft: 0, initialTop: 0 });
-
-    // ★ 스타일 영구 저장: defaultStyle 변경 시 현재 스타일 덮어쓰지 않음
-    const isStyleInitialized = useRef(false);
-    useEffect(() => {
-        if (!isStyleInitialized.current) {
-            setStyle(defaultStyle);
-            isStyleInitialized.current = true;
-        }
-    }, []); // 최초 1회만 실행
-
-    useEffect(() => {
-        if (onStyleChange && isFocused) {
-            onStyleChange(style);
-        }
-    }, [style, onStyleChange, isFocused]);
-
-    useLayoutEffect(() => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = '0px';
-            textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 10}px`;
-        }
-    }, [value, isEditMode, style, style.fontSize, style.fontWeight, style.fontFamily]); 
-
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (!enableDrag || !isEditMode || !containerRef.current || isFocused) return;
-        
-        e.preventDefault();
-        e.stopPropagation();
-        dragRef.current.isDragging = false;
-        dragRef.current.startX = e.clientX;
-        dragRef.current.startY = e.clientY;
-        
-        const parentRect = containerRef.current.offsetParent?.getBoundingClientRect();
-        if (parentRect) {
-             dragRef.current.initialLeft = style.x || 50;
-             dragRef.current.initialTop = style.y || 50;
-        }
-        
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-        if (!containerRef.current?.offsetParent) return;
-        
-        if (!dragRef.current.isDragging) {
-             const dist = Math.hypot(e.clientX - dragRef.current.startX, e.clientY - dragRef.current.startY);
-             if (dist > 5) dragRef.current.isDragging = true;
-        }
-
-        if (dragRef.current.isDragging) {
-            const parentRect = containerRef.current.offsetParent.getBoundingClientRect();
-            const deltaX = e.clientX - dragRef.current.startX;
-            const deltaY = e.clientY - dragRef.current.startY;
-            const percentX = (deltaX / parentRect.width) * 100;
-            const percentY = (deltaY / parentRect.height) * 100;
-            let newX = dragRef.current.initialLeft + percentX;
-            let newY = dragRef.current.initialTop + percentY;
-            newX = Math.max(0, Math.min(100, newX));
-            newY = Math.max(0, Math.min(100, newY));
-            setStyle(prev => ({ ...prev, x: newX, y: newY }));
-        }
-    };
-
-    const handleMouseUp = () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        
-        if (!dragRef.current.isDragging) {
-            textareaRef.current?.focus();
-            setIsFocused(true);
-        }
-        dragRef.current.isDragging = false;
-    };
-
-    const handleBlur = (e: React.FocusEvent) => {
-        const relatedTarget = e.relatedTarget as Node;
-        if (toolbarRef.current?.contains(relatedTarget)) {
-            return;
-        }
-        // ★ 스타일 저장: blur 시 현재 스타일을 외부로 전달
-        if (onStyleChange) onStyleChange(style);
-        setIsFocused(false);
-    };
-
-    const handleToolbarDragStart = (e: React.MouseEvent) => {
-        if (!enableDrag || !isEditMode || !containerRef.current) return;
-        e.preventDefault();
-        e.stopPropagation();
-        dragRef.current.isDragging = true;
-        dragRef.current.startX = e.clientX;
-        dragRef.current.startY = e.clientY;
-        const parentRect = containerRef.current.offsetParent?.getBoundingClientRect();
-        if (parentRect) {
-             dragRef.current.initialLeft = style.x || 50;
-             dragRef.current.initialTop = style.y || 50;
-        }
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-    };
-
-    const containerWidthClass = style.maxWidth || 'max-w-full';
-    const isHexColor = style.color.startsWith('#') || style.color.startsWith('rgb');
-    const isHexBg = style.backgroundColor && (style.backgroundColor.startsWith('#') || style.backgroundColor.startsWith('rgb'));
-    const colorClass = isHexColor ? '' : style.color;
-    const bgColorClass = isHexBg ? '' : style.backgroundColor;
-    const paddingClass = (style.backgroundColor || isHexBg) ? 'p-6 rounded-xl shadow-sm' : '';
-    const inlineStyle: React.CSSProperties = {
-        color: isHexColor ? style.color : undefined,
-        backgroundColor: isHexBg ? style.backgroundColor : undefined,
-    };
-    
-    const positionStyle: React.CSSProperties = enableDrag ? {
-        position: 'absolute',
-        left: `${style.x ?? 50}%`,
-        top: `${style.y ?? 50}%`,
-        transform: 'translate(-50%, -50%)',
-        zIndex: isFocused ? 40 : 20,
-        width: style.maxWidth ? 'auto' : undefined,
-        minWidth: '200px',
-        cursor: isFocused ? 'default' : 'move',
-        ...inlineStyle 
-    } : { ...inlineStyle };
-
-    if (!isEditMode) {
-        if (!value) return null; 
-        const previewStyle: React.CSSProperties = {
-            ...inlineStyle,
-            ...(enableDrag ? {
-                position: 'absolute',
-                left: `${style.x ?? 50}%`,
-                top: `${style.y ?? 50}%`,
-                transform: 'translate(-50%, -50%)',
-                zIndex: 20
-            } : {})
-        };
-        return (
-            <div 
-                className={`w-full flex ${style.align === 'text-center' ? 'justify-center' : style.align === 'text-right' ? 'justify-end' : 'justify-start'}`}
-                style={enableDrag ? previewStyle : {}}
-            >
-                <div 
-                    className={`${style.fontSize} ${style.fontFamily} ${colorClass} ${style.align} ${style.fontWeight} ${containerWidthClass} ${!enableDrag ? bgColorClass + ' ' + paddingClass : ''} ${className} whitespace-pre-wrap break-keep leading-normal`}
-                    style={{
-                      ...(!enableDrag ? previewStyle : {}),
-                      wordBreak: 'keep-all',
-                      overflowWrap: 'break-word'
-                    }}
-                >
-                    {value}
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div 
-            ref={containerRef}
-            style={positionStyle}
-            onMouseDown={handleMouseDown}
-            className={`relative group/edit transition-all flex ${!enableDrag ? 'w-full' : ''} ${style.align === 'text-center' ? 'justify-center' : style.align === 'text-right' ? 'justify-end' : 'justify-start'} ${isFocused ? 'z-40' : ''} ${enableDrag ? bgColorClass + ' ' + paddingClass : ''} ${enableDrag && !isFocused ? 'hover:outline hover:outline-2 hover:outline-indigo-400 hover:outline-dashed' : ''}`}
-        >
-            {allowStyleChange && isFocused && createPortal(
-                <Toolbar 
-                    ref={toolbarRef}
-                    style={style} 
-                    setStyle={setStyle} 
-                    onDelete={onDelete} 
-                    enableDrag={enableDrag} 
-                    handleDragStart={handleToolbarDragStart} 
-                />, 
-                document.body
-            )}
-            
-            {aiLabel && (
-                <MagicRewriter 
-                    text={value} 
-                    label={aiLabel} 
-                    onUpdate={onChange} 
-                    className={`absolute -right-3 top-0 opacity-100 ${enableDrag ? '-right-8' : ''}`} 
-                />
-            )}
-            <textarea
-                ref={textareaRef}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={handleBlur}
-                placeholder={placeholder}
-                className={`bg-transparent border-0 p-2 resize-none overflow-hidden outline-none focus:ring-2 focus:ring-indigo-400/50 w-full ${style.fontSize} ${style.fontFamily} ${colorClass} ${style.align} ${style.fontWeight} ${containerWidthClass} ${!enableDrag ? bgColorClass + ' ' + paddingClass : ''} ${className} leading-normal ${isFocused ? 'cursor-text' : 'cursor-move'}`}
-                style={{
-                  ...(!enableDrag ? inlineStyle : {}),
-                  wordBreak: 'keep-all',
-                  overflowWrap: 'break-word'
-                }}
-                rows={1}
-                spellCheck={false}
-                onMouseDown={(e) => isFocused && e.stopPropagation()}
-            />
-        </div>
-    );
-};
-
+// ══════════════════════════════════════════════
+// DragDrop Section Wrapper (네이티브 HTML5 DnD)
+// ══════════════════════════════════════════════
 const SectionControlWrapper: React.FC<{ 
-    children: React.ReactNode; 
-    type: SectionType; 
-    index: number; 
-    isEditMode: boolean; 
-    isFirst: boolean; 
-    isLast: boolean; 
+    children: React.ReactNode; type: SectionType; index: number; 
+    isEditMode: boolean; isFirst: boolean; isLast: boolean;
     onMove: (idx: number, dir: -1 | 1) => void; 
     onDelete?: () => void;
-}> = ({ children, type, index, isEditMode, isFirst, isLast, onMove, onDelete }) => {
+    onDragStart: (idx: number) => void;
+    onDragOver: (e: React.DragEvent, idx: number) => void;
+    onDrop: (idx: number) => void;
+    isDragTarget: boolean;
+}> = ({ children, type, index, isEditMode, isFirst, isLast, onMove, onDelete, onDragStart, onDragOver, onDrop, isDragTarget }) => {
     return (
-        <div className="relative group/section w-full">
+        <div 
+            className={`relative group/section w-full transition-all ${isDragTarget ? 'border-t-4 border-indigo-500' : ''}`}
+            draggable={isEditMode}
+            onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(index)); onDragStart(index); }}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver(e, index); }}
+            onDrop={(e) => { e.preventDefault(); onDrop(index); }}
+            onDragEnd={() => onDrop(-1)}
+        >
             {isEditMode && (
                 <div className="absolute left-[-50px] top-4 flex flex-col gap-1 z-50 opacity-40 hover:opacity-100 transition-opacity">
+                    <div className="p-1.5 bg-white border border-gray-300 rounded-lg text-gray-400 cursor-grab active:cursor-grabbing shadow-sm" title="드래그하여 순서 변경">
+                        <Bars3Icon className="w-5 h-5" />
+                    </div>
                     <button onClick={() => onMove(index, -1)} disabled={isFirst} className="p-1.5 bg-white border border-gray-300 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 shadow-sm">
                         <ChevronUpIcon className="w-5 h-5" />
                     </button>
@@ -890,12 +82,7 @@ const SectionControlWrapper: React.FC<{
                         <ChevronDownIcon className="w-5 h-5" />
                     </button>
                     {onDelete && (
-                        <button 
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} 
-                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                            className="p-1.5 bg-white border border-red-300 rounded-lg text-red-500 hover:bg-red-50 shadow-sm cursor-pointer z-50 pointer-events-auto" 
-                            title="섹션 삭제"
-                        >
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} className="p-1.5 bg-white border border-red-300 rounded-lg text-red-500 hover:bg-red-50 shadow-sm cursor-pointer z-50 pointer-events-auto" title="섹션 삭제">
                             <TrashIcon className="w-5 h-5" />
                         </button>
                     )}
@@ -911,14 +98,34 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [isEditMode, setIsEditMode] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   
-  const [pointLayout, setPointLayout] = useState<PointLayoutType>('ZIGZAG');
-  const [pageDesign, setPageDesign] = useState<PageDesignType>('MODERN');
-  const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>('EMOJI');
-  const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
+  // ── 프리셋 기반 초기화 ──
+  const initialPreset = getPreset(category, 'MODERN');
+  const [pointLayout, setPointLayout] = useState<PointLayoutType>(initialPreset.pointLayout);
+  const [pageDesign, setPageDesign] = useState<PageDesignType>(initialPreset.pageDesign);
+  const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>(initialPreset.pointIconStyle);
+  const [pointTheme, setPointTheme] = useState<PointThemeColor>(initialPreset.themeColor);
+  
+  // ── DnD state ──
+  const [dragFromIdx, setDragFromIdx] = useState<number>(-1);
+  const [dragOverIdx, setDragOverIdx] = useState<number>(-1);
+  const handleSectionDragStart = (idx: number) => setDragFromIdx(idx);
+  const handleSectionDragOver = (_e: React.DragEvent, idx: number) => setDragOverIdx(idx);
+  const handleSectionDrop = (toIdx: number) => {
+    if (dragFromIdx >= 0 && toIdx >= 0 && dragFromIdx !== toIdx) {
+      setSectionOrder(prev => {
+        const next = [...prev];
+        const [moved] = next.splice(dragFromIdx, 1);
+        next.splice(toIdx, 0, moved);
+        return next;
+      });
+    }
+    setDragFromIdx(-1); setDragOverIdx(-1);
+  };
+
   // planSections를 기반으로 섹션 순서 결정
   const getInitialSectionOrder = (): SectionType[] => {
     if (!planSections || planSections.length === 0) {
-      return ['HERO', 'STORY', 'POINTS', 'OPTIONS', 'DETAILS', 'INFO'];
+      return initialPreset.sectionOrder;
     }
     const planTypeMap: Record<string, SectionType> = {
       'HERO': 'HERO', 'STORY': 'STORY', 'OVERVIEW': 'HERO',
@@ -972,7 +179,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     setTextStyles(prev => ({ ...prev, [key]: style }));
   };
   
-  const [headers, setHeaders] = useState(getHeadersByCategory(category));
+  const [headers, setHeaders] = useState(initialPreset.headers);
   const [copyright, setCopyright] = useState("MARKETPIA BEST OF BEST");
 
   const [infoLabels, setInfoLabels] = useState({
@@ -988,8 +195,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
 
   const [disclaimerText, setDisclaimerText] = useState(
       "본 제품은 모니터 해상도 상 실제 제품과 색상 차이가 있을 수 있습니다\n" +
-      "본 제품은 실측 사이즈는 재는 위치나 방식에 따라 약간의 오차가 발생 할 수 있습니다\n" +
-      "본 제품은 14세 이상 사용 가능합니다"
+      "본 제품은 실측 사이즈는 재는 위치나 방식에 따라 약간의 오차가 발생 할 수 있습니다"
   );
 
   const [visibleHeaders, setVisibleHeaders] = useState({
@@ -1025,12 +231,17 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     const enabledSections = planSections?.filter(s => s.enabled) || [];
     const sizeSection = enabledSections.find(s => s.type === 'SIZE');
     const guideSection = enabledSections.find(s => s.type === 'GUIDE');
-    const infoSection = enabledSections.find(s => s.type === 'INFO');
-    const cautionSection = enabledSections.find(s => s.type === 'CAUTION');
     const recommendSection = enabledSections.find(s => s.type === 'RECOMMEND');
 
     if (sizeSection?.content && (!enriched.sizeTip || enriched.sizeTip.length < 10)) {
         enriched.sizeTip = sizeSection.content;
+    }
+    
+    // 스토리 텍스트 길이 제한 (모바일 가독성)
+    if (enriched.story && enriched.story.length > 60) {
+        const lines = enriched.story.split('\n').filter(l => l.trim());
+        enriched.story = lines.slice(0, 2).join('\n');
+        if (enriched.story.length > 60) enriched.story = enriched.story.substring(0, 60);
     }
     
     setEditableCopy(enriched);
@@ -1050,23 +261,21 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         setInfoLabels(prev => ({ ...prev, washGuide: guideSection.content }));
     }
     
-    if (infoSection?.content || cautionSection?.content) {
-        const base = "본 제품은 모니터 해상도 상 실제 제품과 색상 차이가 있을 수 있습니다\n본 제품은 실측 사이즈는 재는 위치나 방식에 따라 약간의 오차가 발생 할 수 있습니다";
-        const extra = infoSection?.content || cautionSection?.content || '';
-        setDisclaimerText(base + '\n' + extra);
-    }
+    // disclaimerText는 기본값 유지 (기획안 내용으로 덮어쓰지 않음)
 
     const propMain = images.find(img => img.type === 'main')?.processedUrl;
     if (propMain) setMainImage(propMain);
 
     // ── AI 연출 샷 추출 ──
     const styledImages = images.filter(img => img.type === 'styled').map(img => img.processedUrl).filter(Boolean) as string[];
-    const styledLabels = images.filter(img => img.type === 'styled').map(img => img.label || '');
 
-    // ── Detail Blocks: 상세이미지 + AI 연출 샷 + 간결 텍스트 교차 배치 ──
+    // ── Detail Blocks: 상세이미지 + AI 연출 샷 + 감성 배너 교차 배치 ──
     const propDetails = images.filter(img => img.type === 'detail').map(img => img.processedUrl).filter(Boolean) as string[];
     const initialDetailBlocks: DetailBlock[] = [];
     const ts = Date.now();
+    
+    // 셀링포인트 제목을 배너 카피로 활용
+    const bannerCopies = enriched.sellingPoints.map(sp => sp.title).filter(Boolean);
     
     // MD Comment (짧게)
     if (enriched.mdComment) {
@@ -1079,56 +288,59 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         });
     }
     
-    // 상세이미지와 AI 연출 샷을 교차 배치
-    // 패턴: [상세1] → [AI연출1+라벨] → [상세2] → [AI연출2+라벨] → [상세3] → [AI연출3+라벨] → 나머지상세...
-    const allImages = [...propDetails]; // 사용자 업로드 상세이미지
+    // 상세이미지와 AI 연출 샷을 교차 배치 (텍스트 오버레이 없이 깔끔하게)
+    const allImages = [...propDetails];
     let styledIdx = 0;
     
     allImages.forEach((url, idx) => {
-        // 상세 이미지 블록
         initialDetailBlocks.push({
             id: `img-${ts}-${idx}`,
             type: 'IMAGE',
             content: url,
             width: 'FULL'
         });
-        
-        // 각 상세이미지 뒤에 AI 연출 샷 1장 삽입 (있으면)
+        // AI 연출 샷 삽입 (라벨/배너 없이 이미지만)
         if (styledIdx < styledImages.length) {
             initialDetailBlocks.push({
                 id: `styled-${ts}-${styledIdx}`,
                 type: 'IMAGE',
                 content: styledImages[styledIdx],
-                width: 'FULL',
-                // 연출 샷 라벨을 오버레이 텍스트로
-                overlayText: styledLabels[styledIdx] || '',
-                overlayStyle: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold', x: 50, y: 90, backgroundColor: 'bg-black' }
+                width: 'FULL'
             });
             styledIdx++;
         }
     });
     
-    // 상세이미지가 없는데 AI 연출 샷이 남은 경우 → 나머지 연출 샷 배치
+    // 남은 AI 연출 샷
     while (styledIdx < styledImages.length) {
         initialDetailBlocks.push({
             id: `styled-${ts}-${styledIdx}`,
             type: 'IMAGE',
             content: styledImages[styledIdx],
-            width: 'FULL',
-            overlayText: styledLabels[styledIdx] || '',
-            overlayStyle: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold', x: 50, y: 90, backgroundColor: 'bg-black' }
+            width: 'FULL'
         });
         styledIdx++;
     }
     
-    // 추천 대상 (있으면 마지막에 간결 텍스트)
+    // 추천 대상 → 박스형 카드
     if (recommendSection?.content) {
         initialDetailBlocks.push({
             id: `text-recommend-${ts}`,
             type: 'TEXT',
-            content: `💡 ${recommendSection.title}\n${recommendSection.content}`,
+            content: `이런 분들께 강력 추천합니다`,
             width: 'FULL',
-            style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }
+            style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-black', maxWidth: 'max-w-4xl' }
+        });
+        // 각 추천 항목을 개별 카드로
+        const items = recommendSection.content.split('\n').filter(l => l.trim());
+        items.forEach((item, i) => {
+            initialDetailBlocks.push({
+                id: `recommend-card-${ts}-${i}`,
+                type: 'TEXT',
+                content: item.replace(/^\d+[\.\)]\s*/, '').trim(),
+                width: items.length <= 3 ? 'FULL' : 'HALF',
+                style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-gray-100' }
+            });
         });
     }
     
@@ -1158,8 +370,9 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   }, [copy, images, productName, category]);
 
   useEffect(() => {
-    setPointTheme(getThemeByCategory(category));
-    setHeaders(prev => ({ ...prev, ...getHeadersByCategory(category) }));
+    const newPreset = getPreset(category, pageDesign);
+    setPointTheme(newPreset.themeColor);
+    setHeaders(prev => ({ ...prev, ...newPreset.headers }));
   }, [category]);
 
   const handleCopyChange = (field: keyof GeneratedCopy, value: any) => {
@@ -1680,45 +893,18 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       );
   };
 
-  const getThemeStyles = () => {
-    switch(pageDesign) {
-        case 'EMOTIONAL': return {
-            bg: 'bg-[#fdfbf7]', 
-            text: 'text-gray-800', 
-            fontHead: 'font-serif-kr', 
-            fontBody: 'font-serif-kr',
-            storyQuote: 'text-gray-400 font-serif',
-            sectionDivider: 'bg-[#e0dcd0]',
-            cardBg: 'bg-white',
-            tableHeader: 'bg-[#f7f5f0] text-gray-800',
-            tableBorder: 'border-[#d4d1c9]'
-        };
-        case 'IMPACT': return {
-            bg: 'bg-white', 
-            text: 'text-black', 
-            fontHead: 'font-sans', 
-            fontBody: 'font-sans',
-            storyQuote: 'text-black font-sans',
-            sectionDivider: 'bg-black',
-            cardBg: 'bg-gray-100',
-            tableHeader: 'bg-black text-white',
-            tableBorder: 'border-black'
-        };
-        case 'MODERN':
-        default: return {
-            bg: 'bg-white', 
-            text: 'text-gray-900', 
-            fontHead: 'font-sans', 
-            fontBody: 'font-sans',
-            storyQuote: 'text-gray-300 font-serif',
-            sectionDivider: 'bg-gray-100',
-            cardBg: 'bg-gray-50',
-            tableHeader: 'bg-gray-50 text-gray-700',
-            tableBorder: 'border-gray-200'
-        };
-    }
+  const themeStyles = getThemeStyles(pageDesign);
+
+  // ── 프리셋 적용 함수 ──
+  const applyPreset = (design: PageDesignType) => {
+    const preset = getPreset(category, design);
+    setPageDesign(preset.pageDesign);
+    setPointLayout(preset.pointLayout);
+    setPointIconStyle(preset.pointIconStyle);
+    setPointTheme(preset.themeColor);
+    setSectionOrder(preset.sectionOrder);
+    setHeaders(preset.headers);
   };
-  const themeStyles = getThemeStyles();
 
   const renderSectionContent = (type: SectionType) => {
     const theme = THEME_COLORS[pointTheme];
@@ -1766,33 +952,49 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 </label>
                             )}
                         </div>
-                        <div className={`w-full ${themeStyles.bg} px-10 py-10 text-center border-b ${themeStyles.tableBorder} relative`}>
+                        <div className={`w-full px-10 text-center relative ${
+                            pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-16 border-b border-[#e0dcd0]' :
+                            pageDesign === 'IMPACT' ? 'bg-black py-12' :
+                            'bg-white py-10 border-b border-gray-200'
+                        }`}>
                             {visibleHeaders.newArrival && (
                                 <div className="mb-4 flex justify-center">
-                                     <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'EMOTIONAL' ? theme.text : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="uppercase tracking-[0.3em]" toolbarPosition="right" />
+                                     <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-sm' : 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : pageDesign === 'EMOTIONAL' ? theme.text : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-bold' : 'font-bold' }} className={`uppercase ${pageDesign === 'IMPACT' ? 'tracking-[0.5em]' : 'tracking-[0.3em]'}`} toolbarPosition="right" />
                                 </div>
                             )}
-                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-6 leading-snug" toolbarPosition="right" />
-                            {pageDesign !== 'EMOTIONAL' && <div className={`w-16 h-1.5 ${pageDesign === 'IMPACT' ? 'bg-black' : 'bg-gray-900'} mx-auto`}></div>}
+                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-3xl' : 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-6 leading-snug" toolbarPosition="right" />
+                            {pageDesign === 'MODERN' && <div className="w-16 h-1.5 bg-gray-900 mx-auto"></div>}
+                            {pageDesign === 'EMOTIONAL' && <div className="w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-4"></div>}
+                            {pageDesign === 'IMPACT' && <div className="w-full h-1 bg-red-600 mx-auto mt-2"></div>}
                         </div>
                 </div>
         );
         case 'STORY': return (
-            <div className={`w-full ${themeStyles.bg} py-14 px-12 text-center relative`}>
-                        <span className={`text-5xl ${themeStyles.storyQuote} mb-4 block leading-none`}>"</span>
-                        <EditableElement value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }} className="leading-relaxed mx-auto" toolbarPosition="right" />
-                        <span className={`text-5xl ${themeStyles.storyQuote} mt-4 block leading-none`}>"</span>
+            <div className={`w-full text-center relative ${
+                pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-20 px-12' :
+                pageDesign === 'IMPACT' ? 'bg-gray-900 py-16 px-12' :
+                'bg-white py-14 px-12'
+            }`}>
+                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mb-4 block leading-none`}>"</span>}
+                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mb-8"></div>}
+                        <EditableElement value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-xl' : 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'EMOTIONAL' ? 'font-normal' : 'font-medium', maxWidth: 'max-w-4xl' }} className={`leading-relaxed mx-auto ${pageDesign === 'EMOTIONAL' ? 'italic' : ''}`} toolbarPosition="right" />
+                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mt-4 block leading-none`}>"</span>}
+                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mt-8"></div>}
                         {visibleHeaders.moodStory && (
                             <div className="mt-10 flex justify-center items-center gap-6">
-                                <span className={`h-[1px] w-24 ${themeStyles.sectionDivider}`}></span>
-                                <EditableElement value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-black' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
-                                <span className={`h-[1px] w-24 ${themeStyles.sectionDivider}`}></span>
+                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
+                                <EditableElement value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : pageDesign === 'EMOTIONAL' ? 'text-[#b8b0a0]' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
+                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
                             </div>
                         )}
                 </div>
         );
         case 'POINTS': return (
-            <div className={`w-full py-14 ${themeStyles.bg} relative`}>
+            <div className={`w-full relative ${
+                pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-14' :
+                pageDesign === 'IMPACT' ? 'bg-white py-14 border-t-8 border-black' :
+                'bg-white py-14'
+            }`}>
                         {isEditMode && (
                              <div className="absolute top-4 right-10 flex gap-2 flex-wrap justify-end">
                                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
@@ -2018,9 +1220,17 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
         );
         case 'DETAILS': return (
-                     <div className={`w-full ${pageDesign === 'IMPACT' ? 'bg-white' : 'bg-gray-50'} pb-10`}>
-                        <div className="w-full py-10 text-center">
-                            <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`inline-block border-2 ${themeStyles.tableBorder} px-8 py-3 tracking-[0.2em] uppercase bg-white w-72`} toolbarPosition="right" />
+                     <div className={`w-full pb-10 ${
+                         pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0]' :
+                         pageDesign === 'IMPACT' ? 'bg-white' :
+                         'bg-gray-50'
+                     }`}>
+                        <div className={`w-full py-10 text-center ${pageDesign === 'IMPACT' ? 'bg-black' : ''}`}>
+                            <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-black' : 'font-bold' }} className={`inline-block px-8 py-3 tracking-[0.2em] uppercase ${
+                                pageDesign === 'IMPACT' ? 'border-b-2 border-red-600' :
+                                pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' :
+                                `border-2 ${themeStyles.tableBorder} bg-white w-72`
+                            }`} toolbarPosition="right" />
                         </div>
                         <div className="w-full flex flex-wrap">
                             {detailBlocks.map((block, bIdx) => {
@@ -2054,6 +1264,12 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                             {block.content ? (
                                                 <>
                                                     <img src={block.content} alt="Detail" className="w-full h-auto block" crossOrigin="anonymous" />
+                                                    {/* 자동 배너 카피 오버레이 */}
+                                                    {block.bannerText && !block.overlayText && (
+                                                        <div className={`absolute ${getBannerPositionClass(getPreset(category, pageDesign).bannerStyle.position)} ${getPreset(category, pageDesign).bannerStyle.bgColor} px-6 py-4 flex items-center justify-center`}>
+                                                            <EditableElement value={block.bannerText} onChange={(v) => setDetailBlocks(prev => prev.map(b => b.id === block.id ? { ...b, bannerText: v } : b))} isEditMode={isEditMode} defaultStyle={{ fontSize: getPreset(category, pageDesign).bannerStyle.fontSize as any, fontFamily: getPreset(category, pageDesign).bannerStyle.fontFamily as any, color: getPreset(category, pageDesign).bannerStyle.textColor, align: 'text-center', fontWeight: getPreset(category, pageDesign).bannerStyle.fontWeight as any }} className="drop-shadow-md" toolbarPosition="right" />
+                                                        </div>
+                                                    )}
                                                     {(block.overlayText !== undefined || isEditMode) && block.overlayText !== undefined && (
                                                         <EditableElement value={block.overlayText} onChange={(v) => updateOverlayText(block.id, v)} onStyleChange={(s) => updateOverlayStyle(block.id, s)} isEditMode={isEditMode} enableDrag={true} defaultStyle={block.overlayStyle || { fontSize: 'text-4xl', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', verticalAlign: 'justify-center', fontWeight: 'font-bold', x: 50, y: 50 }} className="drop-shadow-md" toolbarPosition="right" />
                                                     )}
@@ -2133,17 +1349,31 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                     </div>
             );
         case 'INFO': return (
-                    <div className={`w-full ${themeStyles.bg} pt-14 pb-20 px-10`}>
+                    <div className={`w-full pt-14 pb-20 px-10 ${
+                        pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' :
+                        pageDesign === 'IMPACT' ? 'bg-gray-100' :
+                        'bg-white'
+                    }`}>
                         <div className="mb-6 text-center text-gray-500 space-y-1">
-                             <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: themeStyles.fontBody as any, color: 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                             <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: themeStyles.fontBody as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                         </div>
-                        <div className={`bg-red-50 border-2 border-red-100 p-8 text-center rounded-lg mb-14 ${pageDesign === 'IMPACT' ? 'border-4 border-red-600 bg-white' : ''}`}>
-                            <h4 className="text-red-600 font-black text-2xl mb-3 uppercase tracking-wide flex items-center justify-center gap-2">⚠️ Check Point</h4>
-                            <EditableElement value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                        <div className={`p-8 text-center rounded-lg mb-14 ${
+                            pageDesign === 'IMPACT' ? 'bg-black border-l-4 border-red-600 rounded-none' :
+                            pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#d4d1c9]' :
+                            'bg-red-50 border-2 border-red-100'
+                        }`}>
+                            <h4 className={`font-black text-2xl mb-3 uppercase tracking-wide flex items-center justify-center gap-2 ${
+                                pageDesign === 'IMPACT' ? 'text-red-500' : 'text-red-600'
+                            }`}>⚠️ Check Point</h4>
+                            <EditableElement value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
                         </div>
                         <div className="max-w-4xl mx-auto">
-                            <div className="flex justify-center mb-8">
-                                <EditableElement value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`border-b-4 ${themeStyles.tableBorder} pb-2 px-8`} toolbarPosition="right" />
+                            <div className={`flex justify-center mb-8 ${pageDesign === 'IMPACT' ? '' : ''}`}>
+                                <EditableElement value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-black' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-black' : 'font-bold' }} className={`pb-2 px-8 ${
+                                    pageDesign === 'IMPACT' ? 'border-b-4 border-black uppercase tracking-widest' :
+                                    pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' :
+                                    `border-b-4 ${themeStyles.tableBorder}`
+                                }`} toolbarPosition="right" />
                             </div>
                             <table className={`w-full text-lg border-t-[3px] ${themeStyles.tableBorder} table-fixed`}>
                                 <colgroup><col className="w-[20%] bg-gray-50" /><col className="w-[30%]" /><col className="w-[20%] bg-gray-50" /><col className="w-[30%]" /></colgroup>
@@ -2174,46 +1404,21 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                             </>
                                         )}
                                     </tr>
+                                    {/* ── infoDisclosure 데이터 통합 행 ── */}
+                                    {infoDisclosure && [
+                                        { label: '제조사/수입자', value: infoDisclosure.manufacturer },
+                                        { label: '고객센터', value: infoDisclosure.customerService },
+                                        { label: '인증여부', value: infoDisclosure.haccp || infoDisclosure.certifications },
+                                        { label: '품질보증', value: infoDisclosure.warranty },
+                                    ].filter(r => r.value).map((row, i) => (
+                                        <tr key={`info-${i}`} className="border-b border-gray-200">
+                                            <th className={`py-4 px-4 text-left font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top text-lg`}>{row.label}</th>
+                                            <td className="py-4 px-4 text-gray-600 align-top text-lg" colSpan={3}>{row.value}</td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                             <div className="mt-8 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
-                            
-                            {/* ── 상품 정보고시 (편집 테이블 아래 통합) ─────────────────── */}
-                            {infoDisclosure && (infoDisclosure.manufacturer || infoDisclosure.customerService) && (
-                                <div className="mt-16">
-                                    <div className="flex items-center gap-3 mb-6">
-                                        <div className="h-px flex-1 bg-gray-200"></div>
-                                        <span className="text-sm font-black text-gray-500 uppercase tracking-[0.2em]">상품 정보고시</span>
-                                        <div className="h-px flex-1 bg-gray-200"></div>
-                                    </div>
-                                    <table className={`w-full text-base border-t-[3px] ${themeStyles.tableBorder} table-fixed`}>
-                                        <colgroup><col className="w-[25%] bg-gray-50" /><col className="w-[75%]" /></colgroup>
-                                        <tbody>
-                                            {[
-                                                { label: '제조자/수입자', value: infoDisclosure.manufacturer },
-                                                { label: '원산지', value: infoDisclosure.origin },
-                                                { label: '소재/재질', value: infoDisclosure.material },
-                                                { label: '사이즈', value: infoDisclosure.size },
-                                                { label: '색상', value: infoDisclosure.color },
-                                                { label: '세탁방법', value: infoDisclosure.wash },
-                                                { label: '원재료명', value: infoDisclosure.ingredients },
-                                                { label: '용량/중량', value: infoDisclosure.capacity },
-                                                { label: '유통기한', value: infoDisclosure.expiry },
-                                                { label: '보관방법', value: infoDisclosure.storage },
-                                                { label: '인증여부', value: infoDisclosure.haccp || infoDisclosure.certifications },
-                                                { label: '품질보증', value: infoDisclosure.warranty },
-                                                { label: '주의사항', value: infoDisclosure.caution },
-                                                { label: '고객센터', value: infoDisclosure.customerService },
-                                            ].filter(r => r.value).map((row, i) => (
-                                                <tr key={i} className="border-b border-gray-200">
-                                                    <th className={`py-3 px-4 text-left text-sm font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top`}>{row.label}</th>
-                                                    <td className="py-3 px-4 text-sm text-gray-600 align-top">{row.value}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
                         </div>
                     </div>
             );
@@ -2231,17 +1436,17 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         {/* Page Design Selector */}
         <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><ComputerDesktopIcon className="w-5 h-5 text-indigo-600" /> 전체 디자인 무드</h3>
         <div className="flex flex-col gap-2 mb-8">
-             <button onClick={() => setPageDesign('MODERN')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'MODERN' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => applyPreset('MODERN')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'MODERN' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center font-sans text-xs">Ab</div>
-                 <div className="text-left"><div className="font-bold">모던 (기본)</div><div className="text-xs opacity-70">깔끔한 고딕, 화이트</div></div>
+                 <div className="text-left"><div className="font-bold">모던 (기본)</div><div className="text-xs opacity-70">깔끔한 고딕, 지그재그</div></div>
              </button>
-             <button onClick={() => setPageDesign('EMOTIONAL')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'EMOTIONAL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => applyPreset('EMOTIONAL')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'EMOTIONAL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-[#fdfbf7] border border-[#e0dcd0] flex items-center justify-center font-serif-kr text-xs">가</div>
-                 <div className="text-left"><div className="font-bold">감성 (무드)</div><div className="text-xs opacity-70">명조체, 웜톤 배경</div></div>
+                 <div className="text-left"><div className="font-bold">감성 (무드)</div><div className="text-xs opacity-70">명조체, 이미지 먼저</div></div>
              </button>
-             <button onClick={() => setPageDesign('IMPACT')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => applyPreset('IMPACT')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-black text-white flex items-center justify-center font-sans text-xs font-black">B</div>
-                 <div className="text-left"><div className="font-bold">임팩트 (강조)</div><div className="text-xs opacity-70">볼드체, 블랙 라인</div></div>
+                 <div className="text-left"><div className="font-bold">임팩트 (강조)</div><div className="text-xs opacity-70">볼드 카드, 포인트 먼저</div></div>
              </button>
         </div>
 
@@ -2277,7 +1482,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             </div>
         </div>
         <div id="capture-area" className={`w-[860px] min-w-[860px] bg-white text-gray-800 flex flex-col items-center shadow-2xl origin-top ${isEditMode ? 'ring-1 ring-gray-200' : ''}`}>
-            {sectionOrder.map((sectionType, idx) => ( <SectionControlWrapper key={sectionType} type={sectionType} index={idx} isEditMode={isEditMode} isFirst={idx === 0} isLast={idx === sectionOrder.length - 1} onMove={moveSection} onDelete={sectionType === 'OPTIONS' ? () => removeSection('OPTIONS') : undefined}>{renderSectionContent(sectionType)}</SectionControlWrapper> ))}
+            {sectionOrder.map((sectionType, idx) => ( <SectionControlWrapper key={sectionType} type={sectionType} index={idx} isEditMode={isEditMode} isFirst={idx === 0} isLast={idx === sectionOrder.length - 1} onMove={moveSection} onDelete={sectionType === 'OPTIONS' ? () => removeSection('OPTIONS') : undefined} onDragStart={handleSectionDragStart} onDragOver={handleSectionDragOver} onDrop={handleSectionDrop} isDragTarget={dragOverIdx === idx && dragFromIdx !== idx}>{renderSectionContent(sectionType)}</SectionControlWrapper> ))}
         </div>
       </div>
     </div>
