@@ -1016,42 +1016,125 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   };
 
   useEffect(() => {
-    const newCopy = { ...copy };
-    if (newCopy.productInfo) {
-        newCopy.productInfo.origin = "Made in China";
+    // ── planSections 기반으로 카피 보강 ──
+    const enriched = getEnrichedCopy();
+    if (enriched.productInfo) {
+        enriched.productInfo.origin = "Made in China";
     }
-    setEditableCopy(newCopy);
+    
+    // planSections에서 추가 콘텐츠 추출
+    const enabledSections = planSections?.filter(s => s.enabled) || [];
+    const overviewSection = enabledSections.find(s => s.type === 'OVERVIEW');
+    const reviewSection = enabledSections.find(s => s.type === 'REVIEW');
+    const recommendSection = enabledSections.find(s => s.type === 'RECOMMEND');
+    const sizeSection = enabledSections.find(s => s.type === 'SIZE');
+    const guideSection = enabledSections.find(s => s.type === 'GUIDE');
+    const infoSection = enabledSections.find(s => s.type === 'INFO');
+    const cautionSection = enabledSections.find(s => s.type === 'CAUTION');
+    const detailSection = enabledSections.find(s => s.type === 'DETAIL');
+
+    // SIZE 섹션 → sizeTip 보강
+    if (sizeSection?.content && (!enriched.sizeTip || enriched.sizeTip.length < 10)) {
+        enriched.sizeTip = sizeSection.content;
+    }
+    
+    setEditableCopy(enriched);
     setEditableProductName(productName);
     
     if (category !== 'FASHION') {
         const info = {...infoLabels};
-        if (copy.productInfo.caution) {
+        // GUIDE/CAUTION 섹션 → 주의사항/가이드 반영
+        if (guideSection?.content) {
+            info.washGuide = guideSection.content;
+        } else if (copy.productInfo.caution) {
             info.washGuide = copy.productInfo.caution;
         } else {
             info.washGuide = "14세 이상 사용가능\n화기에 주의 하세요";
         }
         setInfoLabels(info);
+    } else if (guideSection?.content) {
+        setInfoLabels(prev => ({ ...prev, washGuide: guideSection.content }));
+    }
+    
+    // INFO 섹션 → disclaimerText 보강
+    if (infoSection?.content || cautionSection?.content) {
+        const base = "본 제품은 모니터 해상도 상 실제 제품과 색상 차이가 있을 수 있습니다\n본 제품은 실측 사이즈는 재는 위치나 방식에 따라 약간의 오차가 발생 할 수 있습니다";
+        const extra = infoSection?.content || cautionSection?.content || '';
+        setDisclaimerText(base + '\n' + extra);
     }
 
     const propMain = images.find(img => img.type === 'main')?.processedUrl;
     if (propMain) setMainImage(propMain);
 
+    // ── Detail Blocks: 이미지 + planSections 텍스트 블록 통합 ──
     const propDetails = images.filter(img => img.type === 'detail').map(img => img.processedUrl).filter(Boolean) as string[];
-    const initialDetailBlocks: DetailBlock[] = propDetails.map((url, idx) => ({
-        id: `img-${Date.now()}-${idx}`,
-        type: 'IMAGE',
-        content: url,
-        width: 'FULL'
-    }));
-    if (copy.mdComment) {
-        initialDetailBlocks.unshift({
+    const initialDetailBlocks: DetailBlock[] = [];
+    
+    // MD Comment 텍스트 블록
+    if (enriched.mdComment) {
+        initialDetailBlocks.push({
             id: `text-md-${Date.now()}`,
             type: 'TEXT',
-            content: `[MD's Pick]\n\n${copy.mdComment}`,
+            content: `[MD's Pick]\n\n${enriched.mdComment}`,
             width: 'FULL',
             style: { fontSize: 'text-4xl', fontFamily: 'font-sans', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-yellow-50' }
         });
     }
+    
+    // OVERVIEW 섹션 → 제품 요약 텍스트 블록
+    if (overviewSection?.content) {
+        initialDetailBlocks.push({
+            id: `text-overview-${Date.now()}`,
+            type: 'TEXT',
+            content: `${overviewSection.title}\n\n${overviewSection.content}`,
+            width: 'FULL',
+            style: { fontSize: 'text-3xl', fontFamily: 'font-sans', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }
+        });
+    }
+    
+    // DETAIL 섹션 → 클로즈업 설명 텍스트 블록
+    if (detailSection?.content) {
+        initialDetailBlocks.push({
+            id: `text-detail-${Date.now()}`,
+            type: 'TEXT',
+            content: `${detailSection.title}\n\n${detailSection.content}`,
+            width: 'FULL',
+            style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }
+        });
+    }
+    
+    // 상세 이미지 블록
+    propDetails.forEach((url, idx) => {
+        initialDetailBlocks.push({
+            id: `img-${Date.now()}-${idx}`,
+            type: 'IMAGE',
+            content: url,
+            width: 'FULL'
+        });
+    });
+    
+    // REVIEW 섹션 → 후기 텍스트 블록
+    if (reviewSection?.content) {
+        initialDetailBlocks.push({
+            id: `text-review-${Date.now()}`,
+            type: 'TEXT',
+            content: `⭐ ${reviewSection.title}\n\n${reviewSection.content}`,
+            width: 'FULL',
+            style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-gray-100' }
+        });
+    }
+    
+    // RECOMMEND 섹션 → 추천 텍스트 블록
+    if (recommendSection?.content) {
+        initialDetailBlocks.push({
+            id: `text-recommend-${Date.now()}`,
+            type: 'TEXT',
+            content: `💡 ${recommendSection.title}\n\n${recommendSection.content}`,
+            width: 'FULL',
+            style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }
+        });
+    }
+    
     setDetailBlocks(initialDetailBlocks);
 
     const propOptions = images.filter(img => img.type === 'option');
@@ -1062,7 +1145,8 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     }));
     setOptionBlocks(initialOptionBlocks);
 
-    const initialPointBlocks: PointBlock[] = copy.sellingPoints.map((p, i) => ({
+    // POINT 블록: enriched copy의 sellingPoints 사용 (이미 planSections 반영됨)
+    const initialPointBlocks: PointBlock[] = enriched.sellingPoints.map((p, i) => ({
         id: `pt-${Date.now()}-${i}`,
         type: 'POINT_ITEM',
         icon: p.icon,
@@ -1685,7 +1769,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         <div className={`w-full ${themeStyles.bg} px-10 py-16 text-center border-b ${themeStyles.tableBorder} relative`}>
                             {visibleHeaders.newArrival && (
                                 <div className="mb-6 flex justify-center">
-                                     <EditableElement key={`new-${pointTheme}`} value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'EMOTIONAL' ? theme.text : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="uppercase tracking-[0.3em]" toolbarPosition="right" />
+                                     <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'EMOTIONAL' ? theme.text : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="uppercase tracking-[0.3em]" toolbarPosition="right" />
                                 </div>
                             )}
                             <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-6xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-8 leading-normal" toolbarPosition="right" />
@@ -1701,7 +1785,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         {visibleHeaders.moodStory && (
                             <div className="mt-16 flex justify-center items-center gap-6">
                                 <span className={`h-[1px] w-32 ${themeStyles.sectionDivider}`}></span>
-                                <EditableElement key={`mood-${pointTheme}`} value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-black' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
+                                <EditableElement value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-black' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
                                 <span className={`h-[1px] w-32 ${themeStyles.sectionDivider}`}></span>
                             </div>
                         )}
@@ -1725,9 +1809,9 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                              </div>
                         )}
                         <div className="text-center mb-20 px-10">
-                            <EditableElement key={`why-${pointTheme}`} value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-6xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-4" toolbarPosition="right" />
+                            <EditableElement value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-6xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-4" toolbarPosition="right" />
                             {visibleHeaders.whySub && (
-                                <EditableElement key={`whysub-${pointTheme}`} value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                <EditableElement value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                             )}
                         </div>
                         <div className={`px-10 ${pointLayout === 'CARDS' ? 'grid gap-10' : pointLayout === 'SIMPLE' ? 'space-y-12' : 'flex flex-wrap'}`}>
@@ -1936,7 +2020,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         case 'DETAILS': return (
                      <div className={`w-full ${pageDesign === 'IMPACT' ? 'bg-white' : 'bg-gray-50'} pb-20`}>
                         <div className="w-full py-16 text-center">
-                            <EditableElement key={`detail-${pointTheme}`} value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`inline-block border-2 ${themeStyles.tableBorder} px-10 py-4 tracking-[0.2em] uppercase bg-white w-80`} toolbarPosition="right" />
+                            <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`inline-block border-2 ${themeStyles.tableBorder} px-10 py-4 tracking-[0.2em] uppercase bg-white w-80`} toolbarPosition="right" />
                         </div>
                         <div className="w-full flex flex-wrap">
                             {detailBlocks.map((block, bIdx) => {
@@ -2055,11 +2139,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         </div>
                         <div className={`bg-red-50 border-2 border-red-100 p-12 text-center rounded-lg mb-24 ${pageDesign === 'IMPACT' ? 'border-4 border-red-600 bg-white' : ''}`}>
                             <h4 className="text-red-600 font-black text-4xl mb-4 uppercase tracking-wide flex items-center justify-center gap-3">⚠️ Check Point</h4>
-                            <EditableElement key={`size-${pointTheme}`} value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                            <EditableElement value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
                         </div>
                         <div className="max-w-4xl mx-auto">
                             <div className="flex justify-center mb-10">
-                                <EditableElement key={`info-${pointTheme}`} value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`border-b-4 ${themeStyles.tableBorder} pb-3 px-10`} toolbarPosition="right" />
+                                <EditableElement value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`border-b-4 ${themeStyles.tableBorder} pb-3 px-10`} toolbarPosition="right" />
                             </div>
                             <table className={`w-full text-2xl border-t-[3px] ${themeStyles.tableBorder} table-fixed`}>
                                 <colgroup><col className="w-[20%] bg-gray-50" /><col className="w-[30%]" /><col className="w-[20%] bg-gray-50" /><col className="w-[30%]" /></colgroup>
@@ -2093,43 +2177,44 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 </tbody>
                             </table>
                             <div className="mt-12 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
-                        </div>
-
-                        {/* ── 상품 정보고시 ─────────────────── */}
-                        {infoDisclosure && (infoDisclosure.manufacturer || infoDisclosure.customerService) && (
-                            <div className="max-w-4xl mx-auto px-10 pb-16">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="h-px flex-1 bg-gray-200"></div>
-                                    <span className="text-sm font-black text-gray-500 uppercase tracking-[0.2em]">상품 정보고시</span>
-                                    <div className="h-px flex-1 bg-gray-200"></div>
+                            
+                            {/* ── 상품 정보고시 (편집 테이블 아래 통합) ─────────────────── */}
+                            {infoDisclosure && (infoDisclosure.manufacturer || infoDisclosure.customerService) && (
+                                <div className="mt-16">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="h-px flex-1 bg-gray-200"></div>
+                                        <span className="text-sm font-black text-gray-500 uppercase tracking-[0.2em]">상품 정보고시</span>
+                                        <div className="h-px flex-1 bg-gray-200"></div>
+                                    </div>
+                                    <table className={`w-full text-xl border-t-[3px] ${themeStyles.tableBorder} table-fixed`}>
+                                        <colgroup><col className="w-[25%] bg-gray-50" /><col className="w-[75%]" /></colgroup>
+                                        <tbody>
+                                            {[
+                                                { label: '제조자/수입자', value: infoDisclosure.manufacturer },
+                                                { label: '원산지', value: infoDisclosure.origin },
+                                                { label: '소재/재질', value: infoDisclosure.material },
+                                                { label: '사이즈', value: infoDisclosure.size },
+                                                { label: '색상', value: infoDisclosure.color },
+                                                { label: '세탁방법', value: infoDisclosure.wash },
+                                                { label: '원재료명', value: infoDisclosure.ingredients },
+                                                { label: '용량/중량', value: infoDisclosure.capacity },
+                                                { label: '유통기한', value: infoDisclosure.expiry },
+                                                { label: '보관방법', value: infoDisclosure.storage },
+                                                { label: '인증여부', value: infoDisclosure.haccp || infoDisclosure.certifications },
+                                                { label: '품질보증', value: infoDisclosure.warranty },
+                                                { label: '주의사항', value: infoDisclosure.caution },
+                                                { label: '고객센터', value: infoDisclosure.customerService },
+                                            ].filter(r => r.value).map((row, i) => (
+                                                <tr key={i} className="border-b border-gray-200">
+                                                    <th className={`py-5 px-6 text-left text-lg font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top`}>{row.label}</th>
+                                                    <td className="py-5 px-6 text-lg text-gray-600 align-top">{row.value}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <table className="w-full text-sm border border-gray-200">
-                                    <tbody>
-                                        {[
-                                            { label: '제조자/수입자', value: infoDisclosure.manufacturer },
-                                            { label: '원산지', value: infoDisclosure.origin },
-                                            { label: '소재/재질', value: infoDisclosure.material },
-                                            { label: '사이즈', value: infoDisclosure.size },
-                                            { label: '색상', value: infoDisclosure.color },
-                                            { label: '세탁방법', value: infoDisclosure.wash },
-                                            { label: '원재료명', value: infoDisclosure.ingredients },
-                                            { label: '용량/중량', value: infoDisclosure.capacity },
-                                            { label: '유통기한', value: infoDisclosure.expiry },
-                                            { label: '보관방법', value: infoDisclosure.storage },
-                                            { label: '인증여부', value: infoDisclosure.haccp || infoDisclosure.certifications },
-                                            { label: '품질보증', value: infoDisclosure.warranty },
-                                            { label: '주의사항', value: infoDisclosure.caution },
-                                            { label: '고객센터', value: infoDisclosure.customerService },
-                                        ].filter(r => r.value).map((row, i) => (
-                                            <tr key={i} style={{ background: i % 2 === 0 ? '#ffffff' : '#f9fafb' }}>
-                                                <th className="py-3 px-5 text-left text-xs font-bold text-gray-500 w-32 border-b border-gray-100 whitespace-nowrap">{row.label}</th>
-                                                <td className="py-3 px-5 text-xs text-gray-700 border-b border-gray-100">{row.value}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
             );
         default: return null;

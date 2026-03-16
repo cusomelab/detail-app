@@ -29,8 +29,19 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
   });
 };
 
+const stripMarkdown = (text: string): string => {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/~~(.+?)~~/g, '$1')
+    .replace(/`(.+?)`/g, '$1')
+    .replace(/^#+\s*/gm, '')
+    .replace(/^\s*[-*]\s+/gm, '');
+};
+
 const cleanTextResponse = (data: any): any => {
-  if (typeof data === 'string') return data.trim().replace(/\.(?=$|\s)/g, '');
+  if (typeof data === 'string') return stripMarkdown(data.trim().replace(/\.(?=$|\s)/g, ''));
   if (Array.isArray(data)) return data.map(cleanTextResponse);
   if (typeof data === 'object' && data !== null) {
     const cleaned: any = {};
@@ -270,11 +281,19 @@ export const regenerateCopy = async (currentText: string, fieldLabel: string): P
   const response = await ai.models.generateContent({
     model: TEXT_MODEL,
     contents: `한국 이커머스 "${fieldLabel}" 문구를 더 매력적으로 재작성해주세요.
-규칙: 마침표 없이, \\n으로 줄바꿈, 단어 중간 줄바꿈 금지.
+규칙: 마침표 없이, \\n으로 줄바꿈, 단어 중간 줄바꿈 금지, 마크다운 서식(**굵게** 등) 절대 사용 금지. 순수 텍스트만 출력.
 현재: "${currentText}"`,
     config: { temperature: 0.85 }
   });
   let text = response.text?.trim() || currentText;
+  // 마크다운 서식 제거: **bold**, *italic*, __underline__, ~strikethrough~, `code`, # 헤딩
+  text = text.replace(/\*\*(.+?)\*\*/g, '$1');   // **bold** → bold
+  text = text.replace(/\*(.+?)\*/g, '$1');         // *italic* → italic
+  text = text.replace(/__(.+?)__/g, '$1');         // __underline__ → underline
+  text = text.replace(/~~(.+?)~~/g, '$1');         // ~~strike~~ → strike
+  text = text.replace(/`(.+?)`/g, '$1');           // `code` → code
+  text = text.replace(/^#+\s*/gm, '');             // # 헤딩 제거
+  text = text.replace(/^\s*[-*]\s+/gm, '');        // - 또는 * 리스트 마커 제거
   if (text.endsWith('.')) text = text.slice(0, -1);
   return text;
 };
