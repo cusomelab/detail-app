@@ -2213,7 +2213,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                     ].filter(r => r.value).map((row, i) => (
                                         <tr key={`info-${i}`} className="border-b border-gray-200">
                                             <th className={`py-4 px-4 text-left font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top text-lg`}>{row.label}</th>
-                                            <td className={`py-4 px-4 ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'} align-top text-lg" colSpan={3}>{row.value}</td>
+                                            <td className={`py-4 px-4 ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'} align-top text-lg`} colSpan={3}>{row.value}</td>
                                         </tr>
                                     ))}
                                 </tbody>
