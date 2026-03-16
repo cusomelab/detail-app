@@ -25,7 +25,7 @@ type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE';
 type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
 type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
 type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
-type SectionType = 'HERO' | 'STORY' | 'POINTS' | 'OPTIONS' | 'DETAILS' | 'INFO';
+type SectionType = 'HERO' | 'STORY' | 'POINTS' | 'OPTIONS' | 'DETAILS' | 'REVIEW' | 'RECOMMEND' | 'INFO';
 
 // Detail Block System
 type BlockType = 'IMAGE' | 'TEXT' | 'SIZE_CHART';
@@ -917,26 +917,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
   // planSections를 기반으로 섹션 순서 결정
   const getInitialSectionOrder = (): SectionType[] => {
-    if (!planSections || planSections.length === 0) {
-      return ['HERO', 'STORY', 'POINTS', 'OPTIONS', 'DETAILS', 'INFO'];
-    }
-    const planTypeMap: Record<string, SectionType> = {
-      'HERO': 'HERO', 'STORY': 'STORY', 'OVERVIEW': 'HERO',
-      'POINT': 'POINTS', 'DETAIL': 'DETAILS', 'REVIEW': 'STORY',
-      'OPTIONS': 'OPTIONS', 'RECOMMEND': 'STORY', 'SIZE': 'INFO',
-      'GUIDE': 'INFO', 'INFO': 'INFO', 'CAUTION': 'INFO', 'CUSTOM': 'DETAILS'
-    };
-    const seen = new Set<SectionType>();
-    const order: SectionType[] = [];
-    planSections.filter(s => s.enabled).forEach(s => {
-      const mapped = planTypeMap[s.type] || 'DETAILS';
-      if (!seen.has(mapped)) { seen.add(mapped); order.push(mapped); }
-    });
-    // 없는 섹션 추가
-    (['HERO','STORY','POINTS','OPTIONS','DETAILS','INFO'] as SectionType[]).forEach(s => {
-      if (!seen.has(s)) order.push(s);
-    });
-    return order;
+    return ['HERO', 'STORY', 'DETAILS', 'REVIEW', 'POINTS', 'OPTIONS', 'RECOMMEND', 'INFO'];
   };
   const [sectionOrder, setSectionOrder] = useState<SectionType[]>(getInitialSectionOrder);
 
@@ -1003,6 +984,8 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [detailBlocks, setDetailBlocks] = useState<DetailBlock[]>([]);
   const [pointBlocks, setPointBlocks] = useState<PointBlock[]>([]);
   const [optionBlocks, setOptionBlocks] = useState<OptionBlock[]>([]);
+  const [reviewData, setReviewData] = useState<{ title: string; content: string }>({ title: '실제 구매자 후기', content: '' });
+  const [recommendData, setRecommendData] = useState<{ title: string; items: string[] }>({ title: '이런 분들께 추천합니다', items: [] });
   const [isProcessingMain, setIsProcessingMain] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null); 
 
@@ -1016,9 +999,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
 
   useEffect(() => {
     const newCopy = { ...copy };
-    if (newCopy.productInfo) {
-        newCopy.productInfo.origin = "Made in China";
-    }
+    if (newCopy.productInfo) newCopy.productInfo.origin = "Made in China";
     if (newCopy.story && newCopy.story.length > 60) {
         const lines = newCopy.story.split('\n').filter((l: string) => l.trim());
         newCopy.story = lines.slice(0, 2).join('\n');
@@ -1037,140 +1018,60 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     const propMain = images.find(img => img.type === 'main')?.processedUrl;
     if (propMain) setMainImage(propMain);
 
-    // ══════════════════════════════════════════════
-    // 13개 기획안에서 배너 카피 추출
-    // ══════════════════════════════════════════════
+    // ── 기획안에서 REVIEW / RECOMMEND 추출 ──
     const enabledPlan = planSections?.filter(s => s.enabled) || [];
-    const overviewPlan = enabledPlan.find(s => s.type === 'OVERVIEW');
-    const detailPlan = enabledPlan.find(s => s.type === 'DETAIL');
     const reviewPlan = enabledPlan.find(s => s.type === 'REVIEW');
     const recommendPlan = enabledPlan.find(s => s.type === 'RECOMMEND');
-    const guidePlan = enabledPlan.find(s => s.type === 'GUIDE');
-    const sizePlan = enabledPlan.find(s => s.type === 'SIZE');
     
-    // 배너용 카피 큐 (이미지 사이사이 삽입)
-    const bannerQueue: { title: string; content: string; bg: string }[] = [];
-    if (overviewPlan) bannerQueue.push({ title: overviewPlan.title, content: overviewPlan.content, bg: 'bg-gray-900' });
-    if (detailPlan) bannerQueue.push({ title: detailPlan.title, content: detailPlan.content, bg: pageDesign === 'IMPACT' ? 'bg-black' : 'bg-indigo-600' });
-    if (reviewPlan) bannerQueue.push({ title: '⭐ ' + reviewPlan.title, content: reviewPlan.content, bg: 'bg-gray-800' });
-    if (guidePlan) bannerQueue.push({ title: guidePlan.title, content: guidePlan.content, bg: pageDesign === 'EMOTIONAL' ? 'bg-[#8b7355]' : 'bg-gray-700' });
-    // sellingPoint 제목도 배너로
-    copy.sellingPoints.forEach(sp => {
-        if (sp.title) bannerQueue.push({ title: sp.icon + ' ' + sp.title, content: sp.description, bg: 'bg-gray-900' });
-    });
+    if (reviewPlan) {
+        setReviewData({ title: reviewPlan.title || '실제 구매자 후기', content: reviewPlan.content || '' });
+    }
+    if (recommendPlan) {
+        const items = recommendPlan.content.split('\n').filter((l: string) => l.trim()).map((l: string) => l.replace(/^\d+[\.\)]\s*/, '').trim());
+        setRecommendData({ title: recommendPlan.title || '이런 분들께 추천합니다', items });
+    }
 
-    // ══════════════════════════════════════════════
-    // 상세이미지 + AI연출 + 기획안 배너 교차 배치
-    // ══════════════════════════════════════════════
+    // ── DETAILS: 이미지 똑똑하게 배치 ──
     const styledImages = images.filter(img => img.type === 'styled').map(img => img.processedUrl).filter(Boolean) as string[];
     const propDetails = images.filter(img => img.type === 'detail').map(img => img.processedUrl).filter(Boolean) as string[];
     const initialDetailBlocks: DetailBlock[] = [];
     const ts = Date.now();
     let styledIdx = 0;
-    let bannerIdx = 0;
-    const totalImages = propDetails.length + styledImages.length;
-    const useHalfWidth = totalImages > 4; // 이미지 많으면 2분할
+    const totalUserImages = propDetails.length;
 
-    // MD Comment
-    if (copy.mdComment) {
-        initialDetailBlocks.push({
-            id: `text-md-${ts}`, type: 'TEXT',
-            content: `[MD's Pick]\n${copy.mdComment}`, width: 'FULL',
-            style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-yellow-50' }
-        });
-    }
-    
-    // OVERVIEW 기획안 → 첫 배너
-    if (overviewPlan) {
-        initialDetailBlocks.push({
-            id: `banner-overview-${ts}`, type: 'TEXT',
-            content: `${overviewPlan.title}\n${overviewPlan.content}`, width: 'FULL',
-            style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold', maxWidth: 'max-w-4xl', backgroundColor: 'bg-gray-900' }
-        });
-        bannerIdx++;
-    }
-    
-    // 이미지 교차 배치: [상세1] → [AI연출1] → [배너] → [상세2+상세3 2분할] → [AI연출2] → [배너] ...
+    // 이미지 배치 전략: 5장 이상이면 2분할 구간 포함
     propDetails.forEach((url, idx) => {
-        const imgWidth = useHalfWidth && idx > 0 && idx % 2 === 1 ? 'HALF' as BlockWidth : useHalfWidth && idx > 0 && idx % 2 === 0 ? 'HALF' as BlockWidth : 'FULL' as BlockWidth;
-        initialDetailBlocks.push({ id: `img-${ts}-${idx}`, type: 'IMAGE', content: url, width: imgWidth });
+        // 첫 번째, AI 연출 직전 이미지는 FULL
+        // 나머지는 이미지 많을 때 2분할
+        const useHalf = totalUserImages > 4 && idx >= 2 && idx < totalUserImages - 1;
+        initialDetailBlocks.push({ id: `img-${ts}-${idx}`, type: 'IMAGE', content: url, width: useHalf ? 'HALF' : 'FULL' });
         
-        // 매 2장 상세이미지 뒤에 AI 연출 + 배너 삽입
-        if (idx % 2 === 0 && styledIdx < styledImages.length) {
+        // 매 2장마다 AI 연출 1장 삽입 (FULL)
+        if (idx % 2 === 1 && styledIdx < styledImages.length) {
             initialDetailBlocks.push({ id: `styled-${ts}-${styledIdx}`, type: 'IMAGE', content: styledImages[styledIdx], width: 'FULL' });
             styledIdx++;
-            
-            // 기획안 배너 삽입
-            if (bannerIdx < bannerQueue.length) {
-                const b = bannerQueue[bannerIdx];
-                initialDetailBlocks.push({
-                    id: `banner-${ts}-${bannerIdx}`, type: 'TEXT',
-                    content: `${b.title}\n${b.content}`, width: 'FULL',
-                    style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold', maxWidth: 'max-w-4xl', backgroundColor: b.bg }
-                });
-                bannerIdx++;
-            }
         }
     });
-
-    // 남은 AI 연출 샷 + 배너
+    // 남은 AI 연출
     while (styledIdx < styledImages.length) {
         initialDetailBlocks.push({ id: `styled-${ts}-${styledIdx}`, type: 'IMAGE', content: styledImages[styledIdx], width: 'FULL' });
         styledIdx++;
-        if (bannerIdx < bannerQueue.length) {
-            const b = bannerQueue[bannerIdx];
-            initialDetailBlocks.push({
-                id: `banner-${ts}-${bannerIdx}`, type: 'TEXT',
-                content: `${b.title}\n${b.content}`, width: 'FULL',
-                style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-bold', maxWidth: 'max-w-4xl', backgroundColor: b.bg }
-            });
-            bannerIdx++;
-        }
-    }
-
-    // 추천 대상 → 박스형 카드
-    if (recommendPlan?.content) {
-        initialDetailBlocks.push({
-            id: `text-recommend-title-${ts}`, type: 'TEXT',
-            content: `이런 분들께 강력 추천합니다`, width: 'FULL',
-            style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-black', maxWidth: 'max-w-4xl' }
-        });
-        const items = recommendPlan.content.split('\n').filter((l: string) => l.trim());
-        items.forEach((item: string, i: number) => {
-            initialDetailBlocks.push({
-                id: `recommend-card-${ts}-${i}`, type: 'TEXT',
-                content: item.replace(/^\d+[\.\)]\s*/, '').trim(), width: items.length <= 3 ? 'FULL' : 'HALF',
-                style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-gray-100' }
-            });
-        });
-    }
-
-    // 사이즈 가이드
-    if (sizePlan?.content) {
-        initialDetailBlocks.push({
-            id: `banner-size-${ts}`, type: 'TEXT',
-            content: `📏 ${sizePlan.title}\n${sizePlan.content}`, width: 'FULL',
-            style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-blue-50' }
-        });
     }
     
     setDetailBlocks(initialDetailBlocks);
 
     const propOptions = images.filter(img => img.type === 'option');
-    const initialOptionBlocks: OptionBlock[] = propOptions.map((img, idx) => ({
-        id: `opt-${ts}-${idx}`,
-        image: img.processedUrl || img.originalUrl,
+    setOptionBlocks(propOptions.map((img, idx) => ({
+        id: `opt-${ts}-${idx}`, image: img.processedUrl || img.originalUrl,
         text: img.fileName ? stripExtension(img.fileName) : '옵션 설명을 입력하세요'
-    }));
-    setOptionBlocks(initialOptionBlocks);
+    })));
 
     const allStyled = images.filter(img => img.type === 'styled').map(img => img.processedUrl).filter(Boolean) as string[];
-    const initialPointBlocks: PointBlock[] = copy.sellingPoints.map((p, i) => ({
-        id: `pt-${ts}-${i}`, type: 'POINT_ITEM',
+    setPointBlocks(copy.sellingPoints.map((p, i) => ({
+        id: `pt-${ts}-${i}`, type: 'POINT_ITEM' as PointBlockType,
         icon: p.icon, title: p.title, description: p.description,
         sideImage: allStyled[i] || undefined
-    }));
-    setPointBlocks(initialPointBlocks);
+    })));
 
   }, [copy, images, productName, category]);
 
@@ -1835,11 +1736,12 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 <EditableElement value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                             )}
                         </div>
-                        <div className={`px-10 ${pointLayout === 'CARDS' ? 'grid gap-10' : pointLayout === 'SIMPLE' ? 'space-y-12' : 'flex flex-wrap'}`}>
+                        <div className={`px-10 ${pointLayout === 'CARDS' ? 'grid grid-cols-2 gap-6' : pointLayout === 'SIMPLE' ? 'space-y-0' : 'flex flex-wrap'}`}>
                             {pointBlocks.map((block, idx) => {
                                 if (block.type === 'POINT_ITEM') {
-                                    return (
-                                        <div key={block.id} className={`relative group/point w-full ${pointLayout === 'ZIGZAG' ? `flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-stretch min-h-[350px] border-b ${themeStyles.tableBorder} last:border-0` : ''} ${pointLayout === 'CARDS' ? `${pageDesign === 'IMPACT' ? 'bg-black text-white' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#d4d1c9]' : themeStyles.cardBg + ' border border-gray-200'} rounded-2xl p-10` : ''} ${pointLayout === 'SIMPLE' ? `flex flex-col items-start ${pageDesign === 'IMPACT' ? 'border-l-8 border-red-600 bg-gray-50' : pageDesign === 'EMOTIONAL' ? 'border-l-4 border-[#d4d1c9] bg-[#fdfbf7]' : `border-l-8 ${theme.border}`} pl-10 py-4` : ''}`}>   
+                                    // ═══ 모던: 지그재그 (텍스트/이미지 교차) ═══
+                                    if (pointLayout === 'ZIGZAG') return (
+                                        <div key={block.id} className={`relative group/point w-full flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-stretch min-h-[300px] border-b ${themeStyles.tableBorder} last:border-0`}>
                                             {isEditMode && (
                                                 <div className="absolute top-2 left-2 z-30 flex gap-1 opacity-0 group-hover/point:opacity-100 transition-opacity">
                                                     <button onClick={() => movePointBlock(idx, -1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronUpIcon className="w-3 h-3"/></button>
@@ -1847,72 +1749,108 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                     <button onClick={() => removePointBlock(block.id)} className="p-2 bg-red-50 text-red-500 rounded-full shadow border border-gray-200 hover:bg-red-100"><TrashIcon className="w-3 h-3" /></button>
                                                 </div>
                                             )}
-                                            {pointLayout === 'ZIGZAG' && (
-                                                <>
-                                                    <div className={`flex-1 p-10 flex flex-col justify-center ${themeStyles.bg} relative`}>
-                                                        {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div>}
-                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-4 leading-snug" toolbarPosition="right" />
-                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-600', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-relaxed" toolbarPosition="right" />
-                                                    </div>
-                                                    <div 
-                                                        className={`w-1/3 ${theme.lightBg} flex items-center justify-center relative group/side overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
-                                                        onDragEnter={(e) => handleDragEnter(e, block.id)}
-                                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                                                        onDragLeave={handleDragLeave}
-                                                        onDrop={(e) => handleImageDrop(e, block.id, (file) => {
-                                                            const url = URL.createObjectURL(file);
-                                                            updatePointBlock(block.id, 'sideImage', url);
-                                                            openCropper(block.id, url, 'POINT_SIDE');
-                                                        })}
-                                                    >
-                                                        {block.sideImage ? (
-                                                            <>
-                                                                <img src={block.sideImage} alt="Point Side" className="w-full h-full object-cover" crossOrigin="anonymous" />
-                                                                {isEditMode && (
-                                                                    <div className="absolute top-2 right-2 z-40 flex gap-1 opacity-0 group-hover/side:opacity-100 transition-opacity">
-                                                                        <label className="bg-white hover:bg-gray-50 text-gray-800 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200">
-                                                                            <ArrowPathIcon className="w-4 h-4" />
-                                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} />
-                                                                        </label>
-                                                                        <button onClick={() => openCropper(block.id, block.sideImage!, 'POINT_SIDE')} className="bg-white text-gray-800 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200 hover:bg-gray-50"><ScissorsIcon className="w-4 h-4" /></button>
-                                                                        <button onClick={() => updatePointBlock(block.id, 'sideImage', undefined)} className="bg-white text-red-500 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200 hover:bg-red-50"><TrashIcon className="w-4 h-4" /></button>
-                                                                    </div>
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100/50 hover:bg-gray-100 transition-colors p-4">
-                                                                <span className="text-gray-900 font-bold border-4 border-gray-900 p-4 text-2xl opacity-10 mb-4">POINT {idx+1}</span>
-                                                                {isEditMode && (
-                                                                    <label className="flex flex-col items-center cursor-pointer bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-indigo-400 group/upload">
-                                                                        <div className="bg-gray-50 p-3 rounded-full mb-2 group-hover/upload:bg-indigo-50"><PhotoIcon className="w-6 h-6 text-gray-400 group-hover:text-indigo-600" /></div>
-                                                                        <span className="text-xs font-bold text-gray-500 group-hover/upload:text-indigo-600">이미지 추가</span>
-                                                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} />
-                                                                    </label>
-                                                                )}
+                                            <div className={`flex-1 p-10 flex flex-col justify-center ${themeStyles.bg} relative`}>
+                                                {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div>}
+                                                <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-4 leading-snug" toolbarPosition="right" />
+                                                <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-relaxed" toolbarPosition="right" />
+                                            </div>
+                                            <div className={`w-1/3 ${theme.lightBg} flex items-center justify-center relative group/side overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
+                                                onDragEnter={(e) => handleDragEnter(e, block.id)} onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} onDragLeave={handleDragLeave}
+                                                onDrop={(e) => handleImageDrop(e, block.id, (file) => { const url = URL.createObjectURL(file); updatePointBlock(block.id, 'sideImage', url); openCropper(block.id, url, 'POINT_SIDE'); })}
+                                            >
+                                                {block.sideImage ? (
+                                                    <>
+                                                        <img src={block.sideImage} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                                        {isEditMode && (
+                                                            <div className="absolute top-2 right-2 z-40 flex gap-1 opacity-0 group-hover/side:opacity-100 transition-opacity">
+                                                                <label className="bg-white hover:bg-gray-50 text-gray-800 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200"><ArrowPathIcon className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
+                                                                <button onClick={() => openCropper(block.id, block.sideImage!, 'POINT_SIDE')} className="bg-white text-gray-800 p-1.5 rounded-lg shadow-lg border border-gray-200"><ScissorsIcon className="w-4 h-4"/></button>
                                                             </div>
                                                         )}
-                                                    </div>
-                                                </>
-                                            )}
-                                            {pointLayout === 'CARDS' && (
-                                                <div className="flex flex-col items-center text-center w-full">
-                                                    <div className={`absolute top-0 right-0 ${pageDesign === 'IMPACT' ? 'bg-red-600' : theme.badge} text-white font-bold text-lg px-4 py-2 rounded-bl-2xl`}>POINT {idx+1}</div>
-                                                    {pointIconStyle !== 'NONE' && ( <div className={`${pageDesign === 'IMPACT' ? 'bg-gray-800' : 'bg-white'} w-20 h-20 rounded-full flex items-center justify-center text-4xl shadow-md mb-4`}>{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${pageDesign === 'IMPACT' ? 'text-white' : theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div> )}
-                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-3" toolbarPosition="right" />
-                                                    <div className={`w-10 h-1 ${pageDesign === 'IMPACT' ? 'bg-red-600' : 'bg-gray-300'} mb-4`}></div>
-                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-2xl' }} className="leading-relaxed" toolbarPosition="right" />
+                                                    </>
+                                                ) : (
+                                                    <label className="flex flex-col items-center cursor-pointer p-6 text-gray-300 hover:text-gray-500"><PhotoIcon className="w-10 h-10 mb-2" /><span className="text-xs font-bold">이미지</span><input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+
+                                    // ═══ 감성: 매거진 (전체 폭 이미지 + 하단 그라데이션 오버레이) ═══
+                                    if (pointLayout === 'SIMPLE') return (
+                                        <div key={block.id} className="relative group/point w-full min-h-[350px] overflow-hidden">
+                                            {isEditMode && (
+                                                <div className="absolute top-2 left-2 z-30 flex gap-1 opacity-0 group-hover/point:opacity-100 transition-opacity">
+                                                    <button onClick={() => movePointBlock(idx, -1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronUpIcon className="w-3 h-3"/></button>
+                                                    <button onClick={() => movePointBlock(idx, 1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronDownIcon className="w-3 h-3"/></button>
+                                                    <button onClick={() => removePointBlock(block.id)} className="p-2 bg-red-50 text-red-500 rounded-full shadow border border-gray-200 hover:bg-red-100"><TrashIcon className="w-3 h-3" /></button>
                                                 </div>
                                             )}
-                                            {pointLayout === 'SIMPLE' && (
-                                                <div className="w-full">
-                                                    {pointIconStyle !== 'NONE' && ( <div className="flex items-center gap-4 mb-2"><span className="text-3xl">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</span></div> )}
-                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2" toolbarPosition="right" />
-                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-500', align: 'text-left', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }} className="leading-relaxed" toolbarPosition="right" />
+                                            {/* 배경 이미지 (sideImage 활용) */}
+                                            {block.sideImage ? (
+                                                <img src={block.sideImage} alt="" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous" />
+                                            ) : (
+                                                <div className={`absolute inset-0 ${idx % 2 === 0 ? 'bg-[#f4f1ea]' : 'bg-[#e8e4db]'}`}></div>
+                                            )}
+                                            {/* 하단 그라데이션 + 텍스트 */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+                                            <div className="relative z-10 flex flex-col justify-end h-full p-10 min-h-[350px]">
+                                                {pointIconStyle !== 'NONE' && <div className="text-3xl mb-3 drop-shadow-lg">{pointIconStyle === 'NUMBER' ? <span className="font-serif-kr font-bold text-white/80">{`0${idx + 1}`}</span> : block.icon}</div>}
+                                                <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-serif-kr' as any, color: 'text-white', align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-2 drop-shadow-lg leading-snug" toolbarPosition="right" />
+                                                <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: 'font-serif-kr' as any, color: 'text-white', align: 'text-left', fontWeight: 'font-normal', maxWidth: 'max-w-xl' }} className="leading-relaxed drop-shadow-md opacity-90" toolbarPosition="right" />
+                                            </div>
+                                            {/* 편집 모드: 이미지 교체 버튼 */}
+                                            {isEditMode && (
+                                                <div className="absolute top-2 right-2 z-40 opacity-0 group-hover/point:opacity-100 transition-opacity">
+                                                    <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer shadow-lg border border-gray-200 flex items-center gap-1 text-xs font-bold"><ArrowPathIcon className="w-4 h-4" /> 배경<input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
                                                 </div>
                                             )}
                                         </div>
                                     );
-                                } else if (block.type === 'IMAGE') {
+
+                                    // ═══ 임팩트: 2열 그리드 카드 (검정+빨강+큰 넘버) ═══
+                                    if (pointLayout === 'CARDS') return (
+                                        <div key={block.id} className="relative group/point bg-black text-white rounded-2xl overflow-hidden">
+                                            {isEditMode && (
+                                                <div className="absolute top-2 left-2 z-30 flex gap-1 opacity-0 group-hover/point:opacity-100 transition-opacity">
+                                                    <button onClick={() => movePointBlock(idx, -1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronUpIcon className="w-3 h-3"/></button>
+                                                    <button onClick={() => movePointBlock(idx, 1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronDownIcon className="w-3 h-3"/></button>
+                                                    <button onClick={() => removePointBlock(block.id)} className="p-2 bg-red-50 text-red-500 rounded-full shadow border border-gray-200 hover:bg-red-100"><TrashIcon className="w-3 h-3" /></button>
+                                                </div>
+                                            )}
+                                            {/* 상단: 큰 넘버 + 빨간 악센트 */}
+                                            <div className="bg-red-600 py-3 px-6 flex items-center gap-3">
+                                                <span className="text-3xl font-black text-white font-sans">{`0${idx + 1}`}</span>
+                                                <div className="h-6 w-[2px] bg-white/30"></div>
+                                                <span className="text-sm font-bold text-white/80 uppercase tracking-widest">POINT</span>
+                                            </div>
+                                            {/* 이미지 (있으면) */}
+                                            {block.sideImage && (
+                                                <div className="relative w-full aspect-[4/3] overflow-hidden">
+                                                    <img src={block.sideImage} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                                    {isEditMode && (
+                                                        <div className="absolute top-2 right-2 z-40 opacity-0 group-hover/point:opacity-100 transition-opacity">
+                                                            <label className="bg-white/90 hover:bg-white text-gray-800 p-1.5 rounded cursor-pointer shadow"><ArrowPathIcon className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {/* 텍스트 영역 */}
+                                            <div className="p-8">
+                                                <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: 'font-sans' as any, color: 'text-white', align: 'text-left', fontWeight: 'font-black' }} className="mb-3 leading-snug" toolbarPosition="right" />
+                                                <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: 'font-sans' as any, color: 'text-gray-400', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
+                                            </div>
+                                            {/* 이미지 없으면 업로드 */}
+                                            {!block.sideImage && isEditMode && (
+                                                <div className="px-8 pb-6">
+                                                    <label className="flex items-center justify-center gap-2 py-3 border border-dashed border-gray-600 rounded-lg text-gray-500 text-sm cursor-pointer hover:border-red-500 hover:text-red-400"><PhotoIcon className="w-5 h-5" /> 이미지 추가<input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+
+                                    return null;
+                                }
+                                 else if (block.type === 'IMAGE') {
                                     const widthClass = block.width === 'HALF' ? 'w-1/2' : block.width === 'THIRD' ? 'w-1/3' : 'w-full';
                                     const toggleLabel = block.width === 'FULL' ? '◩ 2단' : block.width === 'HALF' ? '▦ 3단' : '⬛ 꽉참';
                                     return (
@@ -2216,6 +2154,77 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         </div>
                     </div>
             );
+        case 'REVIEW': return (
+            <div className={`w-full py-16 px-10 ${pageDesign === 'IMPACT' ? 'bg-gray-900' : pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : 'bg-gray-50'}`}>
+                <div className="max-w-4xl mx-auto">
+                    <div className="text-center mb-10">
+                        <div className="flex items-center justify-center gap-2 mb-3">
+                            <span className="text-3xl">⭐⭐⭐⭐⭐</span>
+                        </div>
+                        <EditableElement value={reviewData.title} onChange={(v) => setReviewData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                        <p className={`text-sm mt-2 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>만족도 4.9 / 5.0</p>
+                    </div>
+                    {reviewData.content ? (
+                        <div className="space-y-4">
+                            {reviewData.content.split('\n').filter((l: string) => l.trim()).slice(0, 3).map((review: string, i: number) => (
+                                <div key={i} className={`p-6 rounded-2xl ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0]' : 'bg-white border border-gray-200'} shadow-sm`}>
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
+                                            {['👩', '👨', '👩‍💼'][i % 3]}
+                                        </div>
+                                        <div>
+                                            <p className={`text-sm font-bold ${pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-800'}`}>구매자 {i + 1}</p>
+                                            <p className="text-xs text-yellow-500">★★★★★</p>
+                                        </div>
+                                    </div>
+                                    <EditableElement value={review.replace(/^\d+[\.\)]\s*/, '').trim()} onChange={(v) => {
+                                        const lines = reviewData.content.split('\n');
+                                        lines[i] = v;
+                                        setReviewData(prev => ({...prev, content: lines.join('\n')}));
+                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center text-gray-400 py-8">기획안에서 고객 후기가 생성됩니다</div>
+                    )}
+                </div>
+            </div>
+        );
+        case 'RECOMMEND': return (
+            <div className={`w-full py-16 px-10 ${pageDesign === 'IMPACT' ? 'bg-black' : pageDesign === 'EMOTIONAL' ? 'bg-[#f4f1ea]' : 'bg-gradient-to-b from-indigo-50 to-white'}`}>
+                <div className="max-w-4xl mx-auto">
+                    <div className="text-center mb-10">
+                        <span className={`text-4xl mb-4 block`}>💡</span>
+                        <EditableElement value={recommendData.title} onChange={(v) => setRecommendData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                    </div>
+                    {recommendData.items.length > 0 ? (
+                        <div className={`grid ${recommendData.items.length <= 3 ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
+                            {recommendData.items.map((item, i) => (
+                                <div key={i} className={`flex items-start gap-4 p-6 rounded-2xl transition-all ${
+                                    pageDesign === 'IMPACT' ? 'bg-gray-900 border border-gray-800 hover:border-red-600' : 
+                                    pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0] hover:shadow-md' :
+                                    'bg-white border border-gray-200 hover:shadow-md hover:border-indigo-200'
+                                }`}>
+                                    <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg font-black ${
+                                        pageDesign === 'IMPACT' ? 'bg-red-600 text-white' :
+                                        pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9] text-white' :
+                                        'bg-indigo-600 text-white'
+                                    }`}>{i + 1}</div>
+                                    <EditableElement value={item} onChange={(v) => {
+                                        const newItems = [...recommendData.items];
+                                        newItems[i] = v;
+                                        setRecommendData(prev => ({...prev, items: newItems}));
+                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700', align: 'text-left', fontWeight: 'font-medium' }} toolbarPosition="right" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center text-gray-400 py-8">기획안에서 추천 대상이 생성됩니다</div>
+                    )}
+                </div>
+            </div>
+        );
         default: return null;
     }
   };
@@ -2230,15 +2239,15 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         {/* Page Design Selector */}
         <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><ComputerDesktopIcon className="w-5 h-5 text-indigo-600" /> 전체 디자인 무드</h3>
         <div className="flex flex-col gap-2 mb-8">
-             <button onClick={() => { setPageDesign('MODERN'); setPointLayout('ZIGZAG'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'MODERN' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('MODERN'); setPointLayout('ZIGZAG'); setSectionOrder(['HERO','STORY','DETAILS','REVIEW','POINTS','OPTIONS','RECOMMEND','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'MODERN' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center font-sans text-xs">Ab</div>
                  <div className="text-left"><div className="font-bold">모던 (기본)</div><div className="text-xs opacity-70">깔끔한 고딕, 지그재그</div></div>
              </button>
-             <button onClick={() => { setPageDesign('EMOTIONAL'); setPointLayout('SIMPLE'); setSectionOrder(['HERO','DETAILS','STORY','POINTS','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'EMOTIONAL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('EMOTIONAL'); setPointLayout('SIMPLE'); setSectionOrder(['HERO','DETAILS','STORY','REVIEW','POINTS','OPTIONS','RECOMMEND','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'EMOTIONAL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-[#fdfbf7] border border-[#e0dcd0] flex items-center justify-center font-serif-kr text-xs">가</div>
                  <div className="text-left"><div className="font-bold">감성 (무드)</div><div className="text-xs opacity-70">명조체, 이미지 먼저</div></div>
              </button>
-             <button onClick={() => { setPageDesign('IMPACT'); setPointLayout('CARDS'); setSectionOrder(['HERO','POINTS','DETAILS','OPTIONS','STORY','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('IMPACT'); setPointLayout('CARDS'); setSectionOrder(['HERO','POINTS','DETAILS','REVIEW','OPTIONS','RECOMMEND','STORY','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-black text-white flex items-center justify-center font-sans text-xs font-black">B</div>
                  <div className="text-left"><div className="font-bold">임팩트 (강조)</div><div className="text-xs opacity-70">블랙 카드, 포인트 먼저</div></div>
              </button>
