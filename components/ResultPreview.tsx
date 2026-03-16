@@ -77,6 +77,35 @@ interface OptionBlock {
     isProcessing?: boolean;
 }
 
+// ── 이모지 검증 헬퍼 (Gemini가 URL이나 영어를 반환하는 버그 방어) ──
+const safeIcon = (icon: string | undefined): string => {
+  if (!icon) return '✨';
+  if (icon.length > 4 || /^https?:\/\//.test(icon) || /^[a-zA-Z_]+$/.test(icon)) return '✨';
+  return icon;
+};
+
+// ── 섹션별 배경색 교차 (리듬감) ──
+const getSectionBg = (type: SectionType, design: PageDesignType): string => {
+  const bgs: Record<PageDesignType, Record<SectionType, string>> = {
+    MODERN: {
+      HERO: 'bg-white', STORY: 'bg-[#fafafa]', DETAILS: 'bg-white', 
+      POINTS: 'bg-[#f5f5f5]', REVIEW: 'bg-[#fafafa]', RECOMMEND: 'bg-[#f5f5f5]',
+      OPTIONS: 'bg-white', INFO: 'bg-[#f5f5f5]'
+    },
+    EMOTIONAL: {
+      HERO: 'bg-[#fdfbf7]', STORY: 'bg-[#f4f1ea]', DETAILS: 'bg-[#fdfbf7]',
+      POINTS: 'bg-[#f4f1ea]', REVIEW: 'bg-[#fdfbf7]', RECOMMEND: 'bg-[#f4f1ea]',
+      OPTIONS: 'bg-[#fdfbf7]', INFO: 'bg-[#f4f1ea]'
+    },
+    IMPACT: {
+      HERO: 'bg-black', STORY: 'bg-[#111111]', DETAILS: 'bg-black',
+      POINTS: 'bg-white', REVIEW: 'bg-[#111111]', RECOMMEND: 'bg-[#0a0a0a]',
+      OPTIONS: 'bg-black', INFO: 'bg-[#111111]'
+    }
+  };
+  return bgs[design]?.[type] || 'bg-white';
+};
+
 // Theme Config
 const THEME_COLORS: Record<PointThemeColor, { bg: string, text: string, border: string, lightBg: string, badge: string }> = {
     INDIGO: { bg: 'bg-indigo-600', text: 'text-indigo-600', border: 'border-indigo-600', lightBg: 'bg-indigo-50', badge: 'bg-indigo-600' },
@@ -106,36 +135,36 @@ const getThemeByCategory = (category: ProductCategory): PointThemeColor => {
 const getHeadersByCategory = (category: ProductCategory) => {
     switch (category) {
         case 'FOOD': return {
-            newArrival: "Fresh Food Market",
-            whyThisItem: "Why This Taste?",
+            newArrival: "오늘의 신상",
+            whyThisItem: "이 맛, 왜 특별할까?",
             whySub: "이 맛을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Delicious Recipe"
+            detailView: "상세 이미지",
+            productInfo: "상품 정보",
+            moodStory: "맛있는 레시피"
         };
         case 'LIVING': return {
-            newArrival: "Home & Living Best",
-            whyThisItem: "Check Point",
+            newArrival: "리빙 베스트",
+            whyThisItem: "체크 포인트",
             whySub: "이 상품을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Space & Mood"
+            detailView: "상세 이미지",
+            productInfo: "상품 정보",
+            moodStory: "공간 & 무드"
         };
         case 'KITCHEN': return {
-            newArrival: "Premium Kitchenware",
-            whyThisItem: "Smart Point",
+            newArrival: "주방용품 추천",
+            whyThisItem: "스마트 포인트",
             whySub: "이 상품을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Kitchen Guide"
+            detailView: "상세 이미지",
+            productInfo: "상품 정보",
+            moodStory: "키친 가이드"
         };
         default: return {
-            newArrival: "New Arrival Collection",
-            whyThisItem: "Why This Item?",
-            whySub: "이 상품을 선택해야 하는 이유",
-            detailView: "Detail View",
-            productInfo: "Product Info",
-            moodStory: "Mood & Story"
+            newArrival: "신상품 입고",
+            whyThisItem: "이 상품을 선택해야 하는 이유",
+            whySub: "지금 이 아이템이어야 하는 이유",
+            detailView: "상세 이미지",
+            productInfo: "상품 정보",
+            moodStory: "무드 & 스토리"
         };
     }
 };
@@ -917,7 +946,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
   // planSections를 기반으로 섹션 순서 결정
   const getInitialSectionOrder = (): SectionType[] => {
-    return ['HERO', 'STORY', 'DETAILS', 'POINTS', 'OPTIONS', 'INFO'];
+    return ['HERO', 'STORY', 'DETAILS', 'POINTS', 'REVIEW', 'RECOMMEND', 'OPTIONS', 'INFO'];
   };
   const [sectionOrder, setSectionOrder] = useState<SectionType[]>(getInitialSectionOrder);
 
@@ -981,6 +1010,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   });
 
   const [mainImage, setMainImage] = useState<string | null>(null);
+  const [styledImageList, setStyledImageList] = useState<string[]>([]);
   const [detailBlocks, setDetailBlocks] = useState<DetailBlock[]>([]);
   const [pointBlocks, setPointBlocks] = useState<PointBlock[]>([]);
   const [optionBlocks, setOptionBlocks] = useState<OptionBlock[]>([]);
@@ -1033,57 +1063,30 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         setRecommendData({ title: recommendPlan.title || '이런 분들께 추천합니다', items });
     }
 
-    // ── DETAILS: 이미지 + 후기 + 추천 교차 배치 ──
+    // ── AI 연출 이미지 → 섹션 "사이"에 독립 배치하기 위해 state 저장 ──
     const styledImages = images.filter(img => img.type === 'styled').map(img => img.processedUrl).filter(Boolean) as string[];
+    setStyledImageList(styledImages);
+
+    // ── DETAILS: 상세이미지만 + 사이사이 카피 자동 삽입 ──
     const propDetails = images.filter(img => img.type === 'detail').map(img => img.processedUrl).filter(Boolean) as string[];
     const initialDetailBlocks: DetailBlock[] = [];
     const ts = Date.now();
-    let styledIdx = 0;
     const totalUserImages = propDetails.length;
-    const allImgs = [...propDetails]; // 전체 이미지 풀
-    
-    // 후기/추천 삽입 포인트 계산
-    const reviewInsertAfter = Math.min(2, Math.floor(allImgs.length / 2)); // 2~3장 뒤에 후기
-    const recommendInsertAfter = Math.min(allImgs.length, reviewInsertAfter + 2); // 후기 뒤 2장 뒤에 추천
-    let reviewInserted = false;
-    let recommendInserted = false;
+    const detailCopies = copy.detailCopies || [];
 
-    allImgs.forEach((url, idx) => {
+    propDetails.forEach((url, idx) => {
         const useHalf = totalUserImages > 4 && idx >= 2 && idx < totalUserImages - 1;
         initialDetailBlocks.push({ id: `img-${ts}-${idx}`, type: 'IMAGE', content: url, width: useHalf ? 'HALF' : 'FULL' });
-        
-        // AI 연출 삽입
-        if (idx % 2 === 1 && styledIdx < styledImages.length) {
-            initialDetailBlocks.push({ id: `styled-${ts}-${styledIdx}`, type: 'IMAGE', content: styledImages[styledIdx], width: 'FULL' });
-            styledIdx++;
-        }
-        
-        // 후기 삽입 (이미지 2~3장 뒤)
-        if (!reviewInserted && idx >= reviewInsertAfter) {
-            initialDetailBlocks.push({ id: `review-embed-${ts}`, type: 'REVIEW_EMBED', content: '', width: 'FULL' });
-            reviewInserted = true;
-        }
-        
-        // 추천 삽입 (후기 뒤 이미지 몇 장 뒤)
-        if (reviewInserted && !recommendInserted && idx >= recommendInsertAfter) {
-            initialDetailBlocks.push({ id: `recommend-embed-${ts}`, type: 'RECOMMEND_EMBED', content: '', width: 'FULL' });
-            recommendInserted = true;
+        // 2~3장마다 한 줄 카피 삽입 (detailCopies가 있을 때만)
+        const copyIdx = Math.floor(idx / 2);
+        if (idx > 0 && idx % 2 === 1 && copyIdx < detailCopies.length) {
+            initialDetailBlocks.push({
+                id: `dcopy-${ts}-${copyIdx}`, type: 'TEXT',
+                content: detailCopies[copyIdx], width: 'FULL',
+                style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-center', fontWeight: 'font-bold', maxWidth: 'max-w-4xl' }
+            });
         }
     });
-    
-    // 남은 AI 연출
-    while (styledIdx < styledImages.length) {
-        initialDetailBlocks.push({ id: `styled-${ts}-${styledIdx}`, type: 'IMAGE', content: styledImages[styledIdx], width: 'FULL' });
-        styledIdx++;
-    }
-    
-    // 이미지가 적어서 삽입 못 했으면 끝에 추가
-    if (!reviewInserted) {
-        initialDetailBlocks.push({ id: `review-embed-${ts}`, type: 'REVIEW_EMBED', content: '', width: 'FULL' });
-    }
-    if (!recommendInserted) {
-        initialDetailBlocks.push({ id: `recommend-embed-${ts}`, type: 'RECOMMEND_EMBED', content: '', width: 'FULL' });
-    }
     
     setDetailBlocks(initialDetailBlocks);
 
@@ -1093,11 +1096,10 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         text: img.fileName ? stripExtension(img.fileName) : '옵션 설명을 입력하세요'
     })));
 
-    const allStyled = images.filter(img => img.type === 'styled').map(img => img.processedUrl).filter(Boolean) as string[];
+    // ── 포인트 블록 (sideImage 자동배치 제거, 수동 업로드만 가능) ──
     setPointBlocks(copy.sellingPoints.map((p, i) => ({
         id: `pt-${ts}-${i}`, type: 'POINT_ITEM' as PointBlockType,
-        icon: p.icon, title: p.title, description: p.description,
-        sideImage: allStyled[i] || undefined
+        icon: safeIcon(p.icon), title: p.title, description: p.description,
     })));
 
   }, [copy, images, productName, category]);
@@ -1725,7 +1727,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
         );
         case 'STORY': return (
-            <div className={`w-full text-center relative ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-20 px-12' : pageDesign === 'IMPACT' ? 'bg-gray-900 py-16 px-12' : 'bg-white py-14 px-12'}`}>
+            <div className={`w-full text-center relative ${getSectionBg('STORY', pageDesign)} ${pageDesign === 'EMOTIONAL' ? 'py-20 px-12' : pageDesign === 'IMPACT' ? 'py-16 px-12' : 'py-14 px-12'}`}>
                         {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mb-4 block leading-none`}>"</span>}
                         {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mb-8"></div>}
                         <EditableElement key={`mood-${pointTheme}`} value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'EMOTIONAL' ? 'font-normal' : 'font-medium', maxWidth: 'max-w-4xl' }} className={`leading-relaxed mx-auto ${pageDesign === 'EMOTIONAL' ? 'italic' : ''}`} toolbarPosition="right" />
@@ -1741,9 +1743,9 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
         );
         case 'POINTS': return (
-            <div className={`w-full relative ${pageDesign === 'IMPACT' ? 'bg-black py-14 border-t-4 border-red-600' : pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-14' : 'bg-white py-14'}`}>
+            <div className={`w-full relative ${getSectionBg('POINTS', pageDesign)} py-14`}>
                         {isEditMode && (
-                             <div className="absolute top-4 right-10 flex gap-2 flex-wrap justify-end">
+                             <div className="absolute top-4 right-10 flex gap-2 flex-wrap justify-end z-20">
                                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
                                     <button onClick={() => setPointIconStyle('EMOJI')} className={`px-3 py-1 text-xs font-bold rounded ${pointIconStyle === 'EMOJI' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}>😊 이모지</button>
                                     <button onClick={() => setPointIconStyle('NUMBER')} className={`px-3 py-1 text-xs font-bold rounded ${pointIconStyle === 'NUMBER' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}>🔢 숫자</button>
@@ -1758,17 +1760,16 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                              </div>
                         )}
                         <div className="text-center mb-12 px-10">
-                            <EditableElement value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-3" toolbarPosition="right" />
+                            <EditableElement value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-3" toolbarPosition="right" />
                             {visibleHeaders.whySub && (
-                                <EditableElement value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                <EditableElement value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                             )}
                         </div>
-                        <div className={`px-10 ${pointLayout === 'CARDS' ? 'grid grid-cols-2 gap-6' : pointLayout === 'SIMPLE' ? 'space-y-0' : 'flex flex-wrap'}`}>
+                        <div className={`px-10 ${pointLayout === 'CARDS' ? 'grid gap-10' : pointLayout === 'SIMPLE' ? 'space-y-12' : 'flex flex-wrap'}`}>
                             {pointBlocks.map((block, idx) => {
                                 if (block.type === 'POINT_ITEM') {
-                                    // ═══ 모던: 지그재그 (텍스트/이미지 교차) ═══
-                                    if (pointLayout === 'ZIGZAG') return (
-                                        <div key={block.id} className={`relative group/point w-full flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-stretch min-h-[300px] border-b ${themeStyles.tableBorder} last:border-0`}>
+                                    return (
+                                        <div key={block.id} className={`relative group/point w-full ${pointLayout === 'ZIGZAG' ? `flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-stretch min-h-[400px] border-b ${themeStyles.tableBorder} last:border-0` : ''} ${pointLayout === 'CARDS' ? `${themeStyles.cardBg} rounded-3xl p-12 border border-gray-200` : ''} ${pointLayout === 'SIMPLE' ? `flex flex-col items-start border-l-8 ${theme.border} pl-10 py-4` : ''}`}>   
                                             {isEditMode && (
                                                 <div className="absolute top-2 left-2 z-30 flex gap-1 opacity-0 group-hover/point:opacity-100 transition-opacity">
                                                     <button onClick={() => movePointBlock(idx, -1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronUpIcon className="w-3 h-3"/></button>
@@ -1776,114 +1777,78 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                     <button onClick={() => removePointBlock(block.id)} className="p-2 bg-red-50 text-red-500 rounded-full shadow border border-gray-200 hover:bg-red-100"><TrashIcon className="w-3 h-3" /></button>
                                                 </div>
                                             )}
-                                            <div className={`flex-1 p-10 flex flex-col justify-center ${themeStyles.bg} relative`}>
-                                                {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div>}
-                                                <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-4 leading-snug" toolbarPosition="right" />
-                                                <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-relaxed" toolbarPosition="right" />
-                                            </div>
-                                            <div className={`w-1/3 ${theme.lightBg} flex items-center justify-center relative group/side overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
-                                                onDragEnter={(e) => handleDragEnter(e, block.id)} onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }} onDragLeave={handleDragLeave}
-                                                onDrop={(e) => handleImageDrop(e, block.id, (file) => { const url = URL.createObjectURL(file); updatePointBlock(block.id, 'sideImage', url); openCropper(block.id, url, 'POINT_SIDE'); })}
-                                            >
-                                                {block.sideImage ? (
-                                                    <>
-                                                        <img src={block.sideImage} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
-                                                        {isEditMode && (
-                                                            <div className="absolute top-2 right-2 z-40 flex gap-1 opacity-0 group-hover/side:opacity-100 transition-opacity">
-                                                                <label className="bg-white hover:bg-gray-50 text-gray-800 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200"><ArrowPathIcon className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
-                                                                <button onClick={() => openCropper(block.id, block.sideImage!, 'POINT_SIDE')} className="bg-white text-gray-800 p-1.5 rounded-lg shadow-lg border border-gray-200"><ScissorsIcon className="w-4 h-4"/></button>
+                                            {/* ═══ ZIGZAG: 텍스트 + sideImage 교차 ═══ */}
+                                            {pointLayout === 'ZIGZAG' && (
+                                                <>
+                                                    <div className={`flex-1 p-10 flex flex-col justify-center relative`}>
+                                                        {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
+                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-4 leading-snug" toolbarPosition="right" />
+                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-relaxed" toolbarPosition="right" />
+                                                    </div>
+                                                    <div 
+                                                        className={`w-1/3 ${theme.lightBg} flex items-center justify-center relative group/side overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
+                                                        onDragEnter={(e) => handleDragEnter(e, block.id)}
+                                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                        onDragLeave={handleDragLeave}
+                                                        onDrop={(e) => handleImageDrop(e, block.id, (file) => {
+                                                            const url = URL.createObjectURL(file);
+                                                            updatePointBlock(block.id, 'sideImage', url);
+                                                            openCropper(block.id, url, 'POINT_SIDE');
+                                                        })}
+                                                    >
+                                                        {block.sideImage ? (
+                                                            <>
+                                                                <img src={block.sideImage} alt="Point Side" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                                                {isEditMode && (
+                                                                    <div className="absolute top-2 right-2 z-40 flex gap-1 opacity-0 group-hover/side:opacity-100 transition-opacity">
+                                                                        <label className="bg-white hover:bg-gray-50 text-gray-800 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200">
+                                                                            <ArrowPathIcon className="w-4 h-4" />
+                                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} />
+                                                                        </label>
+                                                                        <button onClick={() => openCropper(block.id, block.sideImage!, 'POINT_SIDE')} className="bg-white text-gray-800 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200 hover:bg-gray-50"><ScissorsIcon className="w-4 h-4" /></button>
+                                                                        <button onClick={() => updatePointBlock(block.id, 'sideImage', undefined)} className="bg-white text-red-500 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200 hover:bg-red-50"><TrashIcon className="w-4 h-4" /></button>
+                                                                    </div>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100/50 hover:bg-gray-100 transition-colors p-4">
+                                                                <span className="text-gray-900 font-bold border-4 border-gray-900 p-4 text-2xl opacity-10 mb-4">POINT {idx+1}</span>
+                                                                {isEditMode && (
+                                                                    <label className="flex flex-col items-center cursor-pointer bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-indigo-400 group/upload">
+                                                                        <div className="bg-gray-50 p-3 rounded-full mb-2 group-hover/upload:bg-indigo-50"><PhotoIcon className="w-6 h-6 text-gray-400 group-hover:text-indigo-600" /></div>
+                                                                        <span className="text-xs font-bold text-gray-500">이미지 추가</span>
+                                                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} />
+                                                                    </label>
+                                                                )}
                                                             </div>
                                                         )}
-                                                    </>
-                                                ) : (
-                                                    <label className="flex flex-col items-center cursor-pointer p-6 text-gray-300 hover:text-gray-500"><PhotoIcon className="w-10 h-10 mb-2" /><span className="text-xs font-bold">이미지</span><input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-
-                                    // ═══ 감성: 매거진 (전체 폭 이미지 + 하단 그라데이션 오버레이) ═══
-                                    if (pointLayout === 'SIMPLE') return (
-                                        <div key={block.id} className="relative group/point w-full min-h-[350px] overflow-hidden">
-                                            {isEditMode && (
-                                                <div className="absolute top-2 left-2 z-30 flex gap-1 opacity-0 group-hover/point:opacity-100 transition-opacity">
-                                                    <button onClick={() => movePointBlock(idx, -1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronUpIcon className="w-3 h-3"/></button>
-                                                    <button onClick={() => movePointBlock(idx, 1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronDownIcon className="w-3 h-3"/></button>
-                                                    <button onClick={() => removePointBlock(block.id)} className="p-2 bg-red-50 text-red-500 rounded-full shadow border border-gray-200 hover:bg-red-100"><TrashIcon className="w-3 h-3" /></button>
+                                                    </div>
+                                                </>
+                                            )}
+                                            {/* ═══ CARDS: 카드형 ═══ */}
+                                            {pointLayout === 'CARDS' && (
+                                                <div className="text-center">
+                                                    {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
+                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="mb-4 leading-snug" toolbarPosition="right" />
+                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-center', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
                                                 </div>
                                             )}
-                                            {/* 배경 이미지 (sideImage 활용) */}
-                                            {block.sideImage ? (
-                                                <img src={block.sideImage} alt="" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous" />
-                                            ) : (
-                                                <div className={`absolute inset-0 ${idx % 2 === 0 ? 'bg-[#f4f1ea]' : 'bg-[#e8e4db]'}`}></div>
-                                            )}
-                                            {/* 하단 그라데이션 + 텍스트 */}
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
-                                            <div className="relative z-10 flex flex-col justify-end h-full p-10 min-h-[350px]">
-                                                {pointIconStyle !== 'NONE' && <div className="text-3xl mb-3 drop-shadow-lg">{pointIconStyle === 'NUMBER' ? <span className="font-serif-kr font-bold text-white/80">{`0${idx + 1}`}</span> : block.icon}</div>}
-                                                <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: 'font-serif-kr' as any, color: 'text-white', align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-2 drop-shadow-lg leading-snug" toolbarPosition="right" />
-                                                <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: 'font-serif-kr' as any, color: 'text-white', align: 'text-left', fontWeight: 'font-normal', maxWidth: 'max-w-xl' }} className="leading-relaxed drop-shadow-md opacity-90" toolbarPosition="right" />
-                                            </div>
-                                            {/* 편집 모드: 이미지 교체 버튼 */}
-                                            {isEditMode && (
-                                                <div className="absolute top-2 right-2 z-40 opacity-0 group-hover/point:opacity-100 transition-opacity">
-                                                    <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer shadow-lg border border-gray-200 flex items-center gap-1 text-xs font-bold"><ArrowPathIcon className="w-4 h-4" /> 배경<input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
-                                                </div>
+                                            {/* ═══ SIMPLE: 심플 리스트 ═══ */}
+                                            {pointLayout === 'SIMPLE' && (
+                                                <>
+                                                    {pointIconStyle !== 'NONE' && <div className="text-3xl mb-3">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
+                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2 leading-snug" toolbarPosition="right" />
+                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
+                                                </>
                                             )}
                                         </div>
                                     );
-
-                                    // ═══ 임팩트: 2열 그리드 카드 (검정+빨강+큰 넘버) ═══
-                                    if (pointLayout === 'CARDS') return (
-                                        <div key={block.id} className="relative group/point bg-black text-white rounded-2xl overflow-hidden">
-                                            {isEditMode && (
-                                                <div className="absolute top-2 left-2 z-30 flex gap-1 opacity-0 group-hover/point:opacity-100 transition-opacity">
-                                                    <button onClick={() => movePointBlock(idx, -1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronUpIcon className="w-3 h-3"/></button>
-                                                    <button onClick={() => movePointBlock(idx, 1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronDownIcon className="w-3 h-3"/></button>
-                                                    <button onClick={() => removePointBlock(block.id)} className="p-2 bg-red-50 text-red-500 rounded-full shadow border border-gray-200 hover:bg-red-100"><TrashIcon className="w-3 h-3" /></button>
-                                                </div>
-                                            )}
-                                            {/* 상단: 큰 넘버 + 빨간 악센트 */}
-                                            <div className="bg-red-600 py-3 px-6 flex items-center gap-3">
-                                                <span className="text-3xl font-black text-white font-sans">{`0${idx + 1}`}</span>
-                                                <div className="h-6 w-[2px] bg-white/30"></div>
-                                                <span className="text-sm font-bold text-white/80 uppercase tracking-widest">POINT</span>
-                                            </div>
-                                            {/* 이미지 (있으면) */}
-                                            {block.sideImage && (
-                                                <div className="relative w-full aspect-[4/3] overflow-hidden">
-                                                    <img src={block.sideImage} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
-                                                    {isEditMode && (
-                                                        <div className="absolute top-2 right-2 z-40 opacity-0 group-hover/point:opacity-100 transition-opacity">
-                                                            <label className="bg-white/90 hover:bg-white text-gray-800 p-1.5 rounded cursor-pointer shadow"><ArrowPathIcon className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {/* 텍스트 영역 */}
-                                            <div className="p-8">
-                                                <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: 'font-sans' as any, color: 'text-white', align: 'text-left', fontWeight: 'font-black' }} className="mb-3 leading-snug" toolbarPosition="right" />
-                                                <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: 'font-sans' as any, color: 'text-gray-400', align: 'text-left', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
-                                            </div>
-                                            {/* 이미지 없으면 업로드 */}
-                                            {!block.sideImage && isEditMode && (
-                                                <div className="px-8 pb-6">
-                                                    <label className="flex items-center justify-center gap-2 py-3 border border-dashed border-gray-600 rounded-lg text-gray-500 text-sm cursor-pointer hover:border-red-500 hover:text-red-400"><PhotoIcon className="w-5 h-5" /> 이미지 추가<input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-
-                                    return null;
-                                }
-                                 else if (block.type === 'IMAGE') {
-                                    const widthClass = block.width === 'HALF' ? 'w-1/2' : block.width === 'THIRD' ? 'w-1/3' : 'w-full';
+                                } else if (block.type === 'IMAGE') {
                                     const toggleLabel = block.width === 'FULL' ? '◩ 2단' : block.width === 'HALF' ? '▦ 3단' : '⬛ 꽉참';
                                     return (
-                                        <div key={block.id} className={`relative group ${widthClass} p-2`}>
+                                        <div key={block.id} className={`relative group ${block.width === 'FULL' ? 'w-full' : block.width === 'HALF' ? 'w-1/2' : 'w-1/3'}`}>
                                             <div 
-                                                className={`w-full h-full relative min-h-[200px] bg-gray-100 flex items-center justify-center rounded-xl overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
+                                                className={`w-full relative min-h-[200px] bg-gray-200 flex items-center justify-center ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
                                                 onDragEnter={(e) => handleDragEnter(e, block.id)}
                                                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                                 onDragLeave={handleDragLeave}
@@ -1954,7 +1919,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
         );
         case 'OPTIONS': return (
-            <div className={`w-full py-20 ${themeStyles.cardBg} border-t ${themeStyles.tableBorder}`}>
+            <div className={`w-full py-20 ${getSectionBg('OPTIONS', pageDesign)}`}>
                     <div className="text-center mb-10">
                         <EditableElement value="COLORS & OPTIONS" onChange={() => {}} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-widest leading-normal" toolbarPosition="right" />
                     </div>
@@ -2004,7 +1969,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
         );
         case 'DETAILS': return (
-                     <div className={`w-full pb-10 ${pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0]' : pageDesign === 'IMPACT' ? 'bg-gray-950' : 'bg-gray-50'}`}>
+                     <div className={`w-full pb-10 ${getSectionBg('DETAILS', pageDesign)}`}>
                         <div className={`w-full py-10 text-center ${pageDesign === 'IMPACT' ? 'bg-black' : ''}`}>
                             <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-black' : 'font-bold' }} className={`inline-block px-8 py-3 tracking-[0.2em] uppercase ${pageDesign === 'IMPACT' ? 'border-b-2 border-red-600' : pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' : `border-2 ${themeStyles.tableBorder} bg-white w-72`}`} toolbarPosition="right" />
                         </div>
@@ -2110,7 +2075,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                             <div className="max-w-4xl mx-auto">
                                                 <div className="text-center mb-8">
                                                     <span className="text-2xl">⭐⭐⭐⭐⭐</span>
-                                                    <p className={`text-xl font-black mt-2 ${pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text}`}>{reviewData.title}</p>
+                                                    <p className={`text-2xl font-black mt-2 ${pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text}`}>{reviewData.title}</p>
                                                     <p className={`text-xs mt-1 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>만족도 4.9 / 5.0</p>
                                                 </div>
                                                 <div className="space-y-3">
@@ -2123,7 +2088,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                                     <p className="text-xs text-yellow-500">★★★★★</p>
                                                                 </div>
                                                             </div>
-                                                            <p className={`text-sm leading-relaxed ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>{review.replace(/^\d+[\.\)]\s*/, '').trim()}</p>
+                                                            <p className={`text-lg leading-relaxed ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>{review.replace(/^\d+[\.\)]\s*/, '').trim()}</p>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2141,7 +2106,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                     {recommendData.items.slice(0, 4).map((item, ri) => (
                                                         <div key={ri} className={`flex items-start gap-3 p-5 rounded-xl ${pageDesign === 'IMPACT' ? 'bg-gray-900 border border-gray-800' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0]' : 'bg-white border border-gray-200'} shadow-sm`}>
                                                             <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ${pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9] text-white' : 'bg-indigo-600 text-white'}`}>{ri+1}</div>
-                                                            <p className={`text-sm font-medium leading-relaxed ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700'}`}>{item}</p>
+                                                            <p className={`text-lg font-medium leading-relaxed ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700'}`}>{item}</p>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2162,134 +2127,179 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                     </div>
             );
         case 'INFO': return (
-                    <div className={`w-full pt-14 pb-20 px-10 ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : pageDesign === 'IMPACT' ? 'bg-gray-900' : 'bg-white'}`}>
+                    <div className={`w-full pt-14 pb-20 px-10 ${getSectionBg('INFO', pageDesign)}`}>
                         <div className="mb-6 text-center">
-                             <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                             <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                         </div>
-                        <div className={`p-8 text-center rounded-lg mb-14 ${pageDesign === 'IMPACT' ? 'bg-black border-l-4 border-red-600 rounded-none' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#d4d1c9]' : 'bg-red-50 border-2 border-red-100'}`}>
-                            <h4 className={`font-black text-2xl mb-3 uppercase tracking-wide flex items-center justify-center gap-2 ${pageDesign === 'IMPACT' ? 'text-red-500' : 'text-red-600'}`}>⚠️ Check Point</h4>
-                            <EditableElement value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                        {/* ── CHECK POINT: 친절한 안내 박스 ── */}
+                        <div className={`p-8 rounded-2xl mb-14 max-w-4xl mx-auto ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#d4d1c9]' : 'bg-amber-50 border border-amber-200'}`}>
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${pageDesign === 'IMPACT' ? 'bg-red-600' : pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9]' : 'bg-amber-400'}`}>
+                                    <span className="text-white text-lg">📋</span>
+                                </div>
+                                <h4 className={`font-black text-xl ${pageDesign === 'IMPACT' ? 'text-white' : pageDesign === 'EMOTIONAL' ? 'text-gray-800' : 'text-amber-800'}`}>구매 전 꼭 확인하세요</h4>
+                            </div>
+                            <EditableElement value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700', align: 'text-left', fontWeight: 'font-medium' }} toolbarPosition="right" />
                         </div>
+                        {/* ── Product Info 테이블 (단일 컬럼 라벨:값) ── */}
                         <div className="max-w-4xl mx-auto">
                             <div className="flex justify-center mb-8">
                                 <EditableElement value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-black' : 'font-bold' }} className={`pb-2 px-8 ${pageDesign === 'IMPACT' ? 'border-b-4 border-red-600 uppercase tracking-widest' : pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' : `border-b-4 ${themeStyles.tableBorder}`}`} toolbarPosition="right" />
                             </div>
-                            <table className={`w-full text-lg border-t-[3px] ${themeStyles.tableBorder} table-fixed`}>
-                                <colgroup><col className="w-[20%] bg-gray-50" /><col className="w-[30%]" /><col className="w-[20%] bg-gray-50" /><col className="w-[30%]" /></colgroup>
-                                <tbody>
-                                    <tr className="border-b border-gray-200">
-                                        <th className={`py-4 px-4 text-left font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top`}><EditableElement value={infoLabels.product} onChange={(v) => handleInfoLabelChange('product', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className={`py-4 px-4 ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'} align-top`} colSpan={3}><EditableElement value={editableProductName} onChange={setEditableProductName} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                    </tr>
-                                    <tr className="border-b border-gray-200">
-                                        <th className={`py-4 px-4 text-left font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top`}><EditableElement value={infoLabels.material} onChange={(v) => handleInfoLabelChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className={`py-4 px-4 ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'} align-top`}><EditableElement value={editableCopy.productInfo.material} onChange={(v) => handleProductInfoChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                        <th className={`py-4 px-4 text-left font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top`}><EditableElement value={infoLabels.color} onChange={(v) => handleInfoLabelChange('color', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className={`py-4 px-4 ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'} align-top`}><EditableElement value={infoLabels.imgRef} onChange={(v) => handleInfoLabelChange('imgRef', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                    </tr>
-                                    <tr className={`border-b ${themeStyles.tableBorder}`}>
-                                        <th className={`py-4 px-4 text-left font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top`}><EditableElement value={infoLabels.origin} onChange={(v) => handleInfoLabelChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className={`py-4 px-4 ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'} align-top`}><EditableElement value={editableCopy.productInfo.origin} onChange={(v) => handleProductInfoChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                        {category === 'FASHION' ? (
-                                            <>
-                                                <th className={`py-4 px-4 text-left font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top`}><EditableElement value={infoLabels.wash} onChange={(v) => handleInfoLabelChange('wash', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                                <td className={`py-4 px-4 ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'} align-top`}><EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <th className={`py-4 px-4 text-left font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top`}><EditableElement value={infoLabels.caution} onChange={(v) => handleInfoLabelChange('caution', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                                <td className={`py-4 px-4 ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'} align-top`}><EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                            </>
-                                        )}
-                                    </tr>
-                                    {infoDisclosure && [
-                                        { label: '제조사/수입자', value: infoDisclosure.manufacturer },
-                                        { label: '사이즈', value: infoDisclosure.size },
-                                        { label: '세탁방법', value: infoDisclosure.wash },
-                                        { label: '인증여부', value: infoDisclosure.haccp || infoDisclosure.certifications },
-                                        { label: '품질보증', value: infoDisclosure.warranty },
-                                        { label: '주의사항', value: infoDisclosure.caution },
-                                        { label: '고객센터', value: infoDisclosure.customerService },
-                                    ].filter(r => r.value).map((row, i) => (
-                                        <tr key={`info-${i}`} className="border-b border-gray-200">
-                                            <th className={`py-4 px-4 text-left font-bold ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'text-gray-700'} align-top text-lg`}>{row.label}</th>
-                                            <td className={`py-4 px-4 ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'} align-top text-lg`} colSpan={3}>{row.value}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                            <div className={`border-t-[3px] ${themeStyles.tableBorder} divide-y ${themeStyles.tableBorder}`}>
+                                {/* 제품명 */}
+                                <div className="flex">
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.product} onChange={(v) => handleInfoLabelChange('product', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    </div>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        <EditableElement value={editableProductName} onChange={setEditableProductName} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    </div>
+                                </div>
+                                {/* 소재 */}
+                                <div className="flex">
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.material} onChange={(v) => handleInfoLabelChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    </div>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        <EditableElement value={editableCopy.productInfo.material} onChange={(v) => handleProductInfoChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    </div>
+                                </div>
+                                {/* 색상 */}
+                                <div className="flex">
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.color} onChange={(v) => handleInfoLabelChange('color', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    </div>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        <EditableElement value={infoLabels.imgRef} onChange={(v) => handleInfoLabelChange('imgRef', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    </div>
+                                </div>
+                                {/* 제조국 */}
+                                <div className="flex">
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.origin} onChange={(v) => handleInfoLabelChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    </div>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        <EditableElement value={editableCopy.productInfo.origin} onChange={(v) => handleProductInfoChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    </div>
+                                </div>
+                                {/* 세탁/주의사항 */}
+                                <div className="flex">
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                        <EditableElement value={category === 'FASHION' ? infoLabels.wash : infoLabels.caution} onChange={(v) => handleInfoLabelChange(category === 'FASHION' ? 'wash' : 'caution', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    </div>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        <EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    </div>
+                                </div>
+                                {/* 정보고시 추가 항목 */}
+                                {infoDisclosure && [
+                                    { label: '제조사/수입자', value: infoDisclosure.manufacturer },
+                                    { label: '사이즈', value: infoDisclosure.size },
+                                    { label: '세탁방법', value: infoDisclosure.wash },
+                                    { label: '인증여부', value: infoDisclosure.haccp || infoDisclosure.certifications },
+                                    { label: '품질보증', value: infoDisclosure.warranty },
+                                    { label: '주의사항', value: infoDisclosure.caution },
+                                    { label: '고객센터', value: infoDisclosure.customerService },
+                                ].filter(r => r.value).map((row, i) => (
+                                    <div key={`info-${i}`} className="flex">
+                                        <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>{row.label}</div>
+                                        <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>{row.value}</div>
+                                    </div>
+                                ))}
+                            </div>
                             <div className="mt-8 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
                         </div>
                     </div>
             );
         case 'REVIEW': return (
-            <div className={`w-full py-16 px-10 ${pageDesign === 'IMPACT' ? 'bg-gray-900' : pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : 'bg-gray-50'}`}>
+            <div className={`w-full ${getSectionBg('REVIEW', pageDesign)}`}>
+                <div className="py-16 px-10">
                 <div className="max-w-4xl mx-auto">
                     <div className="text-center mb-10">
                         <div className="flex items-center justify-center gap-2 mb-3">
                             <span className="text-3xl">⭐⭐⭐⭐⭐</span>
                         </div>
-                        <EditableElement value={reviewData.title} onChange={(v) => setReviewData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
-                        <p className={`text-sm mt-2 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>만족도 4.9 / 5.0</p>
+                        <EditableElement value={reviewData.title} onChange={(v) => setReviewData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                        <p className={`text-lg mt-2 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>만족도 4.9 / 5.0</p>
                     </div>
                     {reviewData.content ? (
-                        <div className="space-y-4">
-                            {reviewData.content.split('\n').filter((l: string) => l.trim()).slice(0, 3).map((review: string, i: number) => (
-                                <div key={i} className={`p-6 rounded-2xl ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0]' : 'bg-white border border-gray-200'} shadow-sm`}>
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
-                                            {['👩', '👨', '👩‍💼'][i % 3]}
-                                        </div>
-                                        <div>
-                                            <p className={`text-sm font-bold ${pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-800'}`}>{['kh**', '김0진', 'sun****'][i % 3]}</p>
-                                            <p className="text-xs text-yellow-500">★★★★★</p>
+                        <div className="space-y-5">
+                            {reviewData.content.split('\n').filter((l: string) => l.trim()).slice(0, 3).map((review: string, i: number) => {
+                                const purchaseDates = ['2025.12.15', '2025.12.22', '2026.01.03'];
+                                return (
+                                <div key={i} className={`p-7 rounded-2xl ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0]' : 'bg-white border border-gray-200'} shadow-sm`}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : theme.bg + ' text-white'}`}>
+                                                {['👩', '👨', '👩‍💼'][i % 3]}
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <p className={`text-lg font-bold ${pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-800'}`}>{['kh**', '김0진', 'sun****'][i % 3]}</p>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${pageDesign === 'IMPACT' ? 'bg-red-600/20 text-red-400' : theme.lightBg + ' ' + theme.text}`}>구매 인증</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <p className="text-xs text-yellow-500">★★★★★</p>
+                                                    <p className={`text-xs ${pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400'}`}>{purchaseDates[i % 3]} 구매</p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <EditableElement value={review.replace(/^\d+[\.\)]\s*/, '').trim()} onChange={(v) => {
                                         const lines = reviewData.content.split('\n');
                                         lines[i] = v;
                                         setReviewData(prev => ({...prev, content: lines.join('\n')}));
-                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="text-center text-gray-400 py-8">기획안에서 고객 후기가 생성됩니다</div>
                     )}
                 </div>
+                </div>
             </div>
         );
         case 'RECOMMEND': return (
-            <div className={`w-full py-16 px-10 ${pageDesign === 'IMPACT' ? 'bg-black' : pageDesign === 'EMOTIONAL' ? 'bg-[#f4f1ea]' : 'bg-gradient-to-b from-indigo-50 to-white'}`}>
+            <div className={`w-full ${getSectionBg('RECOMMEND', pageDesign)}`}>
+                <div className="py-16 px-10">
                 <div className="max-w-4xl mx-auto">
                     <div className="text-center mb-10">
                         <span className={`text-4xl mb-4 block`}>💡</span>
-                        <EditableElement value={recommendData.title} onChange={(v) => setRecommendData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                        <EditableElement value={recommendData.title} onChange={(v) => setRecommendData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
                     </div>
                     {recommendData.items.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-4">
-                            {recommendData.items.slice(0, 4).map((item, i) => (
-                                <div key={i} className={`flex items-start gap-4 p-6 rounded-2xl transition-all ${
+                        <div className="space-y-4">
+                            {recommendData.items.slice(0, 5).map((item, i) => (
+                                <div key={i} className={`flex items-center gap-5 p-6 rounded-2xl transition-all ${
                                     pageDesign === 'IMPACT' ? 'bg-gray-900 border border-gray-800 hover:border-red-600' : 
                                     pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0] hover:shadow-md' :
                                     'bg-white border border-gray-200 hover:shadow-md hover:border-indigo-200'
                                 }`}>
-                                    <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg font-black ${
-                                        pageDesign === 'IMPACT' ? 'bg-red-600 text-white' :
-                                        pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9] text-white' :
-                                        'bg-indigo-600 text-white'
-                                    }`}>{i + 1}</div>
+                                    {/* SVG 체크 원형 (디자인 요소) */}
+                                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                                        pageDesign === 'IMPACT' ? 'bg-red-600' :
+                                        pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9]' :
+                                        theme.bg
+                                    }`}>
+                                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    </div>
                                     <EditableElement value={item} onChange={(v) => {
                                         const newItems = [...recommendData.items];
                                         newItems[i] = v;
                                         setRecommendData(prev => ({...prev, items: newItems}));
-                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700', align: 'text-left', fontWeight: 'font-medium' }} toolbarPosition="right" />
+                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700', align: 'text-left', fontWeight: 'font-medium' }} toolbarPosition="right" />
                                 </div>
                             ))}
                         </div>
                     ) : (
                         <div className="text-center text-gray-400 py-8">기획안에서 추천 대상이 생성됩니다</div>
                     )}
+                </div>
                 </div>
             </div>
         );
@@ -2307,17 +2317,17 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         {/* Page Design Selector */}
         <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><ComputerDesktopIcon className="w-5 h-5 text-indigo-600" /> 전체 디자인 무드</h3>
         <div className="flex flex-col gap-2 mb-8">
-             <button onClick={() => { setPageDesign('MODERN'); setPointLayout('ZIGZAG'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'MODERN' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('MODERN'); setPointLayout('ZIGZAG'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'MODERN' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center font-sans text-xs">Ab</div>
                  <div className="text-left"><div className="font-bold">모던 (기본)</div><div className="text-xs opacity-70">깔끔한 고딕, 지그재그</div></div>
              </button>
-             <button onClick={() => { setPageDesign('EMOTIONAL'); setPointLayout('SIMPLE'); setSectionOrder(['HERO','DETAILS','STORY','POINTS','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'EMOTIONAL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('EMOTIONAL'); setPointLayout('SIMPLE'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'EMOTIONAL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-[#fdfbf7] border border-[#e0dcd0] flex items-center justify-center font-serif-kr text-xs">가</div>
-                 <div className="text-left"><div className="font-bold">감성 (무드)</div><div className="text-xs opacity-70">명조체, 이미지 먼저</div></div>
+                 <div className="text-left"><div className="font-bold">감성 (무드)</div><div className="text-xs opacity-70">명조체, 심플 리스트</div></div>
              </button>
-             <button onClick={() => { setPageDesign('IMPACT'); setPointLayout('CARDS'); setSectionOrder(['HERO','POINTS','DETAILS','OPTIONS','STORY','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('IMPACT'); setPointLayout('CARDS'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-black text-white flex items-center justify-center font-sans text-xs font-black">B</div>
-                 <div className="text-left"><div className="font-bold">임팩트 (강조)</div><div className="text-xs opacity-70">블랙 카드, 포인트 먼저</div></div>
+                 <div className="text-left"><div className="font-bold">임팩트 (강조)</div><div className="text-xs opacity-70">강한 대비, 카드형</div></div>
              </button>
         </div>
 
@@ -2353,7 +2363,21 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             </div>
         </div>
         <div id="capture-area" className={`w-[860px] min-w-[860px] bg-white text-gray-800 flex flex-col items-center shadow-2xl origin-top ${isEditMode ? 'ring-1 ring-gray-200' : ''}`}>
-            {sectionOrder.map((sectionType, idx) => ( <SectionControlWrapper key={sectionType} type={sectionType} index={idx} isEditMode={isEditMode} isFirst={idx === 0} isLast={idx === sectionOrder.length - 1} onMove={moveSection} onDelete={sectionType === 'OPTIONS' ? () => removeSection('OPTIONS') : undefined}>{renderSectionContent(sectionType)}</SectionControlWrapper> ))}
+            {sectionOrder.map((sectionType, idx) => {
+                // AI 연출 이미지를 섹션 "사이"에 삽입하는 맵
+                const styledAfter: Record<string, number> = { 'DETAILS': 0, 'POINTS': 1, 'REVIEW': 2 };
+                const styledIdx = styledAfter[sectionType];
+                return (
+                    <React.Fragment key={sectionType}>
+                        <SectionControlWrapper type={sectionType} index={idx} isEditMode={isEditMode} isFirst={idx === 0} isLast={idx === sectionOrder.length - 1} onMove={moveSection} onDelete={sectionType === 'OPTIONS' ? () => removeSection('OPTIONS') : undefined}>{renderSectionContent(sectionType)}</SectionControlWrapper>
+                        {styledIdx !== undefined && styledImageList[styledIdx] && (
+                            <div className="w-full">
+                                <img src={styledImageList[styledIdx]} alt={`AI 연출 ${styledIdx + 1}`} className="w-full h-auto block" crossOrigin="anonymous" />
+                            </div>
+                        )}
+                    </React.Fragment>
+                );
+            })}
         </div>
       </div>
     </div>

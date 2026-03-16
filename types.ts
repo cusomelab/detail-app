@@ -59,6 +59,7 @@ export interface GeneratedCopy {
     wash: string;
     caution?: string;
   };
+  detailCopies?: string[];
 }
 
 export interface ProcessedImage {

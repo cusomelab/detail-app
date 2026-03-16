@@ -207,9 +207,16 @@ ${getCategoryInstruction(category)}
 1. 마침표(.)로 끝내지 마세요
 2. 문장은 반드시 완성된 형태여야 합니다. 절대로 단어 중간에서 끊지 마세요
 3. sellingPoints의 description은 2~3문장으로, 한 문장이 한 줄에 완전히 들어가야 합니다
-4. 줄바꿈(\\n)은 문장과 문장 사이에만 사용하세요. 절대로 문장 중간, 단어 중간에 줄바꿈하지 마세요
-5. 감성적이고 구매욕구를 높이는 자연스러운 문장
-6. story는 50자 이내 한 줄로`;
+4. 줄바꿈(\\n)은 반드시 "의미 단위"로만 사용하세요
+   - ❌ 나쁜 예: "아름다운 여성에 핏 되어 맞는 포인트\\n레이어드" (단어가 잘림)
+   - ✅ 좋은 예: "아름다운 여성에 핏 되어 맞는\\n포인트 레이어드" (의미 단위로 끊김)
+   - 한 줄은 최소 8자 이상이어야 합니다. 2~3글자짜리 줄이 혼자 남으면 안 됩니다
+   - 조사(은/는/이/가/을/를/에/의)나 단어 중간에서 절대 끊지 마세요
+5. mainHook은 1~2줄, 한 줄당 12~18자 내외로 구성
+6. 감성적이고 구매욕구를 높이는 자연스러운 문장
+7. story는 50자 이내 한 줄로
+8. sellingPoints의 icon은 반드시 이모지 한 글자만 (예: ✨, 👗, 💎, 🧵, 💫, 🎀). 절대로 영어 단어(sparkles, heart 등)나 URL을 넣지 마세요. 반드시 유니코드 이모지 1개만 출력
+9. detailCopies: 상세이미지 사이에 삽입할 짧은 카피 2개를 배열로 생성. 각 카피는 15자 이내의 감성적 한 줄 문구 (예: "손이 가는 부드러운 촉감", "일상을 채우는 감성 무드")`;
 
   const schema: Schema = {
     type: Type.OBJECT,
@@ -237,9 +244,13 @@ ${getCategoryInstruction(category)}
           wash: { type: Type.STRING },
           caution: { type: Type.STRING }
         }
+      },
+      detailCopies: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING }
       }
     },
-    required: ['mainHook', 'sellingPoints', 'story', 'sizeTip', 'mdComment', 'productInfo']
+    required: ['mainHook', 'sellingPoints', 'story', 'sizeTip', 'mdComment', 'productInfo', 'detailCopies']
   };
 
   const contentPrompt = `
@@ -349,9 +360,9 @@ function getStyledShotPrompts(category: ProductCategory): { prompt: string; labe
   switch (category) {
     case 'FASHION':
       return [
-        { prompt: 'Generate a full-body fashion photo of a trendy Korean woman wearing this exact clothing item in a clean white studio with soft diffused lighting. Professional editorial fashion photography. Keep the clothing design and color exactly the same.', label: 'studio' },
-        { prompt: 'Generate a close-up detail shot focusing on the fabric texture and stitching of this clothing item on a clean white background. Macro photography, soft studio lighting, showing material quality. Keep the clothing design exactly the same.', label: 'detail' },
-        { prompt: 'Generate a flat lay styling photo of this clothing item arranged beautifully on a clean white surface with minimal accessories. Top-down view, clean studio lighting, magazine styling. Keep the clothing design and color exactly the same.', label: 'flatlay' },
+        { prompt: 'Generate a full-body fashion photo of a trendy Korean woman wearing this clothing item in a clean white studio with soft diffused lighting. Professional editorial fashion photography. CRITICAL: You MUST preserve the EXACT clothing item from the source image — same fabric, same pattern, same color, same silhouette, same design details including any lace, embroidery, or decorative elements. Do NOT create, invent, or modify the clothing in any way. The clothing must look identical to the source photo. Only change the background and add a model.', label: '스튜디오 착용' },
+        { prompt: 'Generate a close-up detail shot focusing on the fabric texture, stitching, and material quality of this clothing item on a clean white background. Macro photography, soft studio lighting. CRITICAL: You MUST preserve the EXACT clothing item from the source image — same fabric, same pattern, same color, same design details. Do NOT alter, redesign, or reimagine the clothing. Show the actual material from the source photo.', label: '소재 클로즈업' },
+        { prompt: 'Generate a flat lay styling photo of this clothing item arranged beautifully on a clean white surface with minimal props. Top-down view, clean studio lighting, magazine styling. CRITICAL: You MUST preserve the EXACT clothing item from the source image — same fabric, same pattern, same color, same silhouette, same design details. Do NOT create a different version of the clothing. The item must be identical to the source photo.', label: '플랫레이 스타일링' },
       ];
     case 'LIVING':
       return [
