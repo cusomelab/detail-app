@@ -254,7 +254,7 @@ ${getCategoryInstruction(category)}
         items: { type: Type.STRING }
       }
     },
-    required: ['mainHook', 'sellingPoints', 'story', 'sizeTip', 'mdComment', 'productInfo', 'detailCopies']
+    required: ['mainHook', 'sellingPoints', 'story', 'sizeTip', 'mdComment', 'productInfo']
   };
 
   const contentPrompt = `
