@@ -338,3 +338,84 @@ export const processProductImage = async (
   }
   throw new Error('이미지 생성 실패');
 };
+
+// ════════════════════════════════════════════════════
+// AI 연출 샷 자동 생성 (메인 이미지 → 3장 스타일링 이미지)
+// ════════════════════════════════════════════════════
+export interface StyledShotResult {
+  imageUrl: string;
+  label: string;
+}
+
+// 카테고리별 연출 프롬프트 (3가지 각도)
+function getStyledShotPrompts(category: ProductCategory): { prompt: string; label: string }[] {
+  switch (category) {
+    case 'FASHION':
+      return [
+        { prompt: 'Generate a lifestyle photo of a Korean woman wearing this exact clothing item. She is walking on a sunny Seoul street with cherry blossoms. Natural lighting, editorial fashion photography style. Keep the clothing design and color exactly the same.', label: '라이프스타일 연출' },
+        { prompt: 'Generate a close-up detail shot focusing on the fabric texture and stitching of this clothing item. Macro photography, soft studio lighting, showing material quality. Keep the clothing design exactly the same.', label: '소재 클로즈업' },
+        { prompt: 'Generate a flat lay styling photo of this clothing item arranged beautifully on a clean white surface with minimal accessories (a watch, sunglasses, a bag). Top-down view, magazine styling. Keep the clothing design and color exactly the same.', label: '코디 스타일링' },
+      ];
+    case 'LIVING':
+      return [
+        { prompt: 'Place this product in a beautiful modern Korean living room interior. Warm lighting, cozy atmosphere, Scandinavian minimal style. Keep the product exactly the same.', label: '인테리어 연출' },
+        { prompt: 'Generate a close-up detail shot of this product showing material quality and craftsmanship. Soft studio lighting, macro photography. Keep the product exactly the same.', label: '디테일 클로즈업' },
+        { prompt: 'Show this product being used in a real home setting with a person enjoying it. Natural warm lighting, lifestyle photography. Keep the product exactly the same.', label: '사용 장면' },
+      ];
+    case 'KITCHEN':
+      return [
+        { prompt: 'Place this kitchen product in a beautiful modern kitchen counter setting. Clean white marble, natural sunlight, some fresh ingredients nearby. Keep the product exactly the same.', label: '주방 연출' },
+        { prompt: 'Show this kitchen product being used while cooking. Action shot, steam rising, fresh ingredients. Professional food photography lighting. Keep the product exactly the same.', label: '요리 장면' },
+        { prompt: 'Generate a clean studio shot of this product on a white background with dramatic lighting. Commercial product photography, showing every detail. Keep the product exactly the same.', label: '스튜디오 촬영' },
+      ];
+    case 'FOOD':
+      return [
+        { prompt: 'Style this food product on a beautiful wooden table with complementary dishes and garnishes. Top-down food photography, natural lighting. Keep the food product exactly the same.', label: '푸드 스타일링' },
+        { prompt: 'Show this food product in a close-up appetizing shot with steam or fresh texture visible. Macro food photography, warm lighting. Keep the food product exactly the same.', label: '식욕자극 클로즈업' },
+        { prompt: 'Show a person enjoying this food product at a cozy cafe or dining table. Natural lifestyle photography, warm atmosphere. Keep the food product exactly the same.', label: '다이닝 연출' },
+      ];
+  }
+}
+
+export const generateStyledShots = async (
+  mainImage: File,
+  category: ProductCategory,
+  onProgress?: (index: number, total: number) => void
+): Promise<StyledShotResult[]> => {
+  const ai = getAI();
+  const base64Data = await fileToGenerativePart(mainImage);
+  const prompts = getStyledShotPrompts(category);
+  const results: StyledShotResult[] = [];
+
+  for (let i = 0; i < prompts.length; i++) {
+    onProgress?.(i + 1, prompts.length);
+    try {
+      const response = await ai.models.generateContent({
+        model: IMAGE_MODEL,
+        contents: {
+          parts: [
+            { inlineData: { mimeType: mainImage.type, data: base64Data } },
+            { text: prompts[i].prompt }
+          ]
+        },
+        config: { responseModalities: ['TEXT', 'IMAGE'] }
+      });
+
+      // @ts-ignore
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+          results.push({
+            imageUrl: `data:image/png;base64,${part.inlineData.data}`,
+            label: prompts[i].label
+          });
+          break;
+        }
+      }
+    } catch (err) {
+      console.warn(`연출 샷 ${i + 1} 생성 실패:`, err);
+      // 실패해도 나머지 계속 진행
+    }
+  }
+
+  return results;
+};

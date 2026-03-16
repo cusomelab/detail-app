@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory, PlanSection, ProductInfoDisclosure } from './types';
-import { generateProductCopy, generatePlan, setApiKey } from './services/geminiService';
+import { generateProductCopy, generatePlan, generateStyledShots, setApiKey } from './services/geminiService';
 import { ProcessingStep } from './components/ProcessingStep';
 import { PlanStep } from './components/PlanStep';
 import { ResultPreview } from './components/ResultPreview';
@@ -49,7 +49,39 @@ function App() {
   useEffect(() => {
     const saved = localStorage.getItem('gemini_api_key');
     if (saved) { setApiKey(saved); setHasApiKey(true); }
+    // 저장된 정보고시 불러오기 (고정값만)
+    const savedInfo = localStorage.getItem('saved_info_disclosure');
+    if (savedInfo) {
+      try {
+        const parsed = JSON.parse(savedInfo);
+        // 변동 필드(소재, 색상, 사이즈)는 빈 값으로, 고정값만 복원
+        setInfoDisclosure(prev => ({
+          ...prev,
+          manufacturer: parsed.manufacturer || '',
+          origin: parsed.origin || 'Made in China',
+          customerService: parsed.customerService || '',
+          wash: parsed.wash || '',
+          ingredients: parsed.ingredients || '',
+          capacity: parsed.capacity || '',
+          expiry: parsed.expiry || '',
+          storage: parsed.storage || '',
+          haccp: parsed.haccp || '',
+          certifications: parsed.certifications || '',
+          warranty: parsed.warranty || '',
+          caution: parsed.caution || '',
+        }));
+      } catch(e) { console.warn('정보고시 불러오기 실패'); }
+    }
   }, []);
+
+  const saveInfoDisclosure = () => {
+    localStorage.setItem('saved_info_disclosure', JSON.stringify(infoDisclosure));
+    alert('✅ 상품정보고시가 저장되었습니다. 다음 상품에도 자동 적용됩니다.');
+  };
+  const clearSavedInfoDisclosure = () => {
+    localStorage.removeItem('saved_info_disclosure');
+    alert('저장된 정보고시가 삭제되었습니다.');
+  };
 
   const handleApiKeySubmit = () => {
     const key = apiKeyInput.trim();
@@ -98,10 +130,46 @@ function App() {
     try {
       addLog('🤖 AI 카피라이터 호출 중...'); addLog('✍️ 카피 작성 중...');
       const copy = await generateProductCopy(productData.productName, productData.features, productData.category, productData.benchmarkUrl, productData.mainImage, confirmed);
-      setGeneratedCopy(copy); addLog('✅ 완성!');
+      setGeneratedCopy(copy); addLog('✅ 카피 완성!');
       if (productData.mainImage) setProcessedImages(p=>[...p,{originalUrl:URL.createObjectURL(productData.mainImage!),processedUrl:URL.createObjectURL(productData.mainImage!),type:'main',status:'done'}]);
       productData.detailImages.forEach(f=>setProcessedImages(p=>[...p,{originalUrl:URL.createObjectURL(f),processedUrl:URL.createObjectURL(f),type:'detail',status:'done'}]));
       productData.optionImages.forEach(f=>setProcessedImages(p=>[...p,{originalUrl:URL.createObjectURL(f),processedUrl:URL.createObjectURL(f),type:'option',status:'done',fileName:f.name}]));
+      
+      // ── AI 연출 샷 자동 생성 (메인 이미지가 있을 때만) ──
+      if (productData.mainImage) {
+        addLog('📸 AI 연출 이미지 생성 중... (1/3)');
+        try {
+          const styledShots = await generateStyledShots(
+            productData.mainImage,
+            productData.category,
+            (idx, total) => {
+              setLogs(prev => {
+                const newLogs = [...prev];
+                // 마지막 로그를 업데이트
+                const lastIdx = newLogs.length - 1;
+                if (lastIdx >= 0 && newLogs[lastIdx].startsWith('📸')) {
+                  newLogs[lastIdx] = `📸 AI 연출 이미지 생성 중... (${idx}/${total})`;
+                }
+                return newLogs;
+              });
+            }
+          );
+          styledShots.forEach(shot => {
+            setProcessedImages(p => [...p, {
+              originalUrl: shot.imageUrl,
+              processedUrl: shot.imageUrl,
+              type: 'styled',
+              status: 'done',
+              label: shot.label
+            }]);
+          });
+          addLog(`✅ 연출 이미지 ${styledShots.length}장 생성 완료!`);
+        } catch (err) {
+          console.warn('연출 샷 생성 실패 (무시하고 계속):', err);
+          addLog('⚠️ 연출 이미지 생성 스킵 (API 제한)');
+        }
+      }
+      
       setTimeout(()=>setStep(AppStep.RESULT),800);
     } catch(err:any) {
       if(err.message?.includes('401')){setHasApiKey(false);localStorage.removeItem('gemini_api_key');}
@@ -249,7 +317,15 @@ function App() {
               </button>
               {showInfo&&(
                 <div className="px-5 pb-5 border-t border-gray-50 space-y-3">
-                  <p className="text-xs text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2 mt-4">💡 입력한 정보가 상세페이지 하단 정보고시에 정확하게 표시됩니다</p>
+                  <div className="flex items-center justify-between mt-4">
+                    <p className="text-xs text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2 flex-1">💡 한번 입력 후 저장하면 다음 상품에도 고정값이 자동 적용됩니다 (소재/색상/사이즈만 매번 변경)</p>
+                    <div className="flex gap-2 ml-3 shrink-0">
+                      <button type="button" onClick={saveInfoDisclosure} className="px-3 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700">💾 저장</button>
+                      {localStorage.getItem('saved_info_disclosure') && (
+                        <button type="button" onClick={clearSavedInfoDisclosure} className="px-3 py-2 bg-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-300">초기화</button>
+                      )}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     {[{name:'manufacturer',label:'제조자/수입자',ph:'(주)폰이지'},{name:'origin',label:'원산지',ph:'Made in China'},{name:'customerService',label:'고객센터',ph:'0507-1311-1108'}].map(f=>(
                       <div key={f.name}><label className="block text-xs font-bold text-gray-500 mb-1">{f.label}</label>

@@ -64,9 +64,10 @@ export interface GeneratedCopy {
 export interface ProcessedImage {
   originalUrl: string;
   processedUrl: string | null;
-  type: 'main' | 'detail' | 'option';
+  type: 'main' | 'detail' | 'option' | 'styled';
   status: 'pending' | 'processing' | 'done' | 'error';
   fileName?: string;
+  label?: string; // AI 연출 샷 라벨 (예: "착용 연출", "디테일 클로즈업")
 }
 
 export enum AppStep {
