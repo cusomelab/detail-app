@@ -135,36 +135,36 @@ const getThemeByCategory = (category: ProductCategory): PointThemeColor => {
 const getHeadersByCategory = (category: ProductCategory) => {
     switch (category) {
         case 'FOOD': return {
-            newArrival: "오늘의 신상",
-            whyThisItem: "이 맛, 왜 특별할까?",
+            newArrival: "TODAY'S PICK",
+            whyThisItem: "WHY THIS ITEM?",
             whySub: "이 맛을 선택해야 하는 이유",
-            detailView: "상세 이미지",
-            productInfo: "상품 정보",
-            moodStory: "맛있는 레시피"
+            detailView: "DETAIL & VIEW",
+            productInfo: "Product Info",
+            moodStory: "TASTE & STORY"
         };
         case 'LIVING': return {
-            newArrival: "리빙 베스트",
-            whyThisItem: "체크 포인트",
+            newArrival: "LIVING BEST",
+            whyThisItem: "CHECK POINTS",
             whySub: "이 상품을 선택해야 하는 이유",
-            detailView: "상세 이미지",
-            productInfo: "상품 정보",
-            moodStory: "공간 & 무드"
+            detailView: "DETAIL & VIEW",
+            productInfo: "Product Info",
+            moodStory: "SPACE & MOOD"
         };
         case 'KITCHEN': return {
-            newArrival: "주방용품 추천",
-            whyThisItem: "스마트 포인트",
+            newArrival: "KITCHEN PICK",
+            whyThisItem: "SMART POINTS",
             whySub: "이 상품을 선택해야 하는 이유",
-            detailView: "상세 이미지",
-            productInfo: "상품 정보",
-            moodStory: "키친 가이드"
+            detailView: "DETAIL & VIEW",
+            productInfo: "Product Info",
+            moodStory: "KITCHEN GUIDE"
         };
         default: return {
-            newArrival: "신상품 입고",
-            whyThisItem: "이 상품을 선택해야 하는 이유",
+            newArrival: "NEW ARRIVAL COLLECTION",
+            whyThisItem: "WHY THIS ITEM?",
             whySub: "지금 이 아이템이어야 하는 이유",
-            detailView: "상세 이미지",
-            productInfo: "상품 정보",
-            moodStory: "무드 & 스토리"
+            detailView: "DETAIL & VIEW",
+            productInfo: "Product Info",
+            moodStory: "MOOD & STORY"
         };
     }
 };
@@ -1030,10 +1030,10 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   useEffect(() => {
     const newCopy = { ...copy };
     if (newCopy.productInfo) newCopy.productInfo.origin = "Made in China";
-    if (newCopy.story && newCopy.story.length > 60) {
+    if (newCopy.story && newCopy.story.length > 120) {
         const lines = newCopy.story.split('\n').filter((l: string) => l.trim());
-        newCopy.story = lines.slice(0, 2).join('\n');
-        if (newCopy.story.length > 60) newCopy.story = newCopy.story.substring(0, 60);
+        newCopy.story = lines.slice(0, 3).join('\n');
+        if (newCopy.story.length > 120) newCopy.story = newCopy.story.substring(0, 120);
     }
     // 정보고시에서 입력한 소재/색상이 있으면 상단 테이블에 반영
     if (infoDisclosure?.material) newCopy.productInfo.material = infoDisclosure.material;
@@ -1096,10 +1096,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         text: img.fileName ? stripExtension(img.fileName) : '옵션 설명을 입력하세요'
     })));
 
-    // ── 포인트 블록 (sideImage 자동배치 제거, 수동 업로드만 가능) ──
+    // ── 포인트 블록 (AI 연출 샷을 sideImage에 자동 배치) ──
     setPointBlocks(copy.sellingPoints.map((p, i) => ({
         id: `pt-${ts}-${i}`, type: 'POINT_ITEM' as PointBlockType,
         icon: safeIcon(p.icon), title: p.title, description: p.description,
+        sideImage: styledImages[i] || undefined
     })));
 
   }, [copy, images, productName, category]);
@@ -2131,15 +2132,15 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         <div className="mb-6 text-center">
                              <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                         </div>
-                        {/* ── CHECK POINT: 친절한 안내 박스 ── */}
-                        <div className={`p-8 rounded-2xl mb-14 max-w-4xl mx-auto ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#d4d1c9]' : 'bg-amber-50 border border-amber-200'}`}>
-                            <div className="flex items-center gap-3 mb-4">
+                        {/* ── CHECK POINT: 친절한 안내 박스 (가운데 정렬) ── */}
+                        <div className={`p-8 rounded-2xl mb-14 max-w-4xl mx-auto text-center ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#d4d1c9]' : 'bg-amber-50 border border-amber-200'}`}>
+                            <div className="flex items-center justify-center gap-3 mb-4">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${pageDesign === 'IMPACT' ? 'bg-red-600' : pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9]' : 'bg-amber-400'}`}>
                                     <span className="text-white text-lg">📋</span>
                                 </div>
                                 <h4 className={`font-black text-xl ${pageDesign === 'IMPACT' ? 'text-white' : pageDesign === 'EMOTIONAL' ? 'text-gray-800' : 'text-amber-800'}`}>구매 전 꼭 확인하세요</h4>
                             </div>
-                            <EditableElement value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700', align: 'text-left', fontWeight: 'font-medium' }} toolbarPosition="right" />
+                            <EditableElement value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700', align: 'text-center', fontWeight: 'font-medium' }} toolbarPosition="right" />
                         </div>
                         {/* ── Product Info 테이블 (단일 컬럼 라벨:값) ── */}
                         <div className="max-w-4xl mx-auto">
