@@ -5,7 +5,7 @@ import { ProcessingStep } from '../ProcessingStep';
 import { PlanStep } from '../PlanStep';
 import { ResultPreview } from '../ResultPreview';
 import {
-  ArrowUpTrayIcon, SparklesIcon, LinkIcon,
+  ArrowUpTrayIcon, PhotoIcon, SparklesIcon, LinkIcon,
   ShoppingBagIcon, HomeIcon, FireIcon, CakeIcon, SwatchIcon,
   ChevronDownIcon, ChevronUpIcon, DocumentTextIcon,
   TableCellsIcon, ArrowPathIcon
