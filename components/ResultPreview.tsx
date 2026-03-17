@@ -141,12 +141,14 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       if (!seen.has(mapped)) { seen.add(mapped); order.push(mapped); }
     });
     // 없는 섹션 추가
-    (['HERO','STORY','POINTS','OPTIONS','DETAILS','SIZE_CHART','INFO'] as SectionType[]).forEach(s => {
+    (['HERO','STORY','POINTS','OPTIONS','DETAILS','INFO'] as SectionType[]).forEach(s => {
       if (!seen.has(s)) order.push(s);
     });
     return order;
   };
   const [sectionOrder, setSectionOrder] = useState<SectionType[]>(getInitialSectionOrder);
+
+  const [editableSizeChart, setEditableSizeChart] = useState(sizeChartData || null);
 
   const [cropTarget, setCropTarget] = useState<{ id: string, url: string, type: 'MAIN' | 'DETAIL' | 'POINT' | 'POINT_SIDE' | 'OPTION' } | null>(null);
   const [maskEditorTarget, setMaskEditorTarget] = useState<{ id: string, url: string } | null>(null);
@@ -1349,57 +1351,6 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         )}
                     </div>
             );
-        case 'SIZE_CHART': {
-            if (!sizeChartData || (category !== 'FASHION')) return null;
-            return (
-              <div className={`w-full py-14 px-10 ${themeStyles.bg}`}>
-                <div className="max-w-4xl mx-auto">
-                  <div className="flex justify-center mb-8">
-                    <span className={`text-2xl ${themeStyles.fontHead} font-bold pb-2 px-8 border-b-2 ${themeStyles.tableBorder} ${themeStyles.text}`}>
-                      📏 사이즈 가이드
-                    </span>
-                  </div>
-                  {(sizeChartData.productCode || sizeChartData.weight) && (
-                    <p className={`text-center text-sm mb-4 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {sizeChartData.productCode && `품번: ${sizeChartData.productCode}`}
-                      {sizeChartData.productCode && sizeChartData.weight && ' · '}
-                      {sizeChartData.weight && `중량: ${sizeChartData.weight}`}
-                    </p>
-                  )}
-                  <div className={`border-t-[3px] ${themeStyles.tableBorder} overflow-x-auto`}>
-                    <table className="w-full border-collapse text-sm">
-                      <thead>
-                        <tr className={themeStyles.tableHeader}>
-                          {sizeChartData.headers.map((h, i) => (
-                            <th key={i} className={`p-3 border ${themeStyles.tableBorder} font-bold text-center`}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sizeChartData.rows.map((row, ri) => (
-                          <tr key={ri} className={ri % 2 === 0 ? themeStyles.cardBg : themeStyles.bg}>
-                            {row.map((cell, ci) => (
-                              <td key={ci} className={`p-3 border ${themeStyles.tableBorder} text-center ${themeStyles.text}`}>{cell}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {sizeChartData.notes && sizeChartData.notes.length > 0 && (
-                    <div className={`mt-4 p-4 rounded-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0]' : 'bg-gray-50'}`}>
-                      {sizeChartData.notes.map((note, i) => (
-                        <p key={i} className={`text-xs ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>{note}</p>
-                      ))}
-                    </div>
-                  )}
-                  <p className={`text-center text-xs mt-4 ${pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400'}`}>
-                    ※ 측정 방법에 따라 1~3cm 오차가 있을 수 있습니다
-                  </p>
-                </div>
-              </div>
-            );
-        }
         case 'INFO': return (
                     <div className={`w-full pt-14 pb-20 px-10 ${
                         pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' :
@@ -1470,6 +1421,74 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                     ))}
                                 </tbody>
                             </table>
+                            {/* ── 사이즈 가이드 (sizeChartData 있을 때만) ── */}
+                            {editableSizeChart && category === 'FASHION' && (
+                              <div className="mt-14">
+                                <div className={`flex justify-center mb-8`}>
+                                  <span className={`text-2xl ${themeStyles.fontHead} font-bold pb-2 px-8 ${
+                                    pageDesign === 'IMPACT' ? 'border-b-4 border-black uppercase tracking-widest' :
+                                    pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' :
+                                    `border-b-4 ${themeStyles.tableBorder}`
+                                  } ${pageDesign === 'IMPACT' ? 'text-black' : themeStyles.text}`}>
+                                    📏 사이즈 가이드
+                                  </span>
+                                </div>
+                                {(editableSizeChart.productCode || editableSizeChart.weight) && (
+                                  <p className="text-center text-sm text-gray-500 mb-4">
+                                    {editableSizeChart.productCode && `품번: ${editableSizeChart.productCode}`}
+                                    {editableSizeChart.productCode && editableSizeChart.weight && ' · '}
+                                    {editableSizeChart.weight && `중량: ${editableSizeChart.weight}`}
+                                  </p>
+                                )}
+                                <table className={`w-full text-lg border-t-[3px] ${themeStyles.tableBorder} table-fixed`}>
+                                  <thead>
+                                    <tr>
+                                      {editableSizeChart.headers.map((h, i) => (
+                                        <th key={i} className={`py-4 px-4 font-bold text-center border-b border-gray-200 ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'bg-gray-50 text-gray-700'}`}>
+                                          {isEditMode ? (
+                                            <input value={h} onChange={e => { const newHeaders = [...editableSizeChart.headers]; newHeaders[i] = e.target.value; setEditableSizeChart({...editableSizeChart, headers: newHeaders}); }}
+                                              className="bg-transparent text-center w-full outline-none font-bold" />
+                                          ) : h}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {editableSizeChart.rows.map((row, ri) => (
+                                      <tr key={ri} className="border-b border-gray-200">
+                                        {row.map((cell, ci) => (
+                                          <td key={ci} className="py-4 px-4 text-center text-gray-600">
+                                            {isEditMode ? (
+                                              <input value={cell} onChange={e => { const newRows = editableSizeChart.rows.map((r, idx) => idx === ri ? r.map((c, cidx) => cidx === ci ? e.target.value : c) : r); setEditableSizeChart({...editableSizeChart, rows: newRows}); }}
+                                                className="bg-transparent text-center w-full outline-none" />
+                                            ) : cell}
+                                          </td>
+                                        ))}
+                                        {isEditMode && (
+                                          <td className="px-1">
+                                            <button onClick={() => { const newRows = editableSizeChart.rows.filter((_, idx) => idx !== ri); setEditableSizeChart({...editableSizeChart, rows: newRows}); }} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                                          </td>
+                                        )}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                                {isEditMode && (
+                                  <div className="flex gap-2 mt-2">
+                                    <button onClick={() => setEditableSizeChart({...editableSizeChart, rows: [...editableSizeChart.rows, Array(editableSizeChart.headers.length).fill('')]})} className="text-xs text-indigo-600 hover:underline">+ 행 추가</button>
+                                    <button onClick={() => setEditableSizeChart({...editableSizeChart, headers: [...editableSizeChart.headers, ''], rows: editableSizeChart.rows.map(r => [...r, ''])})} className="text-xs text-indigo-600 hover:underline">+ 열 추가</button>
+                                  </div>
+                                )}
+                                {editableSizeChart.notes && editableSizeChart.notes.length > 0 && (
+                                  <div className="mt-4 text-center">
+                                    {editableSizeChart.notes.map((note, i) => (
+                                      <p key={i} className="text-sm text-gray-400">{note}</p>
+                                    ))}
+                                  </div>
+                                )}
+                                <p className="text-center text-xs text-gray-400 mt-4">※ 측정 방법에 따라 1~3cm 오차가 있을 수 있습니다</p>
+                              </div>
+                            )}
                             <div className="mt-8 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
                         </div>
                     </div>
