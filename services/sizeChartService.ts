@@ -3,9 +3,27 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { SizeChartData } from "../types/sizeChart";
 import { getApiKey } from "./geminiService";
 
+const withRetry = async <T>(fn: () => Promise<T>, maxRetries = 2, baseDelay = 2000): Promise<T> => {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const status = err?.status || err?.httpStatusCode || err?.code;
+      const isRetryable = status === 500 || status === 503 || status === 429 ||
+        err?.message?.includes('500') || err?.message?.includes('Internal server error') ||
+        err?.message?.includes('overloaded');
+      if (!isRetryable || attempt === maxRetries) throw err;
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.warn(`API 오류 (${status}), ${delay/1000}초 후 재시도... (${attempt + 1}/${maxRetries})`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw new Error('최대 재시도 횟수 초과');
+};
+
 export const analyzeSizeChart = async (base64Image: string): Promise<SizeChartData> => {
   const ai = new GoogleGenAI({ apiKey: getApiKey() });
-  
+
   const prompt = `
     Analyze this Chinese size chart image and translate it into Korean.
     Extract the following information:
@@ -25,7 +43,7 @@ export const analyzeSizeChart = async (base64Image: string): Promise<SizeChartDa
     Return the result in strictly formatted JSON.
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: [
       {
@@ -67,7 +85,7 @@ export const analyzeSizeChart = async (base64Image: string): Promise<SizeChartDa
         required: ["title", "headers", "rows", "notes"]
       }
     }
-  });
+  }));
 
   try {
     const data: SizeChartData = JSON.parse(response.text);

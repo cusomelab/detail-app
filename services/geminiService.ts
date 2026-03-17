@@ -29,6 +29,25 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
   });
 };
 
+// ── API 호출 재시도 (500 에러 대응) ─────────────────
+const withRetry = async <T>(fn: () => Promise<T>, maxRetries = 2, baseDelay = 2000): Promise<T> => {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const status = err?.status || err?.httpStatusCode || err?.code;
+      const isRetryable = status === 500 || status === 503 || status === 429 ||
+        err?.message?.includes('500') || err?.message?.includes('Internal server error') ||
+        err?.message?.includes('overloaded');
+      if (!isRetryable || attempt === maxRetries) throw err;
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.warn(`API 오류 (${status}), ${delay/1000}초 후 재시도... (${attempt + 1}/${maxRetries})`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw new Error('최대 재시도 횟수 초과');
+};
+
 const stripMarkdown = (text: string): string => {
   return text
     .replace(/\*\*(.+?)\*\*/g, '$1')
@@ -131,7 +150,7 @@ JSON 배열 형식: [{"type":"HERO","label":"히어로","title":"...","content":
     requestContents.unshift({ inlineData: { mimeType: mainImage.type, data: base64Data } });
   }
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: TEXT_MODEL,
     contents: requestContents,
     config: {
@@ -139,7 +158,7 @@ JSON 배열 형식: [{"type":"HERO","label":"히어로","title":"...","content":
       responseMimeType: 'application/json',
       maxOutputTokens: 4096,
     }
-  });
+  }));
 
   let raw = response.text?.trim() || '[]';
   if (raw.startsWith('```')) {
@@ -171,11 +190,11 @@ export const regeneratePlanSection = async (
 더 매력적이고 구매욕구를 높이는 내용으로 개선해주세요.
 JSON으로만 응답: {"title":"...","content":"..."}`;
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: TEXT_MODEL,
     contents: prompt,
     config: { responseMimeType: 'application/json' }
-  });
+  }));
 
   let raw = response.text?.trim() || '{}';
   if (raw.startsWith('```')) {
@@ -257,7 +276,7 @@ ${planContext ? `\n[기획안 기반으로 작성]\n${planContext}` : ''}`;
     requestContents.unshift({ inlineData: { mimeType: mainImage.type, data: b64 } });
   }
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: TEXT_MODEL,
     contents: requestContents,
     config: {
@@ -267,7 +286,7 @@ ${planContext ? `\n[기획안 기반으로 작성]\n${planContext}` : ''}`;
       maxOutputTokens: 4096,
       temperature: 0.95,
     }
-  });
+  }));
 
   if (response.text) {
     return cleanTextResponse(JSON.parse(response.text)) as GeneratedCopy;
@@ -278,13 +297,13 @@ ${planContext ? `\n[기획안 기반으로 작성]\n${planContext}` : ''}`;
 // ── 카피 재생성 ───────────────────────────────────────
 export const regenerateCopy = async (currentText: string, fieldLabel: string): Promise<string> => {
   const ai = getAI();
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: TEXT_MODEL,
     contents: `한국 이커머스 "${fieldLabel}" 문구를 더 매력적으로 재작성해주세요.
 규칙: 마침표 없이, \\n으로 줄바꿈, 단어 중간 줄바꿈 금지, 마크다운 서식(**굵게** 등) 절대 사용 금지. 순수 텍스트만 출력.
 현재: "${currentText}"`,
     config: { temperature: 0.85 }
-  });
+  }));
   let text = response.text?.trim() || currentText;
   // 마크다운 서식 제거: **bold**, *italic*, __underline__, ~strikethrough~, `code`, # 헤딩
   text = text.replace(/\*\*(.+?)\*\*/g, '$1');   // **bold** → bold
@@ -326,11 +345,11 @@ export const processProductImage = async (
   }
   parts.push({ text: prompt });
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: IMAGE_MODEL,
     contents: { parts },
     config: { responseModalities: ['TEXT', 'IMAGE'] }
-  });
+  }));
 
   // @ts-ignore
   for (const part of response.candidates[0].content.parts) {
@@ -390,7 +409,7 @@ export const generateStyledShots = async (
   for (let i = 0; i < prompts.length; i++) {
     onProgress?.(i + 1, prompts.length);
     try {
-      const response = await ai.models.generateContent({
+      const response = await withRetry(() => ai.models.generateContent({
         model: IMAGE_MODEL,
         contents: {
           parts: [
@@ -399,7 +418,7 @@ export const generateStyledShots = async (
           ]
         },
         config: { responseModalities: ['TEXT', 'IMAGE'] }
-      });
+      }));
 
       // @ts-ignore
       for (const part of response.candidates[0].content.parts) {

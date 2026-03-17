@@ -6,12 +6,12 @@ import { EditableElement, AutoResizeTextarea, TextStyle } from './shared/Editabl
 import { ImageCropper, MaskEditor, CustomPromptModal } from './shared/ImageTools';
 import { getPreset, getThemeStyles, THEME_COLORS, FONT_FAMILIES, getBannerPositionClass,
     PageDesignType, PointLayoutType, PointIconStyle, PointThemeColor, SectionType, LayoutPreset } from '../presets/layoutPresets';
-import { 
-    ArrowDownTrayIcon, ArrowPathIcon, SwatchIcon, ViewColumnsIcon, ListBulletIcon, Square2StackIcon, 
-    PhotoIcon, PlusIcon, SparklesIcon, TrashIcon, CheckIcon, PencilSquareIcon, 
+import {
+    ArrowDownTrayIcon, ArrowPathIcon, SwatchIcon, ViewColumnsIcon, ListBulletIcon, Square2StackIcon,
+    PhotoIcon, PlusIcon, SparklesIcon, TrashIcon, CheckIcon, PencilSquareIcon,
     ChevronUpIcon, ChevronDownIcon, ScissorsIcon, LanguageIcon,
-    UserCircleIcon, HomeModernIcon, PaintBrushIcon, ChatBubbleBottomCenterTextIcon, 
-    ComputerDesktopIcon, Bars3Icon
+    UserCircleIcon, HomeModernIcon, PaintBrushIcon, ChatBubbleBottomCenterTextIcon,
+    ComputerDesktopIcon, Bars3Icon, DocumentTextIcon, XMarkIcon, TableCellsIcon
 } from '@heroicons/react/24/outline';
 
 interface ResultPreviewProps {

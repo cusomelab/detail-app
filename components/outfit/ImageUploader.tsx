@@ -34,7 +34,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesUpload }) => {
     onDrop,
     accept: { 'image/*': ['.jpeg', '.jpg', '.png'] },
     multiple: true,
-  });
+  } as any);
 
   const goToPrevious = (e: React.MouseEvent) => {
     e.stopPropagation();

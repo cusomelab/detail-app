@@ -5,6 +5,25 @@ import { StudioScene, SCENE_PROMPTS } from "../types/imageGen";
 // ── API 키 전역 참조 (App.tsx에서 setApiKey로 주입)
 import { getApiKey } from "./geminiService";
 
+// ── API 호출 재시도 (500 에러 대응) ─────────────────
+const withRetry = async <T>(fn: () => Promise<T>, maxRetries = 2, baseDelay = 2000): Promise<T> => {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const status = err?.status || err?.httpStatusCode || err?.code;
+      const isRetryable = status === 500 || status === 503 || status === 429 ||
+        err?.message?.includes('500') || err?.message?.includes('Internal server error') ||
+        err?.message?.includes('overloaded');
+      if (!isRetryable || attempt === maxRetries) throw err;
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.warn(`API 오류 (${status}), ${delay/1000}초 후 재시도... (${attempt + 1}/${maxRetries})`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw new Error('최대 재시도 횟수 초과');
+};
+
 export const generateReimaginedImage = async (
   base64Image: string,
   mimeType: string,
@@ -14,7 +33,7 @@ export const generateReimaginedImage = async (
   const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
   // 1. 제품 식별 및 텍스트 존재 여부 확인 지침 포함
-  const analysisResponse = await ai.models.generateContent({
+  const analysisResponse = await withRetry(() => ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: {
       parts: [
@@ -22,7 +41,7 @@ export const generateReimaginedImage = async (
         { text: "이 이미지에서 주요 제품이 무엇인지 파악하고, 그 제품의 시각적 특징을 5-10단어의 영어로 묘사해주세요. 또한 제품에 중국어 텍스트가 포함되어 있는지 확인해주세요." }
       ]
     }
-  });
+  }));
 
   const productDescription = analysisResponse.text?.trim() || "the product";
   const sceneDescription = SCENE_PROMPTS[scene];
@@ -38,7 +57,7 @@ export const generateReimaginedImage = async (
   High resolution, 8k, sharp focus, cinematic lighting.${feedbackClause}`;
 
   // 2. 이미지 생성
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: 'gemini-3.1-flash-image-preview',
     contents: {
       parts: [
@@ -58,7 +77,7 @@ export const generateReimaginedImage = async (
         aspectRatio: "1:1"
       }
     }
-  });
+  }));
 
   for (const part of response.candidates?.[0]?.content?.parts || []) {
     if (part.inlineData) {
