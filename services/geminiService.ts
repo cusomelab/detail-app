@@ -432,6 +432,37 @@ export const generateStyledShots = async (
   return results;
 };
 
+// ── 단일 AI 연출 이미지 재생성 ──
+export const regenerateStyledShot = async (
+  mainImage: File,
+  category: ProductCategory,
+  shotIndex: number
+): Promise<string> => {
+  const ai = getAI();
+  const base64Data = await fileToGenerativePart(mainImage);
+  const prompts = getStyledShotPrompts(category);
+  const prompt = prompts[shotIndex] || prompts[0];
+
+  const response = await ai.models.generateContent({
+    model: IMAGE_MODEL,
+    contents: {
+      parts: [
+        { inlineData: { mimeType: mainImage.type, data: base64Data } },
+        { text: prompt.prompt + ' Generate a DIFFERENT composition and angle from the previous version.' }
+      ]
+    },
+    config: { responseModalities: ['TEXT', 'IMAGE'] }
+  });
+
+  // @ts-ignore
+  for (const part of response.candidates[0].content.parts) {
+    if (part.inlineData) {
+      return `data:image/png;base64,${part.inlineData.data}`;
+    }
+  }
+  throw new Error('이미지 생성 실패');
+};
+
 // ── 사이즈표 이미지 번역 (중국어 → 한국어) ──────────
 export const translateSizeChart = async (imageFile: File): Promise<string[][]> => {
   const ai = getAI();

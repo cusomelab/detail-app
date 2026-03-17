@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GeneratedCopy, ProcessedImage, ProductCategory, ProductInfoDisclosure, PlanSection } from '../types';
-import { processProductImage, regenerateCopy, ImageProcessMode } from '../services/geminiService';
+import { processProductImage, regenerateCopy, regenerateStyledShot, ImageProcessMode } from '../services/geminiService';
 import {
     ArrowDownTrayIcon, ArrowPathIcon, SwatchIcon, ViewColumnsIcon, ListBulletIcon, Square2StackIcon,
     PhotoIcon, PlusIcon, SparklesIcon, TrashIcon, DocumentTextIcon, CheckIcon, PencilSquareIcon,
@@ -1157,6 +1157,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
 
   const [mainImage, setMainImage] = useState<string | null>(null);
   const [styledImageList, setStyledImageList] = useState<string[]>([]);
+  const [regeneratingStyled, setRegeneratingStyled] = useState<number | null>(null);
   const [detailBlocks, setDetailBlocks] = useState<DetailBlock[]>([]);
   const [pointBlocks, setPointBlocks] = useState<PointBlock[]>([]);
   const [optionBlocks, setOptionBlocks] = useState<OptionBlock[]>([]);
@@ -1687,6 +1688,26 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             setPointBlocks(prev => prev.map(b => b.id === blockId ? { ...b, isProcessing: false } : b));
         }
       }
+  };
+
+  const handleRegenerateStyled = async (index: number) => {
+    if (!mainImage) { alert('메인 이미지가 필요합니다.'); return; }
+    setRegeneratingStyled(index);
+    try {
+      const res = await fetch(mainImage);
+      const blob = await res.blob();
+      const file = new File([blob], 'main.jpg', { type: blob.type || 'image/jpeg' });
+      const newUrl = await regenerateStyledShot(file, category, index);
+      setStyledImageList(prev => {
+        const updated = [...prev];
+        updated[index] = newUrl;
+        return updated;
+      });
+    } catch (err: any) {
+      alert(`재생성 실패: ${err?.message || '알 수 없는 오류'}`);
+    } finally {
+      setRegeneratingStyled(null);
+    }
   };
 
   const handleDownloadJpg = async () => {
@@ -2655,8 +2676,29 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                     <React.Fragment key={sectionType}>
                         <SectionControlWrapper type={sectionType} index={idx} isEditMode={isEditMode} isFirst={idx === 0} isLast={idx === sectionOrder.length - 1} onMove={moveSection} onDelete={sectionType === 'OPTIONS' ? () => removeSection('OPTIONS') : undefined} currentBg={sectionBgs[sectionType]} onBgChange={(c) => setSectionBgs(prev => ({ ...prev, [sectionType]: c }))} onBgReset={() => setSectionBgs(prev => { const n = { ...prev }; delete n[sectionType]; return n; })}>{renderSectionContent(sectionType)}</SectionControlWrapper>
                         {styledIdx !== undefined && styledImageList[styledIdx] && (
-                            <div className="w-full">
+                            <div className="w-full relative group/styled">
                                 <img src={styledImageList[styledIdx]} alt={`AI 연출 ${styledIdx + 1}`} className="w-full h-auto block" crossOrigin="anonymous" />
+                                {isEditMode && (
+                                    <div className="absolute top-3 right-3 opacity-0 group-hover/styled:opacity-100 transition-opacity z-20">
+                                        <button
+                                            onClick={() => handleRegenerateStyled(styledIdx)}
+                                            disabled={regeneratingStyled === styledIdx}
+                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xl text-xs font-bold disabled:opacity-50 transition-colors"
+                                        >
+                                            {regeneratingStyled === styledIdx
+                                                ? <span className="animate-pulse flex items-center gap-1"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> 재생성 중...</span>
+                                                : <><ArrowPathIcon className="w-4 h-4" /> AI 재생성</>}
+                                        </button>
+                                    </div>
+                                )}
+                                {regeneratingStyled === styledIdx && (
+                                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                        <div className="text-white text-sm font-bold animate-pulse flex flex-col items-center gap-2">
+                                            <div className="w-10 h-10 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                                            AI 연출 이미지 재생성 중...
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </React.Fragment>
