@@ -123,7 +123,7 @@ export const AdvancedDetailTab: React.FC = () => {
     try {
       const sections = await generatePlan(productData.productName, productData.category, productData.features, productData.mainImage);
       setPlanSections(sections); setStep(AppStep.PLAN); setAdvStep('PLAN');
-    } catch { alert('기획안 생성 실패'); setStep(AppStep.INPUT); setAdvStep('INPUT'); }
+    } catch(err: any) { console.error('기획안 생성 오류:', err); alert(`기획안 생성 실패: ${err?.message || err}`); setStep(AppStep.INPUT); setAdvStep('INPUT'); }
   };
 
   // 상세페이지 생성
@@ -171,7 +171,8 @@ export const AdvancedDetailTab: React.FC = () => {
       }
       setTimeout(() => { setStep(AppStep.RESULT); setAdvStep('RESULT'); }, 800);
     } catch(err: any) {
-      alert('오류 발생. 다시 시도해주세요.'); setStep(AppStep.PLAN); setAdvStep('PLAN');
+      console.error('상세페이지 생성 오류:', err);
+      alert(`오류 발생: ${err?.message || err}\n\n다시 시도해주세요.`); setStep(AppStep.PLAN); setAdvStep('PLAN');
     }
   };
 

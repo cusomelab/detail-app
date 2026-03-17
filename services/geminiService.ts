@@ -2,8 +2,8 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GeneratedCopy, ProductCategory, PlanSection } from "../types";
 
 // ── 모델 ───────────────────────────────────────────────
-const TEXT_MODEL  = 'gemini-3-flash-preview';
-const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
+const TEXT_MODEL  = 'gemini-2.5-flash';
+const IMAGE_MODEL = 'gemini-2.5-flash-preview-image-generation';
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOVE_TEXT' | 'ERASE_PART' | 'CUSTOM';
 

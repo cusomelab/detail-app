@@ -267,7 +267,7 @@ export const FigmaEditorTab: React.FC = () => {
     try {
       const sections = await generatePlan(productData.productName, productData.category, productData.features, productData.mainImage);
       setPlanSections(sections); setCurrentStep('PLAN');
-    } catch { alert('기획안 생성 실패'); setCurrentStep('INPUT'); }
+    } catch(err: any) { console.error('기획안 오류:', err); alert(`기획안 생성 실패: ${err?.message || err}`); setCurrentStep('INPUT'); }
   };
 
   // 상세페이지 생성
@@ -297,7 +297,7 @@ export const FigmaEditorTab: React.FC = () => {
         } catch { addLog('⚠️ 연출 이미지 생성 스킵 (API 제한)'); }
       }
       setTimeout(() => setCurrentStep('RESULT'), 800);
-    } catch { alert('오류 발생'); setCurrentStep('PLAN'); }
+    } catch(err: any) { console.error('생성 오류:', err); alert(`오류 발생: ${err?.message || err}`); setCurrentStep('PLAN'); }
   };
 
   const resetAll = () => {
