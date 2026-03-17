@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory, PlanSection, ProductInfoDisclosure } from './types';
+import { SizeChartData } from './types/sizeChart';
 import { generateProductCopy, generatePlan, generateStyledShots, setApiKey } from './services/geminiService';
 import { ProcessingStep } from './components/ProcessingStep';
 import { PlanStep } from './components/PlanStep';
@@ -45,6 +46,7 @@ function App() {
   });
   const [generatedCopy, setGeneratedCopy] = useState<GeneratedCopy | null>(null);
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
+  const [sizeChartData, setSizeChartData] = useState<SizeChartData | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('gemini_api_key');
@@ -206,7 +208,7 @@ function App() {
   if (activeTab==='detail') {
     if (step===AppStep.PROCESSING) return <ProcessingStep logs={logs} />;
     if (step===AppStep.PLAN) return <PlanStep sections={planSections} productName={productData.productName} category={productData.category} onConfirm={handleGenerateDetail} onBack={()=>setStep(AppStep.INPUT)} />;
-    if (step===AppStep.RESULT&&generatedCopy) return <ResultPreview copy={generatedCopy} images={processedImages} productName={productData.productName} category={productData.category} infoDisclosure={infoDisclosure} planSections={planSections} onReset={resetDetail} />;
+    if (step===AppStep.RESULT&&generatedCopy) return <ResultPreview copy={generatedCopy} images={processedImages} productName={productData.productName} category={productData.category} infoDisclosure={infoDisclosure} planSections={planSections} onReset={resetDetail} sizeChartData={sizeChartData || undefined} />;
   }
 
   return (
@@ -234,7 +236,7 @@ function App() {
 
       {activeTab==='imggen' && <ImageGenTab />}
       {activeTab==='outfit' && <OutfitTab />}
-      {activeTab==='sizeChart' && <SizeChartTab />}
+      {activeTab==='sizeChart' && <SizeChartTab onDataReady={setSizeChartData} />}
       {activeTab==='hangul' && <HangulTab />}
 
       {activeTab==='detail' && step===AppStep.INPUT && (

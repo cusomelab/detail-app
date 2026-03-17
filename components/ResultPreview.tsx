@@ -17,11 +17,12 @@ import {
 interface ResultPreviewProps {
   copy: GeneratedCopy;
   images: ProcessedImage[];
-  productName: string; 
+  productName: string;
   category: ProductCategory;
   infoDisclosure?: ProductInfoDisclosure;
   planSections?: PlanSection[];
   onReset: () => void;
+  sizeChartData?: import('../types/sizeChart').SizeChartData;
 }
 
 // ── Block Types ──
@@ -94,7 +95,7 @@ const SectionControlWrapper: React.FC<{
     );
 };
 
-export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, productName, category, infoDisclosure, planSections, onReset }) => {
+export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, productName, category, infoDisclosure, planSections, onReset, sizeChartData }) => {
   const [isEditMode, setIsEditMode] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   
@@ -140,7 +141,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       if (!seen.has(mapped)) { seen.add(mapped); order.push(mapped); }
     });
     // 없는 섹션 추가
-    (['HERO','STORY','POINTS','OPTIONS','DETAILS','INFO'] as SectionType[]).forEach(s => {
+    (['HERO','STORY','POINTS','OPTIONS','DETAILS','SIZE_CHART','INFO'] as SectionType[]).forEach(s => {
       if (!seen.has(s)) order.push(s);
     });
     return order;
@@ -1348,6 +1349,57 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         )}
                     </div>
             );
+        case 'SIZE_CHART': {
+            if (!sizeChartData || (category !== 'FASHION')) return null;
+            return (
+              <div className={`w-full py-14 px-10 ${themeStyles.bg}`}>
+                <div className="max-w-4xl mx-auto">
+                  <div className="flex justify-center mb-8">
+                    <span className={`text-2xl ${themeStyles.fontHead} font-bold pb-2 px-8 border-b-2 ${themeStyles.tableBorder} ${themeStyles.text}`}>
+                      📏 사이즈 가이드
+                    </span>
+                  </div>
+                  {(sizeChartData.productCode || sizeChartData.weight) && (
+                    <p className={`text-center text-sm mb-4 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {sizeChartData.productCode && `품번: ${sizeChartData.productCode}`}
+                      {sizeChartData.productCode && sizeChartData.weight && ' · '}
+                      {sizeChartData.weight && `중량: ${sizeChartData.weight}`}
+                    </p>
+                  )}
+                  <div className={`border-t-[3px] ${themeStyles.tableBorder} overflow-x-auto`}>
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className={themeStyles.tableHeader}>
+                          {sizeChartData.headers.map((h, i) => (
+                            <th key={i} className={`p-3 border ${themeStyles.tableBorder} font-bold text-center`}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sizeChartData.rows.map((row, ri) => (
+                          <tr key={ri} className={ri % 2 === 0 ? themeStyles.cardBg : themeStyles.bg}>
+                            {row.map((cell, ci) => (
+                              <td key={ci} className={`p-3 border ${themeStyles.tableBorder} text-center ${themeStyles.text}`}>{cell}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {sizeChartData.notes && sizeChartData.notes.length > 0 && (
+                    <div className={`mt-4 p-4 rounded-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0]' : 'bg-gray-50'}`}>
+                      {sizeChartData.notes.map((note, i) => (
+                        <p key={i} className={`text-xs ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>{note}</p>
+                      ))}
+                    </div>
+                  )}
+                  <p className={`text-center text-xs mt-4 ${pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400'}`}>
+                    ※ 측정 방법에 따라 1~3cm 오차가 있을 수 있습니다
+                  </p>
+                </div>
+              </div>
+            );
+        }
         case 'INFO': return (
                     <div className={`w-full pt-14 pb-20 px-10 ${
                         pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' :

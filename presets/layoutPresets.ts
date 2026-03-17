@@ -10,7 +10,7 @@ export type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
 export type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE';
 export type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
 export type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
-export type SectionType = 'HERO' | 'STORY' | 'POINTS' | 'OPTIONS' | 'DETAILS' | 'INFO';
+export type SectionType = 'HERO' | 'STORY' | 'POINTS' | 'OPTIONS' | 'DETAILS' | 'SIZE_CHART' | 'INFO';
 
 // ── 배너 오버레이 스타일 ──
 export interface BannerStyle {
@@ -115,7 +115,7 @@ function fashionPresets(design: PageDesignType): LayoutPreset {
     switch (design) {
         case 'MODERN': return {
             ...base, pageDesign: 'MODERN', pointLayout: 'ZIGZAG', heroBadge: 'NEW ARRIVAL COLLECTION',
-            sectionOrder: ['HERO', 'STORY', 'DETAILS', 'POINTS', 'OPTIONS', 'INFO'],
+            sectionOrder: ['HERO', 'STORY', 'DETAILS', 'POINTS', 'OPTIONS', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-black/50', fontSize: 'text-xl', fontWeight: 'font-bold', fontFamily: 'font-sans' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
@@ -123,7 +123,7 @@ function fashionPresets(design: PageDesignType): LayoutPreset {
             ...base, pageDesign: 'EMOTIONAL', pointLayout: 'SIMPLE', heroBadge: 'Curated Collection',
             headers: { ...base.headers, newArrival: '감성 컬렉션', moodStory: 'Mood & Feeling', whyThisItem: 'Special Point', whySub: '이 옷이 특별한 이유' },
             themeColor: 'PINK' as PointThemeColor,
-            sectionOrder: ['HERO', 'DETAILS', 'STORY', 'POINTS', 'OPTIONS', 'INFO'],
+            sectionOrder: ['HERO', 'DETAILS', 'STORY', 'POINTS', 'OPTIONS', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'center', textColor: 'text-white', bgColor: 'bg-black/30', fontSize: 'text-2xl', fontWeight: 'font-medium', fontFamily: 'font-serif-kr' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
@@ -132,7 +132,7 @@ function fashionPresets(design: PageDesignType): LayoutPreset {
             headers: { ...base.headers, newArrival: 'MUST HAVE', whyThisItem: 'CHECK POINT', whySub: '꼭 확인하세요', moodStory: 'REVIEW' },
             themeColor: 'BLACK' as PointThemeColor,
             pointIconStyle: 'NUMBER' as PointIconStyle,
-            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'INFO'],
+            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-black/70', fontSize: 'text-2xl', fontWeight: 'font-black', fontFamily: 'font-sans' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
@@ -155,14 +155,14 @@ function livingPresets(design: PageDesignType): LayoutPreset {
     switch (design) {
         case 'MODERN': return {
             ...base, pageDesign: 'MODERN', pointLayout: 'ZIGZAG', heroBadge: 'HOME & LIVING BEST',
-            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'STORY', 'OPTIONS', 'INFO'],
+            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'STORY', 'OPTIONS', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-emerald-900/50', fontSize: 'text-xl', fontWeight: 'font-bold', fontFamily: 'font-sans' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
         case 'EMOTIONAL': return {
             ...base, pageDesign: 'EMOTIONAL', pointLayout: 'SIMPLE', heroBadge: '공간을 바꾸는 작은 변화',
             headers: { ...base.headers, newArrival: '감성 인테리어', moodStory: '나만의 공간', whyThisItem: 'Why This?', whySub: '공간이 달라지는 이유' },
-            sectionOrder: ['HERO', 'DETAILS', 'STORY', 'POINTS', 'OPTIONS', 'INFO'],
+            sectionOrder: ['HERO', 'DETAILS', 'STORY', 'POINTS', 'OPTIONS', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'center', textColor: 'text-white', bgColor: 'bg-black/30', fontSize: 'text-2xl', fontWeight: 'font-medium', fontFamily: 'font-serif-kr' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
@@ -171,7 +171,7 @@ function livingPresets(design: PageDesignType): LayoutPreset {
             themeColor: 'BLACK' as PointThemeColor,
             pointIconStyle: 'NUMBER' as PointIconStyle,
             headers: { ...base.headers, whyThisItem: 'SPEC CHECK', whySub: '핵심 스펙을 확인하세요' },
-            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'INFO'],
+            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-black/70', fontSize: 'text-2xl', fontWeight: 'font-black', fontFamily: 'font-sans' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
@@ -194,7 +194,7 @@ function kitchenPresets(design: PageDesignType): LayoutPreset {
     switch (design) {
         case 'MODERN': return {
             ...base, pageDesign: 'MODERN', pointLayout: 'ZIGZAG', heroBadge: 'PREMIUM KITCHENWARE',
-            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'INFO'],
+            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-gray-900/60', fontSize: 'text-xl', fontWeight: 'font-bold', fontFamily: 'font-sans' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
@@ -203,13 +203,13 @@ function kitchenPresets(design: PageDesignType): LayoutPreset {
             themeColor: 'ORANGE' as PointThemeColor,
             pointIconStyle: 'EMOJI' as PointIconStyle,
             headers: { ...base.headers, newArrival: '주방의 감성', moodStory: 'Cooking Mood', whyThisItem: 'Why This?', whySub: '요리가 달라지는 이유' },
-            sectionOrder: ['HERO', 'DETAILS', 'STORY', 'POINTS', 'OPTIONS', 'INFO'],
+            sectionOrder: ['HERO', 'DETAILS', 'STORY', 'POINTS', 'OPTIONS', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'center', textColor: 'text-white', bgColor: 'bg-black/30', fontSize: 'text-2xl', fontWeight: 'font-medium', fontFamily: 'font-serif-kr' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
         case 'IMPACT': return {
             ...base, pageDesign: 'IMPACT', pointLayout: 'CARDS', heroBadge: 'BEST OF BEST',
-            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'INFO'],
+            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-black/70', fontSize: 'text-2xl', fontWeight: 'font-black', fontFamily: 'font-sans' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
@@ -232,14 +232,14 @@ function foodPresets(design: PageDesignType): LayoutPreset {
     switch (design) {
         case 'MODERN': return {
             ...base, pageDesign: 'MODERN', pointLayout: 'ZIGZAG', heroBadge: 'FRESH FOOD MARKET',
-            sectionOrder: ['HERO', 'STORY', 'POINTS', 'DETAILS', 'OPTIONS', 'INFO'],
+            sectionOrder: ['HERO', 'STORY', 'POINTS', 'DETAILS', 'OPTIONS', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-orange-900/50', fontSize: 'text-xl', fontWeight: 'font-bold', fontFamily: 'font-sans' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
         case 'EMOTIONAL': return {
             ...base, pageDesign: 'EMOTIONAL', pointLayout: 'SIMPLE', heroBadge: '맛있는 한 끼의 시작',
             headers: { ...base.headers, newArrival: '오늘의 맛', moodStory: 'Taste Note', whyThisItem: '맛의 비밀', whySub: '이 맛이 특별한 이유' },
-            sectionOrder: ['HERO', 'DETAILS', 'STORY', 'POINTS', 'OPTIONS', 'INFO'],
+            sectionOrder: ['HERO', 'DETAILS', 'STORY', 'POINTS', 'OPTIONS', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'center', textColor: 'text-white', bgColor: 'bg-black/30', fontSize: 'text-2xl', fontWeight: 'font-medium', fontFamily: 'font-serif-kr' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
@@ -248,7 +248,7 @@ function foodPresets(design: PageDesignType): LayoutPreset {
             themeColor: 'BLACK' as PointThemeColor,
             pointIconStyle: 'NUMBER' as PointIconStyle,
             headers: { ...base.headers, whyThisItem: 'TASTE CHECK', whySub: '맛의 핵심을 확인하세요' },
-            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'INFO'],
+            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'SIZE_CHART', 'INFO'],
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-black/70', fontSize: 'text-2xl', fontWeight: 'font-black', fontFamily: 'font-sans' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
