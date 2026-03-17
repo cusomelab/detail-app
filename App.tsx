@@ -12,8 +12,9 @@ import { HangulTab } from './components/tabs/HangulTab';
 import {
   ArrowUpTrayIcon, PhotoIcon, SparklesIcon, KeyIcon, LinkIcon,
   ShoppingBagIcon, HomeIcon, FireIcon, CakeIcon, SwatchIcon,
-  ChevronDownIcon, ChevronUpIcon, DocumentTextIcon
+  ChevronDownIcon, ChevronUpIcon, DocumentTextIcon, TableCellsIcon
 } from '@heroicons/react/24/outline';
+import { analyzeSizeChart } from './services/sizeChartService';
 
 const TABS = [
   { id: 'detail',    label: '📄 상세페이지' },
@@ -47,6 +48,25 @@ function App() {
   const [generatedCopy, setGeneratedCopy] = useState<GeneratedCopy | null>(null);
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
   const [sizeChartData, setSizeChartData] = useState<SizeChartData | null>(null);
+  const [sizeChartLoading, setSizeChartLoading] = useState(false);
+  const [sizeChartPreview, setSizeChartPreview] = useState<string | null>(null);
+  const [isDraggingSizeChart, setIsDraggingSizeChart] = useState(false);
+
+  const handleSizeChartFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    setSizeChartLoading(true);
+    const reader = new FileReader();
+    reader.onload = async e => {
+      const b64 = e.target?.result as string;
+      setSizeChartPreview(b64);
+      try {
+        const analyzed = await analyzeSizeChart(b64);
+        setSizeChartData(analyzed);
+      } catch { alert('사이즈표 분석에 실패했습니다'); }
+      setSizeChartLoading(false);
+    };
+    reader.readAsDataURL(file);
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('gemini_api_key');
@@ -307,6 +327,46 @@ function App() {
                 </div>
               </div>
             </div>
+            {productData.category==='FASHION'&&(
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <TableCellsIcon className="w-5 h-5 text-indigo-500"/>
+                  <span className="text-sm font-bold text-gray-700">중국 사이즈표 자동 번역</span>
+                  <span className="text-xs text-gray-400">(선택)</span>
+                </div>
+                <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2 mb-3">✏️ 중국어 사이즈표 이미지를 업로드하면 AI가 자동으로 한국어로 번역해서 사이즈 가이드를 만들어줍니다</p>
+                {sizeChartLoading ? (
+                  <div className="flex flex-col items-center py-8 gap-3">
+                    <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"/>
+                    <p className="text-sm font-bold text-gray-600">AI가 번역 중...</p>
+                    {sizeChartPreview && <img src={sizeChartPreview} alt="" className="mt-2 max-h-32 rounded-lg shadow"/>}
+                  </div>
+                ) : sizeChartData ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-green-600">✅ 사이즈표 번역 완료 ({sizeChartData.headers.length}열 × {sizeChartData.rows.length}행)</span>
+                      <button type="button" onClick={()=>{setSizeChartData(null);setSizeChartPreview(null);}} className="text-xs text-gray-400 hover:text-red-500">삭제</button>
+                    </div>
+                    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                      <table className="w-full text-xs border-collapse">
+                        <thead><tr className="bg-gray-800 text-white">{sizeChartData.headers.map((h,i)=><th key={i} className="p-2 border border-gray-600">{h}</th>)}</tr></thead>
+                        <tbody>{sizeChartData.rows.slice(0,3).map((row,ri)=><tr key={ri} className={ri%2===0?'bg-white':'bg-gray-50'}>{row.map((c,ci)=><td key={ci} className="p-2 border border-gray-200 text-center">{c}</td>)}</tr>)}</tbody>
+                      </table>
+                      {sizeChartData.rows.length>3&&<p className="text-center text-xs text-gray-400 py-1">... 외 {sizeChartData.rows.length-3}행</p>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-2 cursor-pointer relative transition-all ${isDraggingSizeChart?'border-indigo-500 bg-indigo-50':'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'}`}
+                    onDragOver={e=>{e.preventDefault();setIsDraggingSizeChart(true);}} onDragLeave={()=>setIsDraggingSizeChart(false)}
+                    onDrop={e=>{e.preventDefault();setIsDraggingSizeChart(false);const f=e.dataTransfer.files[0];if(f)handleSizeChartFile(f);}}>
+                    <input type="file" accept="image/*" onChange={e=>{const f=e.target.files?.[0];if(f)handleSizeChartFile(f);}} className="absolute inset-0 opacity-0 cursor-pointer"/>
+                    <TableCellsIcon className="w-8 h-8 text-gray-300"/>
+                    <p className="text-sm font-bold text-gray-500">사이즈표 이미지 업로드</p>
+                    <p className="text-xs text-gray-400">중국어 → 한국어 자동 번역</p>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <button type="button" onClick={()=>setShowInfo(!showInfo)} className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50">
                 <div className="flex items-center gap-3">
