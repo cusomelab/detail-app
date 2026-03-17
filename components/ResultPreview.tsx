@@ -3,12 +3,13 @@ import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, forwa
 import { createPortal } from 'react-dom';
 import { GeneratedCopy, ProcessedImage, ProductCategory, ProductInfoDisclosure, PlanSection } from '../types';
 import { processProductImage, regenerateCopy, ImageProcessMode } from '../services/geminiService';
-import { 
-    ArrowDownTrayIcon, ArrowPathIcon, SwatchIcon, ViewColumnsIcon, ListBulletIcon, Square2StackIcon, 
-    PhotoIcon, PlusIcon, SparklesIcon, TrashIcon, DocumentTextIcon, CheckIcon, PencilSquareIcon, 
+import {
+    ArrowDownTrayIcon, ArrowPathIcon, SwatchIcon, ViewColumnsIcon, ListBulletIcon, Square2StackIcon,
+    PhotoIcon, PlusIcon, SparklesIcon, TrashIcon, DocumentTextIcon, CheckIcon, PencilSquareIcon,
     ChevronUpIcon, ChevronDownIcon, ScissorsIcon, XMarkIcon, LanguageIcon, EllipsisHorizontalIcon,
     UserCircleIcon, HomeModernIcon, PaintBrushIcon, ArrowsUpDownIcon, HandRaisedIcon, ArrowsPointingOutIcon,
-    TableCellsIcon, ChatBubbleBottomCenterTextIcon, ComputerDesktopIcon, HeartIcon, BoltIcon
+    TableCellsIcon, ChatBubbleBottomCenterTextIcon, ComputerDesktopIcon, HeartIcon, BoltIcon,
+    BookmarkIcon, FolderOpenIcon, ClipboardDocumentIcon
 } from '@heroicons/react/24/outline';
 
 interface ResultPreviewProps {
@@ -109,6 +110,39 @@ const getSectionBg = (type: SectionType, design: PageDesignType): string => {
     }
   };
   return bgs[design]?.[type] || 'bg-white';
+};
+
+// ── 템플릿 저장/불러오기 ──
+interface SavedTemplate {
+  id: string;
+  name: string;
+  savedAt: string;
+  productName: string;
+  category: ProductCategory;
+  editableCopy: GeneratedCopy;
+  pointBlocks: PointBlock[];
+  detailBlocks: DetailBlock[];
+  optionBlocks: OptionBlock[];
+  sectionOrder: SectionType[];
+  pointLayout: PointLayoutType;
+  pageDesign: PageDesignType;
+  pointTheme: PointThemeColor;
+  pointIconStyle: PointIconStyle;
+  reviewData: { title: string; content: string };
+  recommendData: { title: string; items: string[] };
+  headers: any;
+  visibleHeaders: any;
+  textStyles: Record<string, TextStyle>;
+  sectionBgs: Record<string, string>;
+  copyright: string;
+}
+
+const TEMPLATES_STORAGE_KEY = 'detail_saved_templates';
+const getSavedTemplates = (): SavedTemplate[] => {
+  try { return JSON.parse(localStorage.getItem(TEMPLATES_STORAGE_KEY) || '[]'); } catch { return []; }
+};
+const saveTemplates = (templates: SavedTemplate[]) => {
+  localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
 };
 
 // Theme Config
@@ -903,16 +937,22 @@ const EditableElement: React.FC<EditableElementProps> = ({
     );
 };
 
-const SectionControlWrapper: React.FC<{ 
-    children: React.ReactNode; 
-    type: SectionType; 
-    index: number; 
-    isEditMode: boolean; 
-    isFirst: boolean; 
-    isLast: boolean; 
-    onMove: (idx: number, dir: -1 | 1) => void; 
+const SECTION_BG_PRESETS = ['#ffffff', '#fafafa', '#f5f5f5', '#f4f1ea', '#fdfbf7', '#111111', '#0a0a0a', '#000000', '#f0f4ff', '#fff5f5', '#f0fdf4', '#fefce8'];
+
+const SectionControlWrapper: React.FC<{
+    children: React.ReactNode;
+    type: SectionType;
+    index: number;
+    isEditMode: boolean;
+    isFirst: boolean;
+    isLast: boolean;
+    onMove: (idx: number, dir: -1 | 1) => void;
     onDelete?: () => void;
-}> = ({ children, type, index, isEditMode, isFirst, isLast, onMove, onDelete }) => {
+    currentBg?: string;
+    onBgChange?: (color: string) => void;
+    onBgReset?: () => void;
+}> = ({ children, type, index, isEditMode, isFirst, isLast, onMove, onDelete, currentBg, onBgChange, onBgReset }) => {
+    const [showBgPicker, setShowBgPicker] = useState(false);
     return (
         <div className="relative group/section w-full">
             {isEditMode && (
@@ -923,17 +963,39 @@ const SectionControlWrapper: React.FC<{
                     <button onClick={() => onMove(index, 1)} disabled={isLast} className="p-1.5 bg-white border border-gray-300 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 shadow-sm">
                         <ChevronDownIcon className="w-5 h-5" />
                     </button>
+                    <button onClick={() => setShowBgPicker(!showBgPicker)} className={`p-1.5 bg-white border rounded-lg shadow-sm ${currentBg ? 'border-indigo-400 text-indigo-600' : 'border-gray-300 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50'}`} title="배경색 변경">
+                        <PaintBrushIcon className="w-5 h-5" />
+                    </button>
                     {onDelete && (
-                        <button 
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} 
+                        <button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
                             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                            className="p-1.5 bg-white border border-red-300 rounded-lg text-red-500 hover:bg-red-50 shadow-sm cursor-pointer z-50 pointer-events-auto" 
+                            className="p-1.5 bg-white border border-red-300 rounded-lg text-red-500 hover:bg-red-50 shadow-sm cursor-pointer z-50 pointer-events-auto"
                             title="섹션 삭제"
                         >
                             <TrashIcon className="w-5 h-5" />
                         </button>
                     )}
                     <div className="text-[9px] text-gray-400 text-center font-mono mt-1 font-bold">{index + 1}</div>
+                    {showBgPicker && (
+                        <div className="absolute left-10 top-0 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-[60] w-48">
+                            <div className="text-xs font-bold text-gray-600 mb-2">배경색</div>
+                            <div className="grid grid-cols-6 gap-1.5 mb-2">
+                                {SECTION_BG_PRESETS.map(c => (
+                                    <button key={c} onClick={() => { onBgChange?.(c); setShowBgPicker(false); }}
+                                        className={`w-6 h-6 rounded-full border-2 ${currentBg === c ? 'border-indigo-500 scale-110' : 'border-gray-200'}`}
+                                        style={{ backgroundColor: c }} />
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-1 mb-2">
+                                <input type="color" value={currentBg || '#ffffff'} onChange={(e) => onBgChange?.(e.target.value)} className="w-6 h-6 rounded cursor-pointer border-0" />
+                                <span className="text-[10px] text-gray-400">직접 선택</span>
+                            </div>
+                            {currentBg && (
+                                <button onClick={() => { onBgReset?.(); setShowBgPicker(false); }} className="text-xs text-red-500 hover:text-red-700 font-bold">초기화</button>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
             {children}
@@ -1019,6 +1081,79 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       moodStory: true,
       whySub: true
   });
+
+  // ── 섹션별 배경색 커스텀 ──
+  const [sectionBgs, setSectionBgs] = useState<Record<string, string>>({});
+  const getCustomSectionBg = (type: SectionType): string => {
+    if (sectionBgs[type]) return '';  // custom color uses inline style
+    return getSectionBg(type, pageDesign);
+  };
+  const getSectionBgStyle = (type: SectionType): React.CSSProperties => {
+    return sectionBgs[type] ? { backgroundColor: sectionBgs[type] } : {};
+  };
+
+  // ── 템플릿 저장/불러오기 ──
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [savedTemplatesList, setSavedTemplatesList] = useState<SavedTemplate[]>(getSavedTemplates);
+
+  const handleSaveTemplate = () => {
+    const name = templateName.trim() || `${editableProductName} - ${new Date().toLocaleDateString('ko-KR')}`;
+    const template: SavedTemplate = {
+      id: `tpl-${Date.now()}`,
+      name,
+      savedAt: new Date().toISOString(),
+      productName: editableProductName,
+      category,
+      editableCopy,
+      pointBlocks: pointBlocks.map(b => ({ ...b, sideImage: undefined, content: b.type === 'IMAGE' ? undefined : b.content })),
+      detailBlocks: detailBlocks.map(b => ({ ...b, content: b.type === 'IMAGE' ? undefined : b.content })),
+      optionBlocks: optionBlocks.map(b => ({ ...b, imageUrl: undefined })),
+      sectionOrder,
+      pointLayout,
+      pageDesign,
+      pointTheme,
+      pointIconStyle,
+      reviewData,
+      recommendData,
+      headers,
+      visibleHeaders,
+      textStyles,
+      sectionBgs,
+      copyright
+    };
+    const templates = [...getSavedTemplates(), template];
+    saveTemplates(templates);
+    setSavedTemplatesList(templates);
+    setTemplateName('');
+    setShowTemplateModal(false);
+    alert('템플릿이 저장되었습니다!');
+  };
+
+  const handleLoadTemplate = (tpl: SavedTemplate) => {
+    setEditableCopy(tpl.editableCopy);
+    setPointBlocks(prev => prev.map((b, i) => tpl.pointBlocks[i] ? { ...b, ...tpl.pointBlocks[i], content: b.content, sideImage: b.sideImage } : b));
+    setSectionOrder(tpl.sectionOrder);
+    setPointLayout(tpl.pointLayout);
+    setPageDesign(tpl.pageDesign);
+    setPointTheme(tpl.pointTheme);
+    setPointIconStyle(tpl.pointIconStyle);
+    setReviewData(tpl.reviewData);
+    setRecommendData(tpl.recommendData);
+    setHeaders(tpl.headers);
+    setVisibleHeaders(tpl.visibleHeaders);
+    setTextStyles(tpl.textStyles || {});
+    setSectionBgs(tpl.sectionBgs || {});
+    setCopyright(tpl.copyright || copyright);
+    setShowTemplateModal(false);
+    alert('템플릿이 적용되었습니다!');
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    const templates = getSavedTemplates().filter(t => t.id !== id);
+    saveTemplates(templates);
+    setSavedTemplatesList(templates);
+  };
 
   const [mainImage, setMainImage] = useState<string | null>(null);
   const [styledImageList, setStyledImageList] = useState<string[]>([]);
@@ -1743,7 +1878,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
         );
         case 'STORY': return (
-            <div className={`w-full text-center relative ${getSectionBg('STORY', pageDesign)} ${pageDesign === 'EMOTIONAL' ? 'py-20 px-12' : pageDesign === 'IMPACT' ? 'py-16 px-12' : 'py-14 px-12'}`}>
+            <div className={`w-full text-center relative ${getCustomSectionBg('STORY')} style={getSectionBgStyle('STORY')} ${pageDesign === 'EMOTIONAL' ? 'py-20 px-12' : pageDesign === 'IMPACT' ? 'py-16 px-12' : 'py-14 px-12'}`}>
                         {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mb-4 block leading-none`}>"</span>}
                         {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mb-8"></div>}
                         <EditableElement key={`mood-${pointTheme}`} value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'EMOTIONAL' ? 'font-normal' : 'font-medium', maxWidth: 'max-w-4xl' }} className={`leading-relaxed mx-auto ${pageDesign === 'EMOTIONAL' ? 'italic' : ''}`} toolbarPosition="right" />
@@ -1759,7 +1894,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
         );
         case 'POINTS': return (
-            <div className={`w-full relative ${getSectionBg('POINTS', pageDesign)} py-14`}>
+            <div className={`w-full relative ${getCustomSectionBg('POINTS')} style={getSectionBgStyle('POINTS')} py-14`}>
                         {isEditMode && (
                              <div className="absolute top-4 right-10 flex gap-2 flex-wrap justify-end z-20">
                                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
@@ -1971,7 +2106,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
         );
         case 'OPTIONS': return (
-            <div className={`w-full py-20 ${getSectionBg('OPTIONS', pageDesign)}`}>
+            <div className={`w-full py-20 ${getCustomSectionBg('OPTIONS')} style={getSectionBgStyle('OPTIONS')}`}>
                     <div className="text-center mb-10">
                         <EditableElement value="COLORS & OPTIONS" onChange={() => {}} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-widest leading-normal" toolbarPosition="right" />
                     </div>
@@ -2021,7 +2156,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
         );
         case 'DETAILS': return (
-                     <div className={`w-full pb-10 ${getSectionBg('DETAILS', pageDesign)}`}>
+                     <div className={`w-full pb-10 ${getCustomSectionBg('DETAILS')} style={getSectionBgStyle('DETAILS')}`}>
                         <div className={`w-full py-10 text-center ${pageDesign === 'IMPACT' ? 'bg-black' : ''}`}>
                             <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-black' : 'font-bold' }} className={`inline-block px-8 py-3 tracking-[0.2em] uppercase ${pageDesign === 'IMPACT' ? 'border-b-2 border-red-600' : pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' : `border-2 ${themeStyles.tableBorder} bg-white w-72`}`} toolbarPosition="right" />
                         </div>
@@ -2179,7 +2314,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                     </div>
             );
         case 'INFO': return (
-                    <div className={`w-full pt-14 pb-20 px-10 ${getSectionBg('INFO', pageDesign)}`}>
+                    <div className={`w-full pt-14 pb-20 px-10 ${getCustomSectionBg('INFO')} style={getSectionBgStyle('INFO')}`}>
                         <div className="mb-6 text-center">
                              <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                         </div>
@@ -2265,7 +2400,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                     </div>
             );
         case 'REVIEW': return (
-            <div className={`w-full ${getSectionBg('REVIEW', pageDesign)}`}>
+            <div className={`w-full ${getCustomSectionBg('REVIEW')} style={getSectionBgStyle('REVIEW')}`}>
                 <div className="py-16 px-10">
                 <div className="max-w-4xl mx-auto">
                     <div className="text-center mb-10">
@@ -2315,7 +2450,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             </div>
         );
         case 'RECOMMEND': return (
-            <div className={`w-full ${getSectionBg('RECOMMEND', pageDesign)}`}>
+            <div className={`w-full ${getCustomSectionBg('RECOMMEND')} style={getSectionBgStyle('RECOMMEND')}`}>
                 <div className="py-16 px-10">
                 <div className="max-w-4xl mx-auto">
                     <div className="text-center mb-10">
@@ -2356,7 +2491,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             </div>
         );
         case 'SIZE_CHART': return editableSizeChart && editableSizeChart.length > 0 ? (
-            <div className={`w-full py-14 px-10 ${getSectionBg('SIZE_CHART', pageDesign)}`}>
+            <div className={`w-full py-14 px-10 ${getCustomSectionBg('SIZE_CHART')} style={getSectionBgStyle('SIZE_CHART')}`}>
                 <div className="max-w-4xl mx-auto">
                     <div className="text-center mb-8">
                         <span className="text-3xl mb-3 block">📏</span>
@@ -2420,6 +2555,46 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       {cropTarget && ( <ImageCropper imageUrl={cropTarget.url} onCrop={handleCropComplete} onCancel={() => setCropTarget(null)} /> )}
       {maskEditorTarget && ( <MaskEditor imageUrl={maskEditorTarget.url} onSave={handleMaskSave} onCancel={() => setMaskEditorTarget(null)} /> )}
       {customPromptTarget && ( <CustomPromptModal isOpen={!!customPromptTarget} onClose={() => setCustomPromptTarget(null)} onSubmit={handleCustomPromptSubmit} /> )}
+      {/* ── 템플릿 저장/불러오기 모달 ── */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onClick={() => setShowTemplateModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><BookmarkIcon className="w-5 h-5 text-amber-600" /> 템플릿 관리</h3>
+            {/* 저장 */}
+            <div className="mb-6">
+              <label className="text-sm font-bold text-gray-600 mb-2 block">현재 작업 저장</label>
+              <div className="flex gap-2">
+                <input type="text" value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder={`${editableProductName} - ${new Date().toLocaleDateString('ko-KR')}`} className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <button onClick={handleSaveTemplate} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-sm flex items-center gap-1"><BookmarkIcon className="w-4 h-4" /> 저장</button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">* 텍스트/레이아웃/스타일이 저장됩니다 (이미지 제외)</p>
+            </div>
+            {/* 불러오기 리스트 */}
+            <div>
+              <label className="text-sm font-bold text-gray-600 mb-2 block flex items-center gap-1"><FolderOpenIcon className="w-4 h-4" /> 저장된 템플릿 ({savedTemplatesList.length})</label>
+              {savedTemplatesList.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-6">저장된 템플릿이 없습니다</p>
+              ) : (
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {savedTemplatesList.map(tpl => (
+                    <div key={tpl.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-gray-800 truncate">{tpl.name}</div>
+                        <div className="text-xs text-gray-400">{new Date(tpl.savedAt).toLocaleString('ko-KR')}</div>
+                      </div>
+                      <div className="flex gap-1 ml-2">
+                        <button onClick={() => handleLoadTemplate(tpl)} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-xs font-bold">적용</button>
+                        <button onClick={() => handleDeleteTemplate(tpl.id)} className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg text-xs"><TrashIcon className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button onClick={() => setShowTemplateModal(false)} className="w-full mt-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg font-bold text-sm">닫기</button>
+          </div>
+        </div>
+      )}
       <div className={`fixed left-4 top-24 w-64 bg-white rounded-xl shadow-xl border border-gray-200 p-6 z-40 hidden xl:block transition-opacity duration-300 ${isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         
         {/* Page Design Selector */}
@@ -2460,6 +2635,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 {isEditMode ? (
                     <>
                         <button onClick={onReset} className="py-2 px-4 bg-gray-50 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-100">처음으로</button>
+                        <button onClick={() => setShowTemplateModal(true)} className="flex items-center gap-2 py-2 px-4 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors font-bold text-sm border border-amber-200"><BookmarkIcon className="w-4 h-4" /> 템플릿</button>
                         <button onClick={() => setIsEditMode(false)} className="flex items-center gap-2 py-2 px-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-bold shadow-md text-sm"><CheckIcon className="w-4 h-4" /> 편집 완료 (미리보기)</button>
                     </>
                 ) : (
@@ -2477,7 +2653,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 const styledIdx = styledAfter[sectionType];
                 return (
                     <React.Fragment key={sectionType}>
-                        <SectionControlWrapper type={sectionType} index={idx} isEditMode={isEditMode} isFirst={idx === 0} isLast={idx === sectionOrder.length - 1} onMove={moveSection} onDelete={sectionType === 'OPTIONS' ? () => removeSection('OPTIONS') : undefined}>{renderSectionContent(sectionType)}</SectionControlWrapper>
+                        <SectionControlWrapper type={sectionType} index={idx} isEditMode={isEditMode} isFirst={idx === 0} isLast={idx === sectionOrder.length - 1} onMove={moveSection} onDelete={sectionType === 'OPTIONS' ? () => removeSection('OPTIONS') : undefined} currentBg={sectionBgs[sectionType]} onBgChange={(c) => setSectionBgs(prev => ({ ...prev, [sectionType]: c }))} onBgReset={() => setSectionBgs(prev => { const n = { ...prev }; delete n[sectionType]; return n; })}>{renderSectionContent(sectionType)}</SectionControlWrapper>
                         {styledIdx !== undefined && styledImageList[styledIdx] && (
                             <div className="w-full">
                                 <img src={styledImageList[styledIdx]} alt={`AI 연출 ${styledIdx + 1}`} className="w-full h-auto block" crossOrigin="anonymous" />
