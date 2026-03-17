@@ -14,11 +14,12 @@ import {
 interface ResultPreviewProps {
   copy: GeneratedCopy;
   images: ProcessedImage[];
-  productName: string; 
+  productName: string;
   category: ProductCategory;
   infoDisclosure?: ProductInfoDisclosure;
   planSections?: PlanSection[];
   onReset: () => void;
+  detailMode?: 'basic' | 'advanced';
 }
 
 type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE';
@@ -936,7 +937,7 @@ const SectionControlWrapper: React.FC<{
     );
 };
 
-export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, productName, category, infoDisclosure, planSections, onReset }) => {
+export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, productName, category, infoDisclosure, planSections, onReset, detailMode = 'advanced' }) => {
   const [isEditMode, setIsEditMode] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   
@@ -946,6 +947,9 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
   // planSections를 기반으로 섹션 순서 결정
   const getInitialSectionOrder = (): SectionType[] => {
+    if (detailMode === 'basic') {
+      return ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'INFO'];
+    }
     return ['HERO', 'STORY', 'DETAILS', 'POINTS', 'REVIEW', 'RECOMMEND', 'OPTIONS', 'INFO'];
   };
   const [sectionOrder, setSectionOrder] = useState<SectionType[]>(getInitialSectionOrder);

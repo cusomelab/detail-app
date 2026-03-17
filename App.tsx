@@ -15,16 +15,19 @@ import {
 } from '@heroicons/react/24/outline';
 
 const TABS = [
-  { id: 'detail',    label: '📄 상세페이지' },
+  { id: 'basic',     label: '📄 기본형' },
+  { id: 'advanced',  label: '🎨 고급형' },
   { id: 'imggen',    label: '🖼️ 대표이미지' },
   { id: 'outfit',    label: '👗 의상 체인저' },
   { id: 'sizeChart', label: '📏 사이즈표' },
   { id: 'hangul',    label: '🏷️ 한글표시사항' },
 ] as const;
 type TabId = typeof TABS[number]['id'];
+type DetailMode = 'basic' | 'advanced';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('detail');
+  const [activeTab, setActiveTab] = useState<TabId>('basic');
+  const [detailMode, setDetailMode] = useState<DetailMode>('basic');
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [hasApiKey, setHasApiKey] = useState(false);
   const [step, setStep] = useState<AppStep>(AppStep.INPUT);
@@ -125,6 +128,26 @@ function App() {
     } catch { alert('기획안 생성 실패'); setStep(AppStep.INPUT); }
   };
 
+  // 기본형: 기획안 단계 없이 바로 상세페이지 생성
+  const handleBasicGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!productData.productName) { alert('상품명을 입력해주세요'); return; }
+    setStep(AppStep.PROCESSING); setLogs([]); setProcessedImages([]);
+    try {
+      addLog('🤖 AI 카피라이터 호출 중...'); addLog('✍️ 카피 작성 중...');
+      const copy = await generateProductCopy(productData.productName, productData.features, productData.category, productData.benchmarkUrl, productData.mainImage);
+      setGeneratedCopy(copy); addLog('✅ 카피 완성!');
+      if (productData.mainImage) setProcessedImages(p=>[...p,{originalUrl:URL.createObjectURL(productData.mainImage!),processedUrl:URL.createObjectURL(productData.mainImage!),type:'main',status:'done'}]);
+      productData.detailImages.forEach(f=>setProcessedImages(p=>[...p,{originalUrl:URL.createObjectURL(f),processedUrl:URL.createObjectURL(f),type:'detail',status:'done'}]));
+      productData.optionImages.forEach(f=>setProcessedImages(p=>[...p,{originalUrl:URL.createObjectURL(f),processedUrl:URL.createObjectURL(f),type:'option',status:'done',fileName:f.name}]));
+      addLog('🚀 상세페이지 생성 완료!');
+      setTimeout(()=>setStep(AppStep.RESULT),800);
+    } catch(err:any) {
+      if(err.message?.includes('401')){setHasApiKey(false);localStorage.removeItem('gemini_api_key');}
+      alert('오류 발생. 다시 시도해주세요.'); setStep(AppStep.INPUT);
+    }
+  };
+
   const handleGenerateDetail = async (confirmed: PlanSection[]) => {
     setStep(AppStep.PROCESSING); setLogs([]); setProcessedImages([]);
     try {
@@ -203,10 +226,11 @@ function App() {
     </div>
   );
 
-  if (activeTab==='detail') {
+  const isDetailTab = activeTab==='basic'||activeTab==='advanced';
+  if (isDetailTab) {
     if (step===AppStep.PROCESSING) return <ProcessingStep logs={logs} />;
-    if (step===AppStep.PLAN) return <PlanStep sections={planSections} productName={productData.productName} category={productData.category} onConfirm={handleGenerateDetail} onBack={()=>setStep(AppStep.INPUT)} />;
-    if (step===AppStep.RESULT&&generatedCopy) return <ResultPreview copy={generatedCopy} images={processedImages} productName={productData.productName} category={productData.category} infoDisclosure={infoDisclosure} planSections={planSections} onReset={resetDetail} />;
+    if (step===AppStep.PLAN && detailMode==='advanced') return <PlanStep sections={planSections} productName={productData.productName} category={productData.category} onConfirm={handleGenerateDetail} onBack={()=>setStep(AppStep.INPUT)} />;
+    if (step===AppStep.RESULT&&generatedCopy) return <ResultPreview copy={generatedCopy} images={processedImages} productName={productData.productName} category={productData.category} infoDisclosure={infoDisclosure} planSections={planSections} onReset={resetDetail} detailMode={detailMode} />;
   }
 
   return (
@@ -224,7 +248,7 @@ function App() {
         </div>
         <div className="max-w-7xl mx-auto px-4 pb-2 flex gap-1">
           {TABS.map(tab=>(
-            <button key={tab.id} onClick={()=>{setActiveTab(tab.id);if(tab.id==='detail')resetDetail();}}
+            <button key={tab.id} onClick={()=>{setActiveTab(tab.id);if(tab.id==='basic'||tab.id==='advanced'){setDetailMode(tab.id);resetDetail();}}}
               className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab===tab.id?'bg-indigo-600 text-white shadow-md':'text-gray-500 hover:bg-gray-100'}`}>
               {tab.label}
             </button>
@@ -237,13 +261,22 @@ function App() {
       {activeTab==='sizeChart' && <SizeChartTab />}
       {activeTab==='hangul' && <HangulTab />}
 
-      {activeTab==='detail' && step===AppStep.INPUT && (
+      {isDetailTab && step===AppStep.INPUT && (
         <div className="max-w-3xl mx-auto px-4 py-10">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-black text-gray-900 mb-2">어떤 상세페이지를 만들까요?</h2>
-            <p className="text-gray-500 text-sm">상품 정보를 입력하면 AI가 기획안부터 완성 상세페이지까지 자동으로 만들어드려요</p>
+            <h2 className="text-3xl font-black text-gray-900 mb-2">
+              {detailMode==='basic'?'빠른 상세페이지 만들기':'프리미엄 상세페이지 만들기'}
+            </h2>
+            <p className="text-gray-500 text-sm">
+              {detailMode==='basic'
+                ?'상품 정보만 입력하면 AI가 바로 상세페이지를 만들어드려요'
+                :'기획안 검토 → AI 연출샷 → 풀 커스텀 상세페이지를 만들어드려요'}
+            </p>
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border" style={{borderColor: detailMode==='basic'?'#10b981':'#6366f1', color: detailMode==='basic'?'#10b981':'#6366f1', backgroundColor: detailMode==='basic'?'#ecfdf5':'#eef2ff'}}>
+              {detailMode==='basic'?'⚡ 기본형 · 빠르고 간편하게':'✨ 고급형 · 기획안 + AI 연출샷'}
+            </div>
           </div>
-          <form onSubmit={handleGeneratePlan} className="space-y-5">
+          <form onSubmit={detailMode==='basic'?handleBasicGenerate:handleGeneratePlan} className="space-y-5">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <label className="block text-sm font-bold text-gray-700 mb-3">카테고리 *</label>
               <div className="grid grid-cols-4 gap-3">
@@ -272,6 +305,7 @@ function App() {
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none resize-none"
                   placeholder="예: 100% 면, 오버핏, 4가지 컬러" />
               </div>
+              {detailMode==='advanced'&&(
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5">벤치마킹 URL (선택)</label>
                 <div className="relative">
@@ -281,6 +315,7 @@ function App() {
                     placeholder="https://www.coupang.com/..." />
                 </div>
               </div>
+              )}
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <label className="block text-sm font-bold text-gray-700 mb-3">이미지 업로드</label>
@@ -305,7 +340,7 @@ function App() {
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            {detailMode==='advanced'&&(<div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <button type="button" onClick={()=>setShowInfo(!showInfo)} className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50">
                 <div className="flex items-center gap-3">
                   <DocumentTextIcon className="w-5 h-5 text-gray-400"/>
@@ -357,11 +392,13 @@ function App() {
                   )}
                 </div>
               )}
-            </div>
-            <button type="submit" className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-lg rounded-2xl shadow-xl shadow-indigo-200 flex items-center justify-center gap-3 transition-all hover:scale-[1.01]">
-              <SparklesIcon className="w-6 h-6"/> AI 기획안 생성 시작
+            </div>)}
+            <button type="submit" className={`w-full py-5 ${detailMode==='basic'?'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200':'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'} text-white font-black text-lg rounded-2xl shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.01]`}>
+              <SparklesIcon className="w-6 h-6"/> {detailMode==='basic'?'⚡ 바로 상세페이지 생성':'AI 기획안 생성 시작'}
             </button>
-            <p className="text-center text-xs text-gray-400">기획안 확인 후 최종 상세페이지를 생성합니다</p>
+            <p className="text-center text-xs text-gray-400">
+              {detailMode==='basic'?'상품 정보를 바탕으로 바로 상세페이지를 생성합니다':'기획안 확인 후 최종 상세페이지를 생성합니다'}
+            </p>
           </form>
         </div>
       )}
