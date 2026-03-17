@@ -1094,7 +1094,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             initialDetailBlocks.push({
                 id: `dcopy-${ts}-${copyIdx}`, type: 'TEXT',
                 content: detailCopies[copyIdx], width: 'FULL',
-                style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-center', fontWeight: 'font-bold', maxWidth: 'max-w-4xl' }
+                style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-center', fontWeight: 'font-bold', maxWidth: 'max-w-4xl' }
             });
         }
     });
@@ -1191,7 +1191,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       setPointBlocks(prev => [...prev, { id: `pt-new-${Date.now()}`, type: 'POINT_ITEM', icon: '✨', title: '새로운 포인트', description: '내용을 입력해주세요.' }]);
   };
   const addPointBlock = (type: 'IMAGE' | 'TEXT') => {
-      setPointBlocks(prev => [...prev, { id: `pt-blk-${Date.now()}`, type, content: type === 'IMAGE' ? '' : '새로운 설명 텍스트입니다.', width: 'FULL', style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' } }]);
+      setPointBlocks(prev => [...prev, { id: `pt-blk-${Date.now()}`, type, content: type === 'IMAGE' ? '' : '새로운 설명 텍스트입니다.', width: 'FULL', style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' } }]);
   };
   const movePointBlock = (index: number, direction: -1 | 1) => {
       const newBlocks = [...pointBlocks];
@@ -1678,6 +1678,10 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     }
   };
   const themeStyles = getThemeStyles();
+  // IMPACT 모드 글씨색 헬퍼
+  const bodyTextColor = pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600';
+  const subTextColor = pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500';
+  const valueTextColor = pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600';
 
   const renderSectionContent = (type: SectionType) => {
     const theme = THEME_COLORS[pointTheme];
@@ -1774,7 +1778,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         <div className="text-center mb-12 px-10">
                             <EditableElement value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-3" toolbarPosition="right" />
                             {visibleHeaders.whySub && (
-                                <EditableElement value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                <EditableElement value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: subTextColor, align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                             )}
                         </div>
                         <div className={`px-10 ${pointLayout === 'CARDS' ? 'grid gap-10' : pointLayout === 'SIMPLE' ? 'space-y-12' : 'flex flex-wrap'}`}>
@@ -1795,7 +1799,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                     <div className={`flex-1 p-10 flex flex-col justify-center relative`}>
                                                         {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
                                                         <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-4 leading-snug" toolbarPosition="right" />
-                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-relaxed" toolbarPosition="right" />
+                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: bodyTextColor, align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-relaxed" toolbarPosition="right" />
                                                     </div>
                                                     <div 
                                                         className={`w-1/3 ${theme.lightBg} flex items-center justify-center relative group/side overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
@@ -1842,7 +1846,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                 <div className="text-center">
                                                     {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
                                                     <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="mb-4 leading-snug" toolbarPosition="right" />
-                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-center', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
+                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: bodyTextColor, align: 'text-center', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
                                                 </div>
                                             )}
                                             {/* ═══ SIMPLE: 심플 리스트 ═══ */}
@@ -1850,7 +1854,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                 <>
                                                     {pointIconStyle !== 'NONE' && <div className="text-3xl mb-3">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
                                                     <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2 leading-snug" toolbarPosition="right" />
-                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
+                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: bodyTextColor, align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
                                                 </>
                                             )}
                                         </div>
@@ -1914,7 +1918,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                     <button onClick={() => removePointBlock(block.id)} className="p-2 bg-red-50 text-red-500 rounded shadow hover:bg-red-100"><TrashIcon className="w-4 h-4"/></button>
                                                 </div>
                                             )}
-                                            <EditableElement value={block.content || ''} onChange={(v) => updatePointBlock(block.id, 'content', v)} onStyleChange={(s) => setPointBlocks(prev => prev.map(b => b.id === block.id ? { ...b, style: s } : b))} isEditMode={isEditMode} aiLabel="Text" defaultStyle={block.style || { fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }} className="p-6 rounded-xl leading-normal" toolbarPosition="right" />
+                                            <EditableElement value={block.content || ''} onChange={(v) => updatePointBlock(block.id, 'content', v)} onStyleChange={(s) => setPointBlocks(prev => prev.map(b => b.id === block.id ? { ...b, style: s } : b))} isEditMode={isEditMode} aiLabel="Text" defaultStyle={block.style || { fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: bodyTextColor, align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }} className="p-6 rounded-xl leading-normal" toolbarPosition="right" />
                                         </div>
                                     );
                                 }
@@ -1936,7 +1940,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         <EditableElement value="COLORS & OPTIONS" onChange={() => {}} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-widest leading-normal" toolbarPosition="right" />
                     </div>
                     <div className="flex flex-wrap justify-center gap-4 px-6">
-                        {optionBlocks.length === 0 && <div className="text-gray-400">옵션 이미지가 없습니다. 상단에서 추가하거나 아래 버튼을 눌러주세요.</div>}
+                        {optionBlocks.length === 0 && <div className={pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-400'}>옵션 이미지가 없습니다. 상단에서 추가하거나 아래 버튼을 눌러주세요.</div>}
                         {optionBlocks.map((block) => (
                             <div key={block.id} className="flex flex-col items-center w-[260px] group relative">
                                 {isEditMode && (
@@ -1968,11 +1972,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-gray-50 text-gray-300 hover:text-gray-500"><PhotoIcon className="w-10 h-10 mb-2"/><span className="text-xs">이미지 추가</span><input type="file" className="hidden" accept="image/*" onChange={(e) => handleOptionImageUpload(block.id, e)} /></label>
                                     )}
                                 </div>
-                                <EditableElement value={block.text} onChange={(v) => updateOptionBlock(block.id, 'text', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                <EditableElement value={block.text} onChange={(v) => updateOptionBlock(block.id, 'text', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
                             </div>
                         ))}
                         {isEditMode && (
-                            <button onClick={addOptionBlock} className="w-[260px] aspect-[3/4] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-white transition-all">
+                            <button onClick={addOptionBlock} className={`w-[260px] aspect-[3/4] border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-all ${pageDesign === 'IMPACT' ? 'border-gray-600 text-gray-400 hover:border-red-500 hover:text-red-400' : 'border-gray-300 text-gray-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-white'}`}>
                                 <PlusIcon className="w-10 h-10 mb-2" />
                                 <span className="font-bold">옵션 추가</span>
                             </button>
@@ -2174,7 +2178,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         <EditableElement value={infoLabels.material} onChange={(v) => handleInfoLabelChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
                                     <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
-                                        <EditableElement value={editableCopy.productInfo.material} onChange={(v) => handleProductInfoChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                        <EditableElement value={editableCopy.productInfo.material} onChange={(v) => handleProductInfoChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: valueTextColor, align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 색상 */}
@@ -2183,7 +2187,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         <EditableElement value={infoLabels.color} onChange={(v) => handleInfoLabelChange('color', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
                                     <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
-                                        <EditableElement value={infoLabels.imgRef} onChange={(v) => handleInfoLabelChange('imgRef', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                        <EditableElement value={infoLabels.imgRef} onChange={(v) => handleInfoLabelChange('imgRef', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: valueTextColor, align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 제조국 */}
@@ -2192,7 +2196,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         <EditableElement value={infoLabels.origin} onChange={(v) => handleInfoLabelChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
                                     <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
-                                        <EditableElement value={editableCopy.productInfo.origin} onChange={(v) => handleProductInfoChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                        <EditableElement value={editableCopy.productInfo.origin} onChange={(v) => handleProductInfoChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: valueTextColor, align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 세탁/주의사항 */}
@@ -2201,7 +2205,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         <EditableElement value={category === 'FASHION' ? infoLabels.wash : infoLabels.caution} onChange={(v) => handleInfoLabelChange(category === 'FASHION' ? 'wash' : 'caution', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
                                     <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
-                                        <EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                        <EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: valueTextColor, align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 정보고시 추가 항목 */}
@@ -2385,15 +2389,15 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         {/* Page Design Selector */}
         <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><ComputerDesktopIcon className="w-5 h-5 text-indigo-600" /> 전체 디자인 무드</h3>
         <div className="flex flex-col gap-2 mb-8">
-             <button onClick={() => { setPageDesign('MODERN'); setPointLayout('ZIGZAG'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'MODERN' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('MODERN'); setPointLayout('ZIGZAG'); setSectionOrder(prev => { const base = ['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS'] as SectionType[]; if (prev.includes('SIZE_CHART')) base.push('SIZE_CHART'); base.push('INFO'); return base; }); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'MODERN' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center font-sans text-xs">Ab</div>
                  <div className="text-left"><div className="font-bold">모던 (기본)</div><div className="text-xs opacity-70">깔끔한 고딕, 지그재그</div></div>
              </button>
-             <button onClick={() => { setPageDesign('EMOTIONAL'); setPointLayout('SIMPLE'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'EMOTIONAL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('EMOTIONAL'); setPointLayout('SIMPLE'); setSectionOrder(prev => { const base = ['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS'] as SectionType[]; if (prev.includes('SIZE_CHART')) base.push('SIZE_CHART'); base.push('INFO'); return base; }); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'EMOTIONAL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-[#fdfbf7] border border-[#e0dcd0] flex items-center justify-center font-serif-kr text-xs">가</div>
                  <div className="text-left"><div className="font-bold">감성 (무드)</div><div className="text-xs opacity-70">명조체, 심플 리스트</div></div>
              </button>
-             <button onClick={() => { setPageDesign('IMPACT'); setPointLayout('CARDS'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('IMPACT'); setPointLayout('CARDS'); setSectionOrder(prev => { const base = ['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS'] as SectionType[]; if (prev.includes('SIZE_CHART')) base.push('SIZE_CHART'); base.push('INFO'); return base; }); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-black text-white flex items-center justify-center font-sans text-xs font-black">B</div>
                  <div className="text-left"><div className="font-bold">임팩트 (강조)</div><div className="text-xs opacity-70">강한 대비, 카드형</div></div>
              </button>

@@ -5,188 +5,18 @@ import { ProcessingStep } from '../ProcessingStep';
 import { PlanStep } from '../PlanStep';
 import { ResultPreview } from '../ResultPreview';
 import {
-  ArrowUpTrayIcon, PhotoIcon, SparklesIcon, LinkIcon,
+  ArrowUpTrayIcon, SparklesIcon, LinkIcon,
   ShoppingBagIcon, HomeIcon, FireIcon, CakeIcon, SwatchIcon,
-  ChevronDownIcon, ChevronUpIcon, DocumentTextIcon, ArrowLeftIcon, CheckCircleIcon,
+  ChevronDownIcon, ChevronUpIcon, DocumentTextIcon,
   TableCellsIcon, ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
-// ── 템플릿 정의 ──
-type TemplateId = 'MODERN_MINIMAL' | 'EMOTIONAL_STORY' | 'IMPACT_BOLD' | 'LUXURY_PREMIUM' | 'FRESH_NATURAL';
-
-interface TemplateInfo {
-  id: TemplateId;
-  name: string;
-  subtitle: string;
-  description: string;
-  designType: 'MODERN' | 'EMOTIONAL' | 'IMPACT';
-  themeColor: string;
-  tags: string[];
-  preview: {
-    bg: string;
-    accent: string;
-    textColor: string;
-    fontStyle: string;
-    heroStyle: string;
-    pointStyle: string;
-  };
-}
-
-const TEMPLATES: TemplateInfo[] = [
-  {
-    id: 'MODERN_MINIMAL',
-    name: '모던 미니멀',
-    subtitle: 'Clean & Modern',
-    description: '깔끔한 화이트 기반에 정갈한 레이아웃. 신뢰감 있는 브랜드 느낌',
-    designType: 'MODERN',
-    themeColor: 'INDIGO',
-    tags: ['깔끔한', '신뢰감', '브랜드'],
-    preview: {
-      bg: 'bg-white',
-      accent: 'bg-indigo-600',
-      textColor: 'text-gray-900',
-      fontStyle: 'font-sans',
-      heroStyle: 'border-b-2 border-gray-100',
-      pointStyle: 'ZIGZAG',
-    }
-  },
-  {
-    id: 'EMOTIONAL_STORY',
-    name: '감성 스토리텔링',
-    subtitle: 'Warm & Emotional',
-    description: '따뜻한 톤에 감성적인 스토리. 고객 감정에 호소하는 서정적 디자인',
-    designType: 'EMOTIONAL',
-    themeColor: 'PINK',
-    tags: ['감성적', '따뜻한', '스토리'],
-    preview: {
-      bg: 'bg-[#fdfbf7]',
-      accent: 'bg-pink-500',
-      textColor: 'text-gray-800',
-      fontStyle: 'font-serif',
-      heroStyle: 'border-b border-[#e0dcd0]',
-      pointStyle: 'SIMPLE',
-    }
-  },
-  {
-    id: 'IMPACT_BOLD',
-    name: '임팩트 세일',
-    subtitle: 'Bold & Impactful',
-    description: '강렬한 블랙 배경에 대담한 타이포. 구매 전환율을 극대화하는 디자인',
-    designType: 'IMPACT',
-    themeColor: 'BLACK',
-    tags: ['강렬한', '대담한', '세일'],
-    preview: {
-      bg: 'bg-gray-900',
-      accent: 'bg-red-600',
-      textColor: 'text-white',
-      fontStyle: 'font-sans',
-      heroStyle: 'border-b-2 border-red-600',
-      pointStyle: 'CARDS',
-    }
-  },
-  {
-    id: 'LUXURY_PREMIUM',
-    name: '프리미엄 럭셔리',
-    subtitle: 'Luxury & Premium',
-    description: '다크 기반에 골드 포인트. 고급스러운 브랜드 이미지를 전달',
-    designType: 'IMPACT',
-    themeColor: 'ORANGE',
-    tags: ['고급스러운', '럭셔리', '프리미엄'],
-    preview: {
-      bg: 'bg-[#1a1a1a]',
-      accent: 'bg-amber-500',
-      textColor: 'text-amber-50',
-      fontStyle: 'font-serif',
-      heroStyle: 'border-b border-amber-500/30',
-      pointStyle: 'SIMPLE',
-    }
-  },
-  {
-    id: 'FRESH_NATURAL',
-    name: '프레시 내추럴',
-    subtitle: 'Fresh & Natural',
-    description: '밝고 싱그러운 그린 톤. 자연스럽고 건강한 이미지를 강조',
-    designType: 'MODERN',
-    themeColor: 'GREEN',
-    tags: ['자연스러운', '싱그러운', '건강한'],
-    preview: {
-      bg: 'bg-emerald-50/30',
-      accent: 'bg-emerald-600',
-      textColor: 'text-emerald-900',
-      fontStyle: 'font-sans',
-      heroStyle: 'border-b border-emerald-100',
-      pointStyle: 'ZIGZAG',
-    }
-  },
-];
-
-// ── 템플릿 미리보기 카드 ──
-const TemplatePreviewCard: React.FC<{
-  template: TemplateInfo;
-  isSelected: boolean;
-  onClick: () => void;
-}> = ({ template, isSelected, onClick }) => {
-  const { preview } = template;
-  return (
-    <button
-      onClick={onClick}
-      className={`relative w-full rounded-2xl overflow-hidden border-2 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
-        isSelected ? 'border-indigo-600 shadow-xl shadow-indigo-100 ring-2 ring-indigo-600/20' : 'border-gray-200 hover:border-indigo-300'
-      }`}
-    >
-      {isSelected && (
-        <div className="absolute top-3 right-3 z-10 w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg">
-          <CheckCircleIcon className="w-5 h-5 text-white" />
-        </div>
-      )}
-      {/* 미니 프리뷰 */}
-      <div className={`${preview.bg} p-4 h-52 flex flex-col`}>
-        {/* 미니 히어로 */}
-        <div className={`${preview.heroStyle} pb-3 mb-3`}>
-          <div className={`${preview.accent} w-14 h-1.5 rounded-full mb-2`}></div>
-          <div className={`h-3 w-3/4 rounded ${preview.bg === 'bg-white' || preview.bg === 'bg-emerald-50/30' ? 'bg-gray-800' : 'bg-white/80'} mb-1.5`}></div>
-          <div className={`h-2 w-1/2 rounded ${preview.bg === 'bg-white' || preview.bg === 'bg-emerald-50/30' ? 'bg-gray-400' : 'bg-white/40'}`}></div>
-        </div>
-        {/* 미니 이미지 영역 */}
-        <div className={`flex-1 rounded-lg ${preview.bg === 'bg-white' || preview.bg === 'bg-emerald-50/30' ? 'bg-gray-100' : 'bg-white/10'} mb-3 flex items-center justify-center`}>
-          <PhotoIcon className={`w-8 h-8 ${preview.bg === 'bg-white' || preview.bg === 'bg-emerald-50/30' ? 'text-gray-300' : 'text-white/30'}`} />
-        </div>
-        {/* 미니 포인트 */}
-        <div className="flex gap-2">
-          {[1,2,3].map(i => (
-            <div key={i} className={`flex-1 rounded-lg p-1.5 ${preview.bg === 'bg-white' || preview.bg === 'bg-emerald-50/30' ? 'bg-gray-50 border border-gray-100' : 'bg-white/5 border border-white/10'}`}>
-              <div className={`${preview.accent} w-4 h-4 rounded-full mb-1 mx-auto opacity-80`}></div>
-              <div className={`h-1 rounded ${preview.bg === 'bg-white' || preview.bg === 'bg-emerald-50/30' ? 'bg-gray-300' : 'bg-white/30'} mx-auto w-2/3`}></div>
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* 설명 */}
-      <div className="p-4 bg-white">
-        <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-black text-gray-900 text-sm">{template.name}</h3>
-          <span className="text-[10px] text-gray-400 tracking-wider uppercase">{template.subtitle}</span>
-        </div>
-        <p className="text-xs text-gray-500 mb-2">{template.description}</p>
-        <div className="flex gap-1.5">
-          {template.tags.map(tag => (
-            <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">
-              {tag}
-            </span>
-          ))}
-        </div>
-      </div>
-    </button>
-  );
-};
-
 // ── 메인 컴포넌트 ──
 export const AdvancedDetailTab: React.FC = () => {
-  // Steps: TEMPLATE → INPUT → PROCESSING → PLAN → PROCESSING → RESULT
-  type AdvancedStep = 'TEMPLATE' | 'INPUT' | 'PROCESSING' | 'PLAN' | 'RESULT';
+  // Steps: INPUT → PROCESSING → PLAN → PROCESSING → RESULT
+  type AdvancedStep = 'INPUT' | 'PROCESSING' | 'PLAN' | 'RESULT';
 
-  const [advStep, setAdvStep] = useState<AdvancedStep>('TEMPLATE');
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>('MODERN_MINIMAL');
+  const [advStep, setAdvStep] = useState<AdvancedStep>('INPUT');
   const [step, setStep] = useState<AppStep>(AppStep.INPUT);
   const [logs, setLogs] = useState<string[]>([]);
   const [planSections, setPlanSections] = useState<PlanSection[]>([]);
@@ -235,16 +65,6 @@ export const AdvancedDetailTab: React.FC = () => {
   };
 
   const addLog = (m: string) => setLogs(p => [...p, m]);
-  const templateInfo = TEMPLATES.find(t => t.id === selectedTemplate)!;
-
-  // 템플릿 → ResultPreview 매핑
-  const getTemplateDesignType = (): 'MODERN' | 'EMOTIONAL' | 'IMPACT' => templateInfo.designType;
-  const getTemplateThemeColor = (): 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE' => {
-    return templateInfo.themeColor as any;
-  };
-  const getTemplatePointLayout = (): 'ZIGZAG' | 'CARDS' | 'SIMPLE' => {
-    return templateInfo.preview.pointStyle as any;
-  };
 
   // 사이즈표 이미지 번역
   const handleSizeChartUpload = async (file: File) => {
@@ -356,7 +176,7 @@ export const AdvancedDetailTab: React.FC = () => {
   };
 
   const resetAll = () => {
-    setAdvStep('TEMPLATE');
+    setAdvStep('INPUT');
     setStep(AppStep.INPUT);
     setProductData({productName:'',category:'FASHION',features:'',mainImage:null,detailImages:[],optionImages:[],benchmarkUrl:''});
     setGeneratedCopy(null); setProcessedImages([]); setPlanSections([]);
@@ -387,76 +207,19 @@ export const AdvancedDetailTab: React.FC = () => {
       planSections={planSections}
       onReset={resetAll}
       detailMode="advanced"
-      templateDesignType={getTemplateDesignType()}
-      templateThemeColor={getTemplateThemeColor()}
-      templatePointLayout={getTemplatePointLayout()}
       sizeChartData={sizeChartData || undefined}
     />
   );
 
-  // ── STEP 1: 템플릿 선택 ──
-  if (advStep === 'TEMPLATE') {
-    return (
-      <div className="max-w-5xl mx-auto px-4 py-10">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 mb-4">
-            <SparklesIcon className="w-4 h-4 text-indigo-600" />
-            <span className="text-xs font-bold text-indigo-600">PREMIUM</span>
-          </div>
-          <h2 className="text-3xl font-black text-gray-900 mb-2">디자인 템플릿 선택</h2>
-          <p className="text-gray-500 text-sm">상세페이지 분위기를 먼저 선택하세요. AI가 선택한 템플릿에 맞게 최적화합니다</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-          {TEMPLATES.map(template => (
-            <TemplatePreviewCard
-              key={template.id}
-              template={template}
-              isSelected={selectedTemplate === template.id}
-              onClick={() => setSelectedTemplate(template.id)}
-            />
-          ))}
-        </div>
-
-        <div className="flex justify-center">
-          <button
-            onClick={() => setAdvStep('INPUT')}
-            className="px-10 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-lg rounded-2xl shadow-xl shadow-indigo-200 flex items-center gap-3 transition-all hover:scale-[1.02]"
-          >
-            <SparklesIcon className="w-6 h-6" />
-            「{templateInfo.name}」 템플릿으로 시작
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── STEP 2: 상품 정보 입력 ──
+  // ── 상품 정보 입력 ──
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
-      {/* 선택된 템플릿 표시 */}
-      <div className="mb-6">
-        <button onClick={() => setAdvStep('TEMPLATE')} className="flex items-center gap-2 text-sm text-gray-500 hover:text-indigo-600 transition-colors mb-4">
-          <ArrowLeftIcon className="w-4 h-4" /> 템플릿 다시 선택
-        </button>
-        <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <div className={`w-14 h-14 rounded-xl ${templateInfo.preview.bg} flex items-center justify-center border ${templateInfo.preview.bg.includes('white') || templateInfo.preview.bg.includes('emerald') ? 'border-gray-200' : 'border-transparent'}`}>
-            <div className={`w-6 h-1.5 rounded-full ${templateInfo.preview.accent}`}></div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-black text-gray-900">{templateInfo.name}</span>
-              <span className="text-xs text-gray-400 uppercase tracking-wider">{templateInfo.subtitle}</span>
-            </div>
-            <p className="text-xs text-gray-500 mt-0.5">{templateInfo.description}</p>
-          </div>
-          <CheckCircleIcon className="w-6 h-6 text-indigo-600 ml-auto shrink-0" />
-        </div>
-      </div>
-
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-black text-gray-900 mb-2">상품 정보 입력</h2>
-        <p className="text-gray-500 text-sm">AI가 기획안을 먼저 작성하고, 검토 후 상세페이지를 생성합니다</p>
+        <h2 className="text-3xl font-black text-gray-900 mb-2">상세페이지 만들기</h2>
+        <p className="text-gray-500 text-sm">상품 정보를 입력하면 AI가 기획안 작성 → 검토 → 상세페이지를 생성합니다</p>
+        <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border" style={{borderColor:'#6366f1', color:'#6366f1', backgroundColor:'#eef2ff'}}>
+          <SparklesIcon className="w-3.5 h-3.5" /> AI 기획안 + 연출 이미지 3장 + 디자인 무드 선택
+        </div>
       </div>
 
       <form onSubmit={handleGeneratePlan} className="space-y-5">
@@ -628,7 +391,7 @@ export const AdvancedDetailTab: React.FC = () => {
           <SparklesIcon className="w-6 h-6"/> ✨ AI 기획안 생성 시작
         </button>
         <p className="text-center text-xs text-gray-400">
-          기획안 검토 → AI 연출샷 → 「{templateInfo.name}」 템플릿 적용
+          기획안 검토 → AI 연출샷 → 상세페이지 자동 생성
         </p>
       </form>
     </div>
