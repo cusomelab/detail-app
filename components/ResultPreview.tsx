@@ -1844,78 +1844,126 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const renderSectionContent = (type: SectionType) => {
     const theme = THEME_COLORS[pointTheme];
     switch (type) {
-        case 'HERO': return (
-            <div className={`w-full flex flex-col ${themeStyles.bg}`}>
-                        <div 
-                            className={`relative w-full bg-gray-50 min-h-[500px] flex items-center justify-center overflow-hidden transition-all border-b-0 ${dragOverId === 'main' ? 'border-4 border-dashed border-indigo-500 bg-indigo-50' : ''}`}
-                            onDragEnter={(e) => handleDragEnter(e, 'main')}
-                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleImageDrop(e, 'main', (file) => {
-                                const url = URL.createObjectURL(file);
-                                setMainImage(url);
-                                openCropper('main', url, 'MAIN');
-                            })}
-                        >
-                            {mainImage ? (
-                                <>
-                                    <img src={mainImage} alt="Main" className="w-full h-auto block object-cover" crossOrigin="anonymous" />
-                                    {isEditMode && (
-                                        <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
-                                            <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all">
-                                                <ArrowPathIcon className="w-4 h-4" /> <span className="text-xs font-bold">교체</span>
-                                                <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
-                                            </label>
-                                            <button onClick={() => openCropper('main', mainImage, 'MAIN')} className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all text-xs font-bold">
-                                                <ScissorsIcon className="w-4 h-4" /> 자르기
-                                            </button>
-                                            <div className="relative">
-                                                <button onClick={() => setActiveAiMenuId(activeAiMenuId === 'MAIN' ? null : 'MAIN')} disabled={isProcessingMain} className="bg-indigo-600 text-white p-2 rounded-lg flex items-center gap-2 px-4 shadow-xl text-xs font-bold hover:bg-indigo-700 w-full justify-center">
-                                                    {isProcessingMain ? "..." : <SparklesIcon className="w-4 h-4" />} AI 편집 도구
-                                                </button>
-                                                {renderAiMenu('MAIN', (mode) => handleAiProcessMain(mode))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            ) : (
-                                <label className="w-full h-[500px] flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100">
-                                    <PhotoIcon className="w-20 h-20 mb-4" />
-                                    <span className="text-2xl font-bold">대표 이미지 업로드</span>
-                                    <span className="text-sm font-normal mt-2">또는 이미지를 드래그하세요</span>
-                                    <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
-                                </label>
-                            )}
-                        </div>
-                        <div className={`w-full px-10 text-center relative ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-16 border-b border-[#e0dcd0]' : pageDesign === 'IMPACT' ? 'bg-black py-12' : 'bg-white py-10 border-b border-gray-200'}`}>
-                            {visibleHeaders.newArrival && (
-                                <div className="mb-4 flex justify-center">
-                                     <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-sm' as any : 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`uppercase ${pageDesign === 'IMPACT' ? 'tracking-[0.5em]' : 'tracking-[0.3em]'}`} toolbarPosition="right" />
-                                </div>
-                            )}
-                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-6 leading-snug" toolbarPosition="right" />
-                            {pageDesign === 'MODERN' && <div className="w-16 h-1.5 bg-gray-900 mx-auto"></div>}
-                            {pageDesign === 'EMOTIONAL' && <div className="w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-4"></div>}
-                            {pageDesign === 'IMPACT' && <div className="w-full h-1 bg-red-600 mx-auto mt-2"></div>}
-                        </div>
-                </div>
-        );
-        case 'STORY': return (
-            <div className={`w-full text-center relative ${getCustomSectionBg('STORY')} style={getSectionBgStyle('STORY')} ${pageDesign === 'EMOTIONAL' ? 'py-20 px-12' : pageDesign === 'IMPACT' ? 'py-16 px-12' : 'py-14 px-12'}`}>
-                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mb-4 block leading-none`}>"</span>}
-                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mb-8"></div>}
-                        <EditableElement key={`mood-${pointTheme}`} value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'EMOTIONAL' ? 'font-normal' : 'font-medium', maxWidth: 'max-w-4xl' }} className={`leading-relaxed mx-auto ${pageDesign === 'EMOTIONAL' ? 'italic' : ''}`} toolbarPosition="right" />
-                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mt-4 block leading-none`}>"</span>}
-                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mt-8"></div>}
-                        {visibleHeaders.moodStory && (
-                            <div className="mt-10 flex justify-center items-center gap-6">
-                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
-                                <EditableElement value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
-                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
-                            </div>
+        case 'HERO': {
+            // 고급형: 풀블리드 이미지 + 그라데이션 오버레이 + 텍스트 (망고보드 스타일)
+            const heroGradient = pageDesign === 'IMPACT'
+              ? 'from-black/80 via-black/40 to-transparent'
+              : pageDesign === 'EMOTIONAL'
+              ? 'from-[#2a1f14]/70 via-[#2a1f14]/30 to-transparent'
+              : 'from-gray-900/60 via-gray-900/20 to-transparent';
+            const heroGradientBottom = pageDesign === 'IMPACT'
+              ? 'from-transparent via-black/30 to-black'
+              : pageDesign === 'EMOTIONAL'
+              ? 'from-transparent via-[#2a1f14]/20 to-[#fdfbf7]'
+              : 'from-transparent via-gray-900/10 to-white';
+
+            return (
+              <div className="w-full flex flex-col">
+                <div
+                  className={`relative w-full min-h-[700px] flex items-end overflow-hidden ${dragOverId === 'main' ? 'border-4 border-dashed border-indigo-500' : ''}`}
+                  onDragEnter={(e) => handleDragEnter(e, 'main')}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleImageDrop(e, 'main', (file) => { const url = URL.createObjectURL(file); setMainImage(url); openCropper('main', url, 'MAIN'); })}
+                >
+                  {mainImage ? (
+                    <>
+                      <img src={mainImage} alt="Main" className="absolute inset-0 w-full h-full object-cover" crossOrigin="anonymous" />
+                      {/* 상단 그라데이션 */}
+                      <div className={`absolute inset-x-0 top-0 h-40 bg-gradient-to-b ${heroGradient}`} />
+                      {/* 하단 그라데이션 */}
+                      <div className={`absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t ${heroGradientBottom}`} />
+                      {/* 텍스트 오버레이 */}
+                      <div className="relative z-10 w-full px-12 pb-16 pt-40">
+                        {visibleHeaders.newArrival && (
+                          <div className="mb-6">
+                            <span className={`inline-block px-5 py-2 rounded-full text-xs font-bold tracking-[0.2em] uppercase ${
+                              pageDesign === 'IMPACT' ? 'bg-red-600 text-white' :
+                              pageDesign === 'EMOTIONAL' ? 'bg-white/90 text-gray-800 backdrop-blur-sm' :
+                              `${theme.badge} text-white`
+                            }`}>
+                              <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs' as any, fontFamily: themeStyles.fontHead as any, color: 'text-white', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                            </span>
+                          </div>
                         )}
+                        <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-5xl' as any, fontFamily: themeStyles.fontHead as any, color: 'text-white', align: 'text-left', fontWeight: 'font-black' }} className="mb-4 leading-tight drop-shadow-lg max-w-[600px]" toolbarPosition="right" />
+                        <EditableElement value={editableProductName} onChange={setEditableProductName} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-white', align: 'text-left', fontWeight: 'font-medium' }} className="opacity-80 drop-shadow-md" toolbarPosition="right" />
+                        {pageDesign === 'MODERN' && <div className={`w-20 h-1 ${theme.bg} mt-6`} />}
+                        {pageDesign === 'IMPACT' && <div className="w-32 h-1 bg-red-600 mt-6" />}
+                        {pageDesign === 'EMOTIONAL' && <div className="w-16 h-[2px] bg-white/50 mt-6" />}
+                      </div>
+                      {isEditMode && (
+                        <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
+                          <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200">
+                            <ArrowPathIcon className="w-4 h-4" /> <span className="text-xs font-bold">교체</span>
+                            <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
+                          </label>
+                          <button onClick={() => openCropper('main', mainImage, 'MAIN')} className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg flex items-center gap-2 px-4 shadow-xl border border-gray-200 text-xs font-bold">
+                            <ScissorsIcon className="w-4 h-4" /> 자르기
+                          </button>
+                          <div className="relative">
+                            <button onClick={() => setActiveAiMenuId(activeAiMenuId === 'MAIN' ? null : 'MAIN')} disabled={isProcessingMain} className="bg-indigo-600 text-white p-2 rounded-lg flex items-center gap-2 px-4 shadow-xl text-xs font-bold hover:bg-indigo-700 w-full justify-center">
+                              {isProcessingMain ? "..." : <SparklesIcon className="w-4 h-4" />} AI 편집
+                            </button>
+                            {renderAiMenu('MAIN', (mode) => handleAiProcessMain(mode))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <label className="w-full h-[700px] flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 bg-gray-50">
+                      <PhotoIcon className="w-20 h-20 mb-4" />
+                      <span className="text-2xl font-bold">대표 이미지 업로드</span>
+                      <span className="text-sm font-normal mt-2">또는 이미지를 드래그하세요</span>
+                      <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
+                    </label>
+                  )}
                 </div>
-        );
+              </div>
+            );
+        }
+        case 'STORY': {
+            // 고급형: 프리미엄 스토리 섹션 - 대형 타이포그래피 + 장식 요소
+            const storyBg = pageDesign === 'IMPACT'
+              ? 'bg-gradient-to-b from-black via-gray-900 to-black'
+              : pageDesign === 'EMOTIONAL'
+              ? 'bg-gradient-to-b from-[#f8f4ed] via-[#fdfbf7] to-[#f8f4ed]'
+              : 'bg-gradient-to-b from-gray-50 via-white to-gray-50';
+
+            return (
+              <div className={`w-full text-center relative py-24 px-12 overflow-hidden ${storyBg}`} style={getSectionBgStyle('STORY')}>
+                {/* 장식 요소 */}
+                {pageDesign === 'MODERN' && (
+                  <>
+                    <div className={`absolute top-8 left-1/2 -translate-x-1/2 w-[1px] h-16 ${theme.bg}`} />
+                    <div className={`absolute top-8 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full ${theme.bg} mt-16`} />
+                  </>
+                )}
+                {pageDesign === 'IMPACT' && (
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-red-600 to-transparent" />
+                )}
+                {pageDesign === 'EMOTIONAL' && (
+                  <div className="absolute top-10 left-1/2 -translate-x-1/2 text-8xl text-[#e0dcd0] font-serif opacity-30 select-none">"</div>
+                )}
+
+                <div className="relative z-10 max-w-2xl mx-auto mt-8">
+                  {visibleHeaders.moodStory && (
+                    <div className="mb-8 flex justify-center items-center gap-4">
+                      <span className={`h-[1px] w-16 ${pageDesign === 'IMPACT' ? 'bg-red-600' : pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9]' : theme.bg}`} />
+                      <EditableElement value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs' as any, fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400', align: 'text-center', fontWeight: 'font-bold' }} className="tracking-[0.3em] uppercase" toolbarPosition="right" />
+                      <span className={`h-[1px] w-16 ${pageDesign === 'IMPACT' ? 'bg-red-600' : pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9]' : theme.bg}`} />
+                    </div>
+                  )}
+                  <EditableElement key={`mood-${pointTheme}`} value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-200' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'EMOTIONAL' ? 'font-normal' : 'font-medium', maxWidth: 'max-w-4xl' }} className={`leading-[1.8] mx-auto ${pageDesign === 'EMOTIONAL' ? 'italic' : ''}`} toolbarPosition="right" />
+                </div>
+
+                {/* 하단 장식 */}
+                {pageDesign === 'MODERN' && <div className={`w-3 h-3 rounded-full ${theme.bg} mx-auto mt-12`} />}
+                {pageDesign === 'IMPACT' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-red-600 to-transparent" />}
+                {pageDesign === 'EMOTIONAL' && <div className="text-8xl text-[#e0dcd0] font-serif opacity-30 select-none mt-4">"</div>}
+              </div>
+            );
+        }
         case 'POINTS': return (
             <div className={`w-full relative ${getCustomSectionBg('POINTS')} style={getSectionBgStyle('POINTS')} py-14`}>
                         {isEditMode && (
@@ -1933,11 +1981,16 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 </div>
                              </div>
                         )}
-                        <div className="text-center mb-12 px-10">
+                        <div className="text-center mb-14 px-10 relative">
+                            {/* 장식 요소 */}
+                            {pageDesign === 'MODERN' && <div className={`w-8 h-8 rounded-full ${theme.lightBg} mx-auto mb-4 flex items-center justify-center`}><span className={`w-2 h-2 rounded-full ${theme.bg}`} /></div>}
+                            {pageDesign === 'IMPACT' && <div className="flex justify-center gap-1 mb-4"><div className="w-2 h-2 bg-red-600 rounded-full" /><div className="w-2 h-2 bg-red-600/60 rounded-full" /><div className="w-2 h-2 bg-red-600/30 rounded-full" /></div>}
+                            {pageDesign === 'EMOTIONAL' && <div className="text-sm text-[#c4b99f] tracking-[0.5em] uppercase mb-4 font-serif">CHECK POINTS</div>}
                             <EditableElement value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-3" toolbarPosition="right" />
                             {visibleHeaders.whySub && (
-                                <EditableElement value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: subTextColor, align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                <EditableElement value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: subTextColor, align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                             )}
+                            {pageDesign === 'MODERN' && <div className={`w-16 h-1 ${theme.bg} mx-auto mt-6`} />}
                         </div>
                         <div className={`px-10 ${pointLayout === 'CARDS' ? 'grid gap-10' : pointLayout === 'SIMPLE' ? 'space-y-12' : 'flex flex-wrap'}`}>
                             {pointBlocks.map((block, idx) => {
