@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory, PlanSection, ProductInfoDisclosure } from './types';
 import { SizeChartData } from './types/sizeChart';
 import { generateProductCopy, generatePlan, generateStyledShots, setApiKey } from './services/geminiService';
