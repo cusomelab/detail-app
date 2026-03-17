@@ -1013,11 +1013,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [pointTheme, setPointTheme] = useState<PointThemeColor>(templateThemeColor || getThemeByCategory(category));
   const [editableSizeChart, setEditableSizeChart] = useState<string[][] | null>(sizeChartData || null);
   // planSections를 기반으로 섹션 순서 결정
+  const hasOptionImages = images.some(img => img.type === 'option');
   const getInitialSectionOrder = (): SectionType[] => {
-    const base = ['HERO', 'STORY', 'DETAILS', 'POINTS', 'REVIEW', 'RECOMMEND', 'OPTIONS'] as SectionType[];
-    if (sizeChartData && sizeChartData.length > 0) {
-      base.push('SIZE_CHART' as SectionType);
-    }
+    const base = ['HERO', 'STORY', 'DETAILS', 'POINTS', 'REVIEW', 'RECOMMEND'] as SectionType[];
+    if (hasOptionImages) base.push('OPTIONS' as SectionType);
+    if (sizeChartData && sizeChartData.length > 0) base.push('SIZE_CHART' as SectionType);
     base.push('INFO');
     return base;
   };
@@ -1158,6 +1158,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [mainImage, setMainImage] = useState<string | null>(null);
   const [styledImageList, setStyledImageList] = useState<string[]>([]);
   const [regeneratingStyled, setRegeneratingStyled] = useState<number | null>(null);
+  const [styledPromptInput, setStyledPromptInput] = useState<{ index: number; value: string } | null>(null);
   const [detailBlocks, setDetailBlocks] = useState<DetailBlock[]>([]);
   const [pointBlocks, setPointBlocks] = useState<PointBlock[]>([]);
   const [optionBlocks, setOptionBlocks] = useState<OptionBlock[]>([]);
@@ -1690,14 +1691,15 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       }
   };
 
-  const handleRegenerateStyled = async (index: number) => {
+  const handleRegenerateStyled = async (index: number, userPrompt?: string) => {
     if (!mainImage) { alert('메인 이미지가 필요합니다.'); return; }
+    setStyledPromptInput(null);
     setRegeneratingStyled(index);
     try {
       const res = await fetch(mainImage);
       const blob = await res.blob();
       const file = new File([blob], 'main.jpg', { type: blob.type || 'image/jpeg' });
-      const newUrl = await regenerateStyledShot(file, category, index);
+      const newUrl = await regenerateStyledShot(file, category, index, userPrompt);
       setStyledImageList(prev => {
         const updated = [...prev];
         updated[index] = newUrl;
@@ -2678,17 +2680,46 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         {styledIdx !== undefined && styledImageList[styledIdx] && (
                             <div className="w-full relative group/styled">
                                 <img src={styledImageList[styledIdx]} alt={`AI 연출 ${styledIdx + 1}`} className="w-full h-auto block" crossOrigin="anonymous" />
-                                {isEditMode && (
-                                    <div className="absolute top-3 right-3 opacity-0 group-hover/styled:opacity-100 transition-opacity z-20">
+                                {isEditMode && !regeneratingStyled && (
+                                    <div className="absolute top-3 right-3 opacity-0 group-hover/styled:opacity-100 transition-opacity z-20 flex flex-col gap-2">
                                         <button
                                             onClick={() => handleRegenerateStyled(styledIdx)}
-                                            disabled={regeneratingStyled === styledIdx}
-                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xl text-xs font-bold disabled:opacity-50 transition-colors"
+                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xl text-xs font-bold transition-colors"
                                         >
-                                            {regeneratingStyled === styledIdx
-                                                ? <span className="animate-pulse flex items-center gap-1"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /> 재생성 중...</span>
-                                                : <><ArrowPathIcon className="w-4 h-4" /> AI 재생성</>}
+                                            <ArrowPathIcon className="w-4 h-4" /> AI 재생성
                                         </button>
+                                        <button
+                                            onClick={() => setStyledPromptInput({ index: styledIdx, value: '' })}
+                                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-xl text-xs font-bold transition-colors"
+                                        >
+                                            <ChatBubbleBottomCenterTextIcon className="w-4 h-4" /> 프롬프트 재생성
+                                        </button>
+                                    </div>
+                                )}
+                                {styledPromptInput?.index === styledIdx && (
+                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30 p-6">
+                                        <div className="bg-white rounded-xl shadow-2xl p-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                                            <h4 className="text-sm font-bold text-gray-800 mb-3">연출 이미지 프롬프트 입력</h4>
+                                            <input
+                                                type="text"
+                                                value={styledPromptInput.value}
+                                                onChange={e => setStyledPromptInput(prev => prev ? { ...prev, value: e.target.value } : null)}
+                                                onKeyDown={e => { if (e.key === 'Enter' && styledPromptInput.value.trim()) handleRegenerateStyled(styledIdx, styledPromptInput.value); }}
+                                                placeholder="예: 등을 긁는 모습, 나무 배경에 놓기..."
+                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:ring-2 focus:ring-purple-500 outline-none"
+                                                autoFocus
+                                            />
+                                            <div className="flex gap-2 justify-end">
+                                                <button onClick={() => setStyledPromptInput(null)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 font-bold">취소</button>
+                                                <button
+                                                    onClick={() => handleRegenerateStyled(styledIdx, styledPromptInput.value)}
+                                                    disabled={!styledPromptInput.value.trim()}
+                                                    className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold disabled:opacity-50"
+                                                >
+                                                    재생성
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                                 {regeneratingStyled === styledIdx && (

@@ -360,7 +360,7 @@ export interface StyledShotResult {
 }
 
 // 카테고리별 연출 프롬프트 (3가지 각도)
-function getStyledShotPrompts(category: ProductCategory): { prompt: string; label: string }[] {
+export function getStyledShotPrompts(category: ProductCategory): { prompt: string; label: string }[] {
   switch (category) {
     case 'FASHION':
       return [
@@ -392,7 +392,8 @@ function getStyledShotPrompts(category: ProductCategory): { prompt: string; labe
 export const generateStyledShots = async (
   mainImage: File,
   category: ProductCategory,
-  onProgress?: (index: number, total: number) => void
+  onProgress?: (index: number, total: number) => void,
+  userPrompts?: string[]
 ): Promise<StyledShotResult[]> => {
   const ai = getAI();
   const base64Data = await fileToGenerativePart(mainImage);
@@ -401,13 +402,17 @@ export const generateStyledShots = async (
 
   for (let i = 0; i < prompts.length; i++) {
     onProgress?.(i + 1, prompts.length);
+    const userExtra = userPrompts?.[i]?.trim();
+    const finalPrompt = userExtra
+      ? `${prompts[i].prompt}\n\nAdditional user instruction: ${userExtra}`
+      : prompts[i].prompt;
     try {
       const response = await ai.models.generateContent({
         model: IMAGE_MODEL,
         contents: {
           parts: [
             { inlineData: { mimeType: mainImage.type, data: base64Data } },
-            { text: prompts[i].prompt }
+            { text: finalPrompt }
           ]
         },
         config: { responseModalities: ['TEXT', 'IMAGE'] }
@@ -425,7 +430,6 @@ export const generateStyledShots = async (
       }
     } catch (err) {
       console.warn(`연출 샷 ${i + 1} 생성 실패:`, err);
-      // 실패해도 나머지 계속 진행
     }
   }
 
@@ -436,19 +440,25 @@ export const generateStyledShots = async (
 export const regenerateStyledShot = async (
   mainImage: File,
   category: ProductCategory,
-  shotIndex: number
+  shotIndex: number,
+  userPrompt?: string
 ): Promise<string> => {
   const ai = getAI();
   const base64Data = await fileToGenerativePart(mainImage);
   const prompts = getStyledShotPrompts(category);
   const prompt = prompts[shotIndex] || prompts[0];
 
+  let finalText = prompt.prompt + ' Generate a DIFFERENT composition and angle from the previous version.';
+  if (userPrompt?.trim()) {
+    finalText += `\n\nAdditional user instruction: ${userPrompt.trim()}`;
+  }
+
   const response = await ai.models.generateContent({
     model: IMAGE_MODEL,
     contents: {
       parts: [
         { inlineData: { mimeType: mainImage.type, data: base64Data } },
-        { text: prompt.prompt + ' Generate a DIFFERENT composition and angle from the previous version.' }
+        { text: finalText }
       ]
     },
     config: { responseModalities: ['TEXT', 'IMAGE'] }

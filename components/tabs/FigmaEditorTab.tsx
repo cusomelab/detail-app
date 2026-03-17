@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory, PlanSection, ProductInfoDisclosure } from '../../types';
-import { generateProductCopy, generatePlan, generateStyledShots, translateSizeChart } from '../../services/geminiService';
+import { generateProductCopy, generatePlan, generateStyledShots, getStyledShotPrompts, translateSizeChart } from '../../services/geminiService';
 import { ProcessingStep } from '../ProcessingStep';
 import { PlanStep } from '../PlanStep';
 import { ResultPreview } from '../ResultPreview';
@@ -204,6 +204,8 @@ export const FigmaEditorTab: React.FC = () => {
   });
   const [generatedCopy, setGeneratedCopy] = useState<GeneratedCopy | null>(null);
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
+  const [styledPrompts, setStyledPrompts] = useState<string[]>(['', '', '']);
+  const [showStyledPrompts, setShowStyledPrompts] = useState(false);
   const [sizeChartImage, setSizeChartImage] = useState<File | null>(null);
   const [sizeChartData, setSizeChartData] = useState<string[][] | null>(null);
   const [isTranslatingSizeChart, setIsTranslatingSizeChart] = useState(false);
@@ -291,7 +293,7 @@ export const FigmaEditorTab: React.FC = () => {
               if (lastIdx >= 0 && newLogs[lastIdx].startsWith('📸')) newLogs[lastIdx] = `📸 AI 연출 이미지 생성 중... (${idx}/${total})`;
               return newLogs;
             });
-          });
+          }, styledPrompts.some(p => p.trim()) ? styledPrompts : undefined);
           styledShots.forEach(shot => setProcessedImages(p => [...p, { originalUrl: shot.imageUrl, processedUrl: shot.imageUrl, type: 'styled', status: 'done' }]));
           addLog(`✅ 연출 이미지 ${styledShots.length}장 생성 완료!`);
         } catch { addLog('⚠️ 연출 이미지 생성 스킵 (API 제한)'); }
@@ -513,6 +515,39 @@ export const FigmaEditorTab: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* AI 연출 이미지 프롬프트 */}
+        {productData.mainImage && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <button type="button" onClick={() => setShowStyledPrompts(!showStyledPrompts)} className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50">
+              <div className="flex items-center gap-3">
+                <SparklesIcon className="w-5 h-5 text-purple-500"/>
+                <span className="text-sm font-bold text-gray-700">AI 연출 이미지 프롬프트</span>
+                <span className="text-xs text-gray-400">(선택)</span>
+              </div>
+              {showStyledPrompts ? <ChevronUpIcon className="w-4 h-4 text-gray-400"/> : <ChevronDownIcon className="w-4 h-4 text-gray-400"/>}
+            </button>
+            {showStyledPrompts && (
+              <div className="px-5 pb-5 space-y-3">
+                <p className="text-xs text-purple-600 bg-purple-50 rounded-lg px-3 py-2">
+                  ✨ 각 연출 이미지 생성 시 추가 지시사항을 입력할 수 있습니다. 비워두면 기본 프롬프트로 생성됩니다.
+                </p>
+                {getStyledShotPrompts(productData.category).map((shot, idx) => (
+                  <div key={idx}>
+                    <label className="text-xs font-bold text-gray-600 mb-1 block">연출 {idx + 1}: {shot.label}</label>
+                    <input
+                      type="text"
+                      value={styledPrompts[idx] || ''}
+                      onChange={e => setStyledPrompts(prev => { const n = [...prev]; n[idx] = e.target.value; return n; })}
+                      placeholder={`예: 등을 긁는 모습으로 연출, 나무 테이블 위에 놓기...`}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
