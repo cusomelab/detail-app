@@ -1,22 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory, PlanSection, ProductInfoDisclosure } from './types';
-import { generateProductCopy, generatePlan, generateStyledShots, setApiKey } from './services/geminiService';
+import { generateProductCopy, setApiKey } from './services/geminiService';
 import { ProcessingStep } from './components/ProcessingStep';
-import { PlanStep } from './components/PlanStep';
 import { ResultPreview } from './components/ResultPreview';
 import { ImageGenTab } from './components/tabs/ImageGenTab';
 import { SizeChartTab } from './components/tabs/SizeChartTab';
 import { OutfitTab } from './components/tabs/OutfitTab';
 import { HangulTab } from './components/tabs/HangulTab';
+import { AdvancedDetailTab } from './components/tabs/AdvancedDetailTab';
 import {
-  ArrowUpTrayIcon, PhotoIcon, SparklesIcon, KeyIcon, LinkIcon,
-  ShoppingBagIcon, HomeIcon, FireIcon, CakeIcon, SwatchIcon,
-  ChevronDownIcon, ChevronUpIcon, DocumentTextIcon
+  ArrowUpTrayIcon, PhotoIcon, SparklesIcon, KeyIcon,
+  ShoppingBagIcon, HomeIcon, FireIcon, CakeIcon, SwatchIcon
 } from '@heroicons/react/24/outline';
 
 const TABS = [
   { id: 'basic',     label: '📄 기본형' },
-  { id: 'advanced',  label: '🎨 고급형' },
+  { id: 'advanced',  label: '✨ 고급형' },
   { id: 'imggen',    label: '🖼️ 대표이미지' },
   { id: 'outfit',    label: '👗 의상 체인저' },
   { id: 'sizeChart', label: '📏 사이즈표' },
@@ -32,8 +31,7 @@ function App() {
   const [hasApiKey, setHasApiKey] = useState(false);
   const [step, setStep] = useState<AppStep>(AppStep.INPUT);
   const [logs, setLogs] = useState<string[]>([]);
-  const [planSections, setPlanSections] = useState<PlanSection[]>([]);
-  const [showInfo, setShowInfo] = useState(false);
+  const [planSections] = useState<PlanSection[]>([]);
   const [isDraggingMain, setIsDraggingMain] = useState(false);
   const [isDraggingDetail, setIsDraggingDetail] = useState(false);
   const [isDraggingOption, setIsDraggingOption] = useState(false);
@@ -42,7 +40,7 @@ function App() {
   const [productData, setProductData] = useState<ProductData>({
     productName:'', category:'FASHION', features:'', mainImage:null, detailImages:[], optionImages:[], benchmarkUrl:''
   });
-  const [infoDisclosure, setInfoDisclosure] = useState<ProductInfoDisclosure>({
+  const [infoDisclosure] = useState<ProductInfoDisclosure>({
     manufacturer:'', origin:'Made in China', customerService:'', material:'', size:'', color:'', wash:'',
     ingredients:'', capacity:'', expiry:'', storage:'', haccp:'', certifications:'', warranty:'', caution:''
   });
@@ -52,39 +50,7 @@ function App() {
   useEffect(() => {
     const saved = localStorage.getItem('gemini_api_key');
     if (saved) { setApiKey(saved); setHasApiKey(true); }
-    // 저장된 정보고시 불러오기 (고정값만)
-    const savedInfo = localStorage.getItem('saved_info_disclosure');
-    if (savedInfo) {
-      try {
-        const parsed = JSON.parse(savedInfo);
-        // 변동 필드(소재, 색상, 사이즈)는 빈 값으로, 고정값만 복원
-        setInfoDisclosure(prev => ({
-          ...prev,
-          manufacturer: parsed.manufacturer || '',
-          origin: parsed.origin || 'Made in China',
-          customerService: parsed.customerService || '',
-          wash: parsed.wash || '',
-          ingredients: parsed.ingredients || '',
-          capacity: parsed.capacity || '',
-          expiry: parsed.expiry || '',
-          storage: parsed.storage || '',
-          haccp: parsed.haccp || '',
-          certifications: parsed.certifications || '',
-          warranty: parsed.warranty || '',
-          caution: parsed.caution || '',
-        }));
-      } catch(e) { console.warn('정보고시 불러오기 실패'); }
-    }
   }, []);
-
-  const saveInfoDisclosure = () => {
-    localStorage.setItem('saved_info_disclosure', JSON.stringify(infoDisclosure));
-    alert('✅ 상품정보고시가 저장되었습니다. 다음 상품에도 자동 적용됩니다.');
-  };
-  const clearSavedInfoDisclosure = () => {
-    localStorage.removeItem('saved_info_disclosure');
-    alert('저장된 정보고시가 삭제되었습니다.');
-  };
 
   const handleApiKeySubmit = () => {
     const key = apiKeyInput.trim();
@@ -94,8 +60,6 @@ function App() {
 
   const hi = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setProductData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  const ii = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setInfoDisclosure(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
   const de = (e: React.DragEvent, t: 'MAIN'|'DETAIL'|'OPTION') => {
     e.preventDefault(); e.stopPropagation();
@@ -118,16 +82,6 @@ function App() {
 
   const addLog = (m: string) => setLogs(p => [...p, m]);
 
-  const handleGeneratePlan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!productData.productName) { alert('상품명을 입력해주세요'); return; }
-    setStep(AppStep.PROCESSING); setLogs(['🎯 상품 정보 분석 중...','📝 13개 섹션 기획안 작성 중...']);
-    try {
-      const sections = await generatePlan(productData.productName, productData.category, productData.features, productData.mainImage);
-      setPlanSections(sections); setStep(AppStep.PLAN);
-    } catch { alert('기획안 생성 실패'); setStep(AppStep.INPUT); }
-  };
-
   // 기본형: 기획안 단계 없이 바로 상세페이지 생성
   const handleBasicGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,61 +102,10 @@ function App() {
     }
   };
 
-  const handleGenerateDetail = async (confirmed: PlanSection[]) => {
-    setStep(AppStep.PROCESSING); setLogs([]); setProcessedImages([]);
-    try {
-      addLog('🤖 AI 카피라이터 호출 중...'); addLog('✍️ 카피 작성 중...');
-      const copy = await generateProductCopy(productData.productName, productData.features, productData.category, productData.benchmarkUrl, productData.mainImage, confirmed);
-      setGeneratedCopy(copy); addLog('✅ 카피 완성!');
-      if (productData.mainImage) setProcessedImages(p=>[...p,{originalUrl:URL.createObjectURL(productData.mainImage!),processedUrl:URL.createObjectURL(productData.mainImage!),type:'main',status:'done'}]);
-      productData.detailImages.forEach(f=>setProcessedImages(p=>[...p,{originalUrl:URL.createObjectURL(f),processedUrl:URL.createObjectURL(f),type:'detail',status:'done'}]));
-      productData.optionImages.forEach(f=>setProcessedImages(p=>[...p,{originalUrl:URL.createObjectURL(f),processedUrl:URL.createObjectURL(f),type:'option',status:'done',fileName:f.name}]));
-      
-      // ── AI 연출 샷 자동 생성 (메인 이미지가 있을 때만) ──
-      if (productData.mainImage) {
-        addLog('📸 AI 연출 이미지 생성 중... (1/3)');
-        try {
-          const styledShots = await generateStyledShots(
-            productData.mainImage,
-            productData.category,
-            (idx, total) => {
-              setLogs(prev => {
-                const newLogs = [...prev];
-                // 마지막 로그를 업데이트
-                const lastIdx = newLogs.length - 1;
-                if (lastIdx >= 0 && newLogs[lastIdx].startsWith('📸')) {
-                  newLogs[lastIdx] = `📸 AI 연출 이미지 생성 중... (${idx}/${total})`;
-                }
-                return newLogs;
-              });
-            }
-          );
-          styledShots.forEach(shot => {
-            setProcessedImages(p => [...p, {
-              originalUrl: shot.imageUrl,
-              processedUrl: shot.imageUrl,
-              type: 'styled',
-              status: 'done'
-            }]);
-          });
-          addLog(`✅ 연출 이미지 ${styledShots.length}장 생성 완료!`);
-        } catch (err) {
-          console.warn('연출 샷 생성 실패 (무시하고 계속):', err);
-          addLog('⚠️ 연출 이미지 생성 스킵 (API 제한)');
-        }
-      }
-      
-      setTimeout(()=>setStep(AppStep.RESULT),800);
-    } catch(err:any) {
-      if(err.message?.includes('401')){setHasApiKey(false);localStorage.removeItem('gemini_api_key');}
-      alert('오류 발생. 다시 시도해주세요.'); setStep(AppStep.PLAN);
-    }
-  };
-
   const resetDetail = () => {
     setStep(AppStep.INPUT);
     setProductData({productName:'',category:'FASHION',features:'',mainImage:null,detailImages:[],optionImages:[],benchmarkUrl:''});
-    setGeneratedCopy(null); setProcessedImages([]); setPlanSections([]);
+    setGeneratedCopy(null); setProcessedImages([]);
   };
 
   if (!hasApiKey) return (
@@ -226,11 +129,10 @@ function App() {
     </div>
   );
 
-  const isDetailTab = activeTab==='basic'||activeTab==='advanced';
-  if (isDetailTab) {
+  const isBasicTab = activeTab==='basic';
+  if (isBasicTab) {
     if (step===AppStep.PROCESSING) return <ProcessingStep logs={logs} />;
-    if (step===AppStep.PLAN && detailMode==='advanced') return <PlanStep sections={planSections} productName={productData.productName} category={productData.category} onConfirm={handleGenerateDetail} onBack={()=>setStep(AppStep.INPUT)} />;
-    if (step===AppStep.RESULT&&generatedCopy) return <ResultPreview copy={generatedCopy} images={processedImages} productName={productData.productName} category={productData.category} infoDisclosure={infoDisclosure} planSections={planSections} onReset={resetDetail} detailMode={detailMode} />;
+    if (step===AppStep.RESULT&&generatedCopy) return <ResultPreview copy={generatedCopy} images={processedImages} productName={productData.productName} category={productData.category} infoDisclosure={infoDisclosure} planSections={planSections} onReset={resetDetail} detailMode="basic" />;
   }
 
   return (
@@ -248,7 +150,7 @@ function App() {
         </div>
         <div className="max-w-7xl mx-auto px-4 pb-2 flex gap-1">
           {TABS.map(tab=>(
-            <button key={tab.id} onClick={()=>{setActiveTab(tab.id);if(tab.id==='basic'||tab.id==='advanced'){setDetailMode(tab.id);resetDetail();}}}
+            <button key={tab.id} onClick={()=>{setActiveTab(tab.id);if(tab.id==='basic'){setDetailMode('basic');resetDetail();}}}
               className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab===tab.id?'bg-indigo-600 text-white shadow-md':'text-gray-500 hover:bg-gray-100'}`}>
               {tab.label}
             </button>
@@ -256,27 +158,22 @@ function App() {
         </div>
       </div>
 
+      {activeTab==='advanced' && <AdvancedDetailTab />}
       {activeTab==='imggen' && <ImageGenTab />}
       {activeTab==='outfit' && <OutfitTab />}
       {activeTab==='sizeChart' && <SizeChartTab />}
       {activeTab==='hangul' && <HangulTab />}
 
-      {isDetailTab && step===AppStep.INPUT && (
+      {isBasicTab && step===AppStep.INPUT && (
         <div className="max-w-3xl mx-auto px-4 py-10">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-black text-gray-900 mb-2">
-              {detailMode==='basic'?'빠른 상세페이지 만들기':'프리미엄 상세페이지 만들기'}
-            </h2>
-            <p className="text-gray-500 text-sm">
-              {detailMode==='basic'
-                ?'상품 정보만 입력하면 AI가 바로 상세페이지를 만들어드려요'
-                :'기획안 검토 → AI 연출샷 → 풀 커스텀 상세페이지를 만들어드려요'}
-            </p>
-            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border" style={{borderColor: detailMode==='basic'?'#10b981':'#6366f1', color: detailMode==='basic'?'#10b981':'#6366f1', backgroundColor: detailMode==='basic'?'#ecfdf5':'#eef2ff'}}>
-              {detailMode==='basic'?'⚡ 기본형 · 빠르고 간편하게':'✨ 고급형 · 기획안 + AI 연출샷'}
+            <h2 className="text-3xl font-black text-gray-900 mb-2">빠른 상세페이지 만들기</h2>
+            <p className="text-gray-500 text-sm">상품 정보만 입력하면 AI가 바로 상세페이지를 만들어드려요</p>
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border" style={{borderColor:'#10b981', color:'#10b981', backgroundColor:'#ecfdf5'}}>
+              ⚡ 기본형 · 빠르고 간편하게
             </div>
           </div>
-          <form onSubmit={detailMode==='basic'?handleBasicGenerate:handleGeneratePlan} className="space-y-5">
+          <form onSubmit={handleBasicGenerate} className="space-y-5">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <label className="block text-sm font-bold text-gray-700 mb-3">카테고리 *</label>
               <div className="grid grid-cols-4 gap-3">
@@ -305,17 +202,6 @@ function App() {
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none resize-none"
                   placeholder="예: 100% 면, 오버핏, 4가지 컬러" />
               </div>
-              {detailMode==='advanced'&&(
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5">벤치마킹 URL (선택)</label>
-                <div className="relative">
-                  <LinkIcon className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
-                  <input name="benchmarkUrl" type="url" value={productData.benchmarkUrl||''} onChange={hi}
-                    className="w-full pl-10 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
-                    placeholder="https://www.coupang.com/..." />
-                </div>
-              </div>
-              )}
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <label className="block text-sm font-bold text-gray-700 mb-3">이미지 업로드</label>
@@ -340,64 +226,11 @@ function App() {
                 </div>
               </div>
             </div>
-            {detailMode==='advanced'&&(<div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <button type="button" onClick={()=>setShowInfo(!showInfo)} className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50">
-                <div className="flex items-center gap-3">
-                  <DocumentTextIcon className="w-5 h-5 text-gray-400"/>
-                  <span className="text-sm font-bold text-gray-700">상품 정보고시</span>
-                  <span className="text-xs text-gray-400">(선택)</span>
-                </div>
-                {showInfo?<ChevronUpIcon className="w-4 h-4 text-gray-400"/>:<ChevronDownIcon className="w-4 h-4 text-gray-400"/>}
-              </button>
-              {showInfo&&(
-                <div className="px-5 pb-5 border-t border-gray-50 space-y-3">
-                  <div className="flex items-center justify-between mt-4">
-                    <p className="text-xs text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2 flex-1">💡 한번 입력 후 저장하면 다음 상품에도 고정값이 자동 적용됩니다 (소재/색상/사이즈만 매번 변경)</p>
-                    <div className="flex gap-2 ml-3 shrink-0">
-                      <button type="button" onClick={saveInfoDisclosure} className="px-3 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700">💾 저장</button>
-                      {localStorage.getItem('saved_info_disclosure') && (
-                        <button type="button" onClick={clearSavedInfoDisclosure} className="px-3 py-2 bg-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-300">초기화</button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[{name:'manufacturer',label:'제조자/수입자',ph:'(주)폰이지'},{name:'origin',label:'원산지',ph:'Made in China'},{name:'customerService',label:'고객센터',ph:'0507-1311-1108'}].map(f=>(
-                      <div key={f.name}><label className="block text-xs font-bold text-gray-500 mb-1">{f.label}</label>
-                      <input name={f.name} value={(infoDisclosure as any)[f.name]} onChange={ii} placeholder={f.ph} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-400 outline-none"/></div>
-                    ))}
-                  </div>
-                  {productData.category==='FASHION'&&(
-                    <div className="grid grid-cols-2 gap-3">
-                      {[{name:'material',label:'소재',ph:'폴리에스터 95%'},{name:'size',label:'사이즈',ph:'S/M/L/XL'},{name:'color',label:'색상',ph:'화이트, 블랙'},{name:'wash',label:'세탁방법',ph:'울코스 세탁'}].map(f=>(
-                        <div key={f.name}><label className="block text-xs font-bold text-gray-500 mb-1">{f.label}</label>
-                        <input name={f.name} value={(infoDisclosure as any)[f.name]} onChange={ii} placeholder={f.ph} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-400 outline-none"/></div>
-                      ))}
-                    </div>
-                  )}
-                  {productData.category==='FOOD'&&(
-                    <div className="grid grid-cols-2 gap-3">
-                      {[{name:'ingredients',label:'원재료명',ph:'밀가루, 설탕'},{name:'capacity',label:'용량/중량',ph:'200g'},{name:'expiry',label:'유통기한',ph:'제조일로부터 1년'},{name:'storage',label:'보관방법',ph:'냉장보관'},{name:'haccp',label:'인증여부',ph:'HACCP 인증'}].map(f=>(
-                        <div key={f.name}><label className="block text-xs font-bold text-gray-500 mb-1">{f.label}</label>
-                        <input name={f.name} value={(infoDisclosure as any)[f.name]} onChange={ii} placeholder={f.ph} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-400 outline-none"/></div>
-                      ))}
-                    </div>
-                  )}
-                  {(productData.category==='LIVING'||productData.category==='KITCHEN')&&(
-                    <div className="grid grid-cols-2 gap-3">
-                      {[{name:'material',label:'소재/재질',ph:'ABS 플라스틱'},{name:'certifications',label:'인증/허가',ph:'KC 인증'},{name:'warranty',label:'품질보증',ph:'구매일로부터 1년'},{name:'caution',label:'주의사항',ph:'직사광선 피해 보관'}].map(f=>(
-                        <div key={f.name}><label className="block text-xs font-bold text-gray-500 mb-1">{f.label}</label>
-                        <input name={f.name} value={(infoDisclosure as any)[f.name]} onChange={ii} placeholder={f.ph} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-400 outline-none"/></div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>)}
-            <button type="submit" className={`w-full py-5 ${detailMode==='basic'?'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200':'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'} text-white font-black text-lg rounded-2xl shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.01]`}>
-              <SparklesIcon className="w-6 h-6"/> {detailMode==='basic'?'⚡ 바로 상세페이지 생성':'AI 기획안 생성 시작'}
+            <button type="submit" className="w-full py-5 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200 text-white font-black text-lg rounded-2xl shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.01]">
+              <SparklesIcon className="w-6 h-6"/> ⚡ 바로 상세페이지 생성
             </button>
             <p className="text-center text-xs text-gray-400">
-              {detailMode==='basic'?'상품 정보를 바탕으로 바로 상세페이지를 생성합니다':'기획안 확인 후 최종 상세페이지를 생성합니다'}
+              상품 정보를 바탕으로 바로 상세페이지를 생성합니다
             </p>
           </form>
         </div>
