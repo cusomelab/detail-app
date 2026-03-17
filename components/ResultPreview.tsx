@@ -129,8 +129,8 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       return initialPreset.sectionOrder;
     }
     const planTypeMap: Record<string, SectionType> = {
-      'HERO': 'HERO', 'STORY': 'STORY',
-      'POINT': 'POINTS', 'RECOMMEND': 'DETAILS',
+      'HERO': 'HERO', 'STORY': 'HERO',
+      'POINT': 'POINTS', 'RECOMMEND': 'POINTS',
       'OPTIONS': 'OPTIONS', 'INFO': 'INFO'
     };
     const seen = new Set<SectionType>();
@@ -140,7 +140,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       if (!seen.has(mapped)) { seen.add(mapped); order.push(mapped); }
     });
     // 없는 섹션 추가
-    (['HERO','STORY','POINTS','OPTIONS','DETAILS','INFO'] as SectionType[]).forEach(s => {
+    (['HERO','DETAILS','POINTS','OPTIONS','INFO'] as SectionType[]).forEach(s => {
       if (!seen.has(s)) order.push(s);
     });
     return order;
@@ -194,6 +194,16 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       imgRef: "이미지 참조",
       washGuide: "미지근한 물에 중성세제로 손세탁 또는 세탁망에 넣어 울코스 세탁을 권장합니다"
   });
+
+  // ── 리뷰 & 추천 상태 ──
+  const [reviewTitle, setReviewTitle] = useState('실제 구매 고객 만족도 4.9/5.0');
+  const [reviewItems, setReviewItems] = useState([
+    { name: '김**', comment: '사진이랑 똑같아요! 레이스 디테일이 정말 예쁘고 퀄리티가 좋아서 만족합니다.' },
+    { name: '이**', comment: '핏이 정말 깔끔하고, 소재가 고급스러워요. 여름에 입기 딱 좋습니다.' },
+    { name: '박**', comment: '가격 대비 퀄리티가 최고입니다. 주변에서 어디서 샀냐고 물어봐요!' },
+  ]);
+  const [recommendTitle, setRecommendTitle] = useState('이런 분들에 강력 추천드려요');
+  const [recommendText, setRecommendText] = useState('');
 
   const [disclaimerText, setDisclaimerText] = useState(
       "본 제품은 모니터 해상도 상 실제 제품과 색상 차이가 있을 수 있습니다\n" +
@@ -286,18 +296,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         });
     });
     
-    // 추천 대상 → 깔끔한 리스트 형식
+    // 추천 대상 → POINTS 섹션 안의 별도 영역으로 렌더링
     if (recommendSection?.content) {
         const items = recommendSection.content.split('\n').filter(l => l.trim());
         const formattedItems = items.map(item => item.replace(/^\d+[\.\)]\s*/, '').trim()).filter(Boolean);
-        const recommendText = `이런 분들에 강력 추천드려요\n\n${formattedItems.map(item => `✓ ${item}`).join('\n')}`;
-        initialDetailBlocks.push({
-            id: `text-recommend-${ts}`,
-            type: 'TEXT',
-            content: recommendText,
-            width: 'FULL',
-            style: { fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-gray-700', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-gray-50' }
-        });
+        setRecommendText(formattedItems.join('\n'));
     }
     
     setDetailBlocks(initialDetailBlocks);
@@ -928,26 +931,6 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         </div>
                 </div>
         );
-        case 'STORY': return (
-            <div className={`w-full text-center relative ${
-                pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-20 px-12' :
-                pageDesign === 'IMPACT' ? 'bg-gray-900 py-16 px-12' :
-                'bg-white py-14 px-12'
-            }`}>
-                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mb-4 block leading-none`}>"</span>}
-                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mb-8"></div>}
-                        <EditableElement value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-xl' : 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'EMOTIONAL' ? 'font-normal' : 'font-medium', maxWidth: 'max-w-4xl' }} className={`leading-relaxed mx-auto ${pageDesign === 'EMOTIONAL' ? 'italic' : ''}`} toolbarPosition="right" />
-                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mt-4 block leading-none`}>"</span>}
-                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mt-8"></div>}
-                        {visibleHeaders.moodStory && (
-                            <div className="mt-10 flex justify-center items-center gap-6">
-                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
-                                <EditableElement value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : pageDesign === 'EMOTIONAL' ? 'text-[#b8b0a0]' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
-                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
-                            </div>
-                        )}
-                </div>
-        );
         case 'POINTS': return (
             <div className={`w-full relative ${
                 pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-14' :
@@ -1126,6 +1109,68 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 <button onClick={() => addPointBlock('TEXT')} className="flex items-center gap-2 px-5 py-3 bg-white hover:bg-gray-50 text-gray-600 rounded-full font-bold transition-all border border-gray-300 shadow-sm"><DocumentTextIcon className="w-5 h-5" /> 텍스트 추가</button>
                             </div>
                         )}
+
+                        {/* ── 별점 리뷰 섹션 ── */}
+                        <div className={`w-full mt-16 py-14 ${pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0]' : 'bg-gray-50'}`}>
+                            <div className="max-w-3xl mx-auto px-8">
+                                <div className="flex justify-center gap-1 mb-3">
+                                    {[1,2,3,4,5].map(i => (
+                                        <span key={i} className="text-2xl text-yellow-400">★</span>
+                                    ))}
+                                </div>
+                                <EditableElement value={reviewTitle} onChange={setReviewTitle} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="mb-8" toolbarPosition="right" />
+
+                                {/* 제품 이미지 (스타일 이미지 중 첫 번째) */}
+                                {(() => {
+                                    const styledImg = images.find(img => img.type === 'styled' && img.processedUrl);
+                                    return styledImg ? (
+                                        <div className="w-full mb-8 rounded-lg overflow-hidden">
+                                            <img src={styledImg.processedUrl!} alt="Product" className="w-full h-auto" crossOrigin="anonymous" />
+                                        </div>
+                                    ) : null;
+                                })()}
+
+                                <div className="space-y-4">
+                                    {reviewItems.map((review, idx) => (
+                                        <div key={idx} className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white ${idx === 0 ? 'bg-pink-400' : idx === 1 ? 'bg-indigo-400' : 'bg-emerald-400'}`}>{review.name.charAt(0)}</div>
+                                                <span className="text-sm font-bold text-gray-700">{review.name}</span>
+                                                <span className="text-xs text-yellow-400 ml-auto">{'★'.repeat(5)}</span>
+                                            </div>
+                                            {isEditMode ? (
+                                                <textarea value={review.comment} onChange={e => { const newItems = [...reviewItems]; newItems[idx] = {...review, comment: e.target.value}; setReviewItems(newItems); }}
+                                                    className="w-full text-sm text-gray-600 bg-transparent outline-none resize-none leading-relaxed" rows={2} />
+                                            ) : (
+                                                <p className="text-sm text-gray-600 leading-relaxed">{review.comment}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── 추천 대상 섹션 ── */}
+                        {recommendText && (
+                            <div className={`w-full py-14 ${themeStyles.bg}`}>
+                                <div className="max-w-3xl mx-auto px-8 text-center">
+                                    <EditableElement value={recommendTitle} onChange={setRecommendTitle} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="mb-8" toolbarPosition="right" />
+                                    <div className="space-y-3 text-left max-w-xl mx-auto">
+                                        {recommendText.split('\n').filter(l => l.trim()).map((item, idx) => (
+                                            <div key={idx} className="flex items-start gap-3 py-2">
+                                                <span className="text-green-500 font-bold mt-0.5">✓</span>
+                                                {isEditMode ? (
+                                                    <input value={item} onChange={e => { const lines = recommendText.split('\n'); lines[idx] = e.target.value; setRecommendText(lines.join('\n')); }}
+                                                        className="flex-1 text-sm text-gray-600 bg-transparent outline-none" />
+                                                ) : (
+                                                    <span className="text-sm text-gray-600">{item}</span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                 </div>
         );
         case 'OPTIONS': return (
@@ -1184,12 +1229,10 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                          pageDesign === 'IMPACT' ? 'bg-white' :
                          'bg-white'
                      }`}>
-                        <div className={`w-full py-8 text-center`}>
-                            <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontHead as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className={`inline-block px-6 py-2 tracking-[0.2em] uppercase ${
-                                pageDesign === 'IMPACT' ? 'border-b-2 border-black' :
-                                pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' :
-                                'border-b border-gray-200'
-                            }`} toolbarPosition="right" />
+                        <div className="w-full py-8 flex justify-center items-center gap-4 px-10">
+                            <span className={`flex-1 h-[1px] ${pageDesign === 'IMPACT' ? 'bg-gray-300' : 'bg-gray-200'}`}></span>
+                            <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: themeStyles.fontHead as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase whitespace-nowrap" toolbarPosition="right" />
+                            <span className={`flex-1 h-[1px] ${pageDesign === 'IMPACT' ? 'bg-gray-300' : 'bg-gray-200'}`}></span>
                         </div>
                         <div className="w-full flex flex-col gap-6 py-6 px-4">
                             {detailBlocks.map((block, bIdx) => {
