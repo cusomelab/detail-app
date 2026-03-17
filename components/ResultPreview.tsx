@@ -2573,6 +2573,248 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     }
   };
 
+  // ═══════════════════════════════════════════════════════
+  // 기본형 전용 렌더링: 이미지 → AI배너이미지 → 텍스트배너 패턴
+  // ═══════════════════════════════════════════════════════
+  const renderBasicMode = () => {
+    const themeStyles = getThemeStyles();
+    const theme = THEME_COLORS[pointTheme];
+
+    // 기본형 블록 순서 구성: 이미지 + AI배너 + 텍스트 교차
+    const basicBlocks: React.ReactNode[] = [];
+    const detailCopies = editableCopy.detailCopies || [];
+
+    // ── 1. HERO: 메인 이미지 + 상품명 ──
+    basicBlocks.push(
+      <div key="hero" className="w-full relative">
+        {mainImage ? (
+          <div className="relative group/main"
+            onDragEnter={(e) => handleDragEnter(e, 'main')}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleImageDrop(e, 'main', (file) => { const url = URL.createObjectURL(file); setMainImage(url); openCropper('main', url, 'MAIN'); })}
+          >
+            <img src={mainImage} alt="Main" className="w-full h-auto block" crossOrigin="anonymous" />
+            {isEditMode && (
+              <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
+                <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all">
+                  <ArrowPathIcon className="w-4 h-4" /> <span className="text-xs font-bold">교체</span>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
+                </label>
+                <button onClick={() => openCropper('main', mainImage, 'MAIN')} className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg flex items-center gap-2 px-4 shadow-xl border border-gray-200 text-xs font-bold">
+                  <ScissorsIcon className="w-4 h-4" /> 자르기
+                </button>
+                <div className="relative">
+                  <button onClick={() => setActiveAiMenuId(activeAiMenuId === 'MAIN' ? null : 'MAIN')} disabled={isProcessingMain} className="bg-indigo-600 text-white p-2 rounded-lg flex items-center gap-2 px-4 shadow-xl text-xs font-bold hover:bg-indigo-700 w-full justify-center">
+                    {isProcessingMain ? "..." : <SparklesIcon className="w-4 h-4" />} AI 편집
+                  </button>
+                  {renderAiMenu('MAIN', (mode) => handleAiProcessMain(mode))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <label className="w-full h-[500px] flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100 bg-gray-50">
+            <PhotoIcon className="w-20 h-20 mb-4" />
+            <span className="text-2xl font-bold">대표 이미지 업로드</span>
+            <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
+          </label>
+        )}
+      </div>
+    );
+
+    // ── 2. 텍스트 배너: 후크 + 상품명 ──
+    basicBlocks.push(
+      <div key="hook-banner" className={`w-full py-12 px-10 text-center ${theme.bg}`} style={sectionBgs['HERO'] ? { backgroundColor: sectionBgs['HERO'] } : {}}>
+        <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-3xl', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-black' }} className="mb-4 leading-snug" toolbarPosition="right" />
+        <EditableElement value={editableProductName} onChange={setEditableProductName} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', fontWeight: 'font-medium' }} className="opacity-80" toolbarPosition="right" />
+      </div>
+    );
+
+    // ── 3. 상세 이미지 + AI 연출 이미지 + 텍스트 배너 교차 ──
+    const allDetailImages = detailBlocks.filter(b => b.type === 'IMAGE').map(b => b.content);
+    const maxLen = Math.max(allDetailImages.length, styledImageList.length);
+
+    for (let i = 0; i < maxLen; i++) {
+      // (a) 상세 이미지
+      if (i < allDetailImages.length && allDetailImages[i]) {
+        const block = detailBlocks.filter(b => b.type === 'IMAGE')[i];
+        basicBlocks.push(
+          <div key={`detail-${i}`} className="w-full relative group/detail">
+            <img src={allDetailImages[i]} alt={`상세 ${i + 1}`} className="w-full h-auto block" crossOrigin="anonymous" />
+            {isEditMode && block && (
+              <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover/detail:opacity-100 transition-opacity z-20">
+                <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer shadow-xl border border-gray-200">
+                  <ArrowPathIcon className="w-4 h-4" />
+                  <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      const url = URL.createObjectURL(e.target.files[0]);
+                      setDetailBlocks(prev => prev.map(b => b.id === block.id ? { ...b, content: url } : b));
+                    }
+                  }} />
+                </label>
+                <div className="relative">
+                  <button onClick={() => setActiveAiMenuId(activeAiMenuId === block.id ? null : block.id)} disabled={block.isProcessing} className="bg-indigo-600 text-white p-2 rounded-lg shadow-xl">
+                    {block.isProcessing ? "..." : <SparklesIcon className="w-4 h-4" />}
+                  </button>
+                  {renderAiMenu(block.id, (mode) => handleAiProcessBlock(block.id, block.content, 'DETAIL', mode))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // (b) AI 연출 이미지 (배너 이미지)
+      if (i < styledImageList.length && styledImageList[i]) {
+        basicBlocks.push(
+          <div key={`styled-${i}`} className="w-full relative group/styled">
+            <img src={styledImageList[i]} alt={`AI 연출 ${i + 1}`} className="w-full h-auto block" crossOrigin="anonymous" />
+            {isEditMode && !regeneratingStyled && (
+              <div className="absolute top-3 right-3 opacity-0 group-hover/styled:opacity-100 transition-opacity z-20 flex flex-col gap-2">
+                <button onClick={() => handleRegenerateStyled(i)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xl text-xs font-bold">
+                  <ArrowPathIcon className="w-4 h-4" /> AI 재생성
+                </button>
+                <button onClick={() => setStyledPromptInput({ index: i, value: '' })} className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-xl text-xs font-bold">
+                  <ChatBubbleBottomCenterTextIcon className="w-4 h-4" /> 프롬프트 재생성
+                </button>
+              </div>
+            )}
+            {styledPromptInput?.index === i && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30 p-6">
+                <div className="bg-white rounded-xl shadow-2xl p-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                  <h4 className="text-sm font-bold text-gray-800 mb-3">연출 이미지 프롬프트 입력</h4>
+                  <input type="text" value={styledPromptInput.value} onChange={e => setStyledPromptInput(prev => prev ? { ...prev, value: e.target.value } : null)} onKeyDown={e => { if (e.key === 'Enter' && styledPromptInput.value.trim()) handleRegenerateStyled(i, styledPromptInput.value); }} placeholder="예: 등을 긁는 모습, 나무 배경에 놓기..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:ring-2 focus:ring-purple-500 outline-none" autoFocus />
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setStyledPromptInput(null)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 font-bold">취소</button>
+                    <button onClick={() => handleRegenerateStyled(i, styledPromptInput.value)} disabled={!styledPromptInput.value.trim()} className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold disabled:opacity-50">재생성</button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {regeneratingStyled === i && (
+              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                <div className="text-white text-sm font-bold animate-pulse flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                  AI 연출 이미지 재생성 중...
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // (c) 텍스트 배너 (셀링 포인트)
+      if (i < editableCopy.sellingPoints.length) {
+        const sp = editableCopy.sellingPoints[i];
+        const isEven = i % 2 === 0;
+        basicBlocks.push(
+          <div key={`banner-${i}`} className={`w-full py-10 px-10 text-center ${isEven ? 'bg-gray-50' : 'bg-white'}`} style={sectionBgs['POINTS'] ? { backgroundColor: sectionBgs['POINTS'] } : {}}>
+            <div className="text-3xl mb-3">{sp.icon}</div>
+            <EditableElement value={sp.title} onChange={(v) => { const pts = [...editableCopy.sellingPoints]; pts[i] = { ...pts[i], title: v }; setEditableCopy(prev => ({ ...prev, sellingPoints: pts })); }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-black' }} className="mb-2" toolbarPosition="right" />
+            <EditableElement value={sp.description} onChange={(v) => { const pts = [...editableCopy.sellingPoints]; pts[i] = { ...pts[i], description: v }; setEditableCopy(prev => ({ ...prev, sellingPoints: pts })); }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+          </div>
+        );
+      }
+    }
+
+    // ── 4. 나머지 상세 이미지 (allDetailImages가 styledImageList보다 많으면) ──
+    for (let i = maxLen; i < allDetailImages.length; i++) {
+      if (allDetailImages[i]) {
+        basicBlocks.push(
+          <div key={`detail-extra-${i}`} className="w-full">
+            <img src={allDetailImages[i]} alt={`상세 ${i + 1}`} className="w-full h-auto block" crossOrigin="anonymous" />
+          </div>
+        );
+      }
+    }
+
+    // ── 5. 나머지 셀링 포인트 ──
+    for (let i = maxLen; i < editableCopy.sellingPoints.length; i++) {
+      const sp = editableCopy.sellingPoints[i];
+      basicBlocks.push(
+        <div key={`banner-extra-${i}`} className="w-full py-10 px-10 text-center bg-gray-50">
+          <div className="text-3xl mb-3">{sp.icon}</div>
+          <EditableElement value={sp.title} onChange={(v) => { const pts = [...editableCopy.sellingPoints]; pts[i] = { ...pts[i], title: v }; setEditableCopy(prev => ({ ...prev, sellingPoints: pts })); }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: 'font-sans', color: 'text-gray-900', align: 'text-center', fontWeight: 'font-black' }} className="mb-2" toolbarPosition="right" />
+          <EditableElement value={sp.description} onChange={(v) => { const pts = [...editableCopy.sellingPoints]; pts[i] = { ...pts[i], description: v }; setEditableCopy(prev => ({ ...prev, sellingPoints: pts })); }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+        </div>
+      );
+    }
+
+    // ── 6. 스토리 배너 ──
+    if (editableCopy.story) {
+      basicBlocks.push(
+        <div key="story" className="w-full py-14 px-10 text-center bg-gray-900" style={sectionBgs['STORY'] ? { backgroundColor: sectionBgs['STORY'] } : {}}>
+          <EditableElement value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: 'font-sans', color: 'text-gray-300', align: 'text-center', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
+        </div>
+      );
+    }
+
+    // ── 7. 옵션 (있으면) ──
+    if (optionBlocks.length > 0) {
+      basicBlocks.push(
+        <div key="options" className="w-full py-10 px-10 bg-white">
+          <h3 className="text-center text-xl font-black text-gray-900 mb-6">COLOR & OPTION</h3>
+          <div className="flex flex-wrap justify-center gap-4">
+            {optionBlocks.map(opt => (
+              <div key={opt.id} className="flex flex-col items-center gap-2">
+                {opt.image && <img src={opt.image} alt={opt.text} className="w-20 h-20 rounded-full object-cover border-2 border-gray-200" crossOrigin="anonymous" />}
+                <span className="text-xs text-gray-600 font-medium">{opt.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ── 8. 사이즈표 (있으면) ──
+    if (editableSizeChart && editableSizeChart.length > 0) {
+      basicBlocks.push(
+        <div key="size-chart" className="w-full py-10 px-10 bg-white">
+          <h3 className="text-center text-lg font-black text-gray-900 mb-6">SIZE GUIDE</h3>
+          <table className="w-full border-collapse text-sm">
+            <tbody>
+              {editableSizeChart.map((row, rIdx) => (
+                <tr key={rIdx} className={rIdx === 0 ? 'bg-gray-900 text-white' : rIdx % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                  {row.map((cell, cIdx) => (
+                    <td key={cIdx} className={`px-4 py-3 text-center border border-gray-200 ${rIdx === 0 ? 'font-bold' : ''}`}>{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    // ── 9. 상품정보 ──
+    basicBlocks.push(
+      <div key="info" className="w-full py-10 px-10 bg-gray-50">
+        <h3 className="text-center text-lg font-black text-gray-900 mb-6">Product Info</h3>
+        <div className="max-w-lg mx-auto">
+          {editableCopy.productInfo && Object.entries(editableCopy.productInfo).filter(([, v]) => v).map(([k, v]) => (
+            <div key={k} className="flex border-b border-gray-200 py-2">
+              <span className="w-28 text-xs text-gray-500 font-bold">{infoLabels[k as keyof typeof infoLabels] || k}</span>
+              <span className="flex-1 text-xs text-gray-800">{v}</span>
+            </div>
+          ))}
+          {infoDisclosure && Object.entries(infoDisclosure).filter(([, v]) => v).map(([k, v]) => (
+            <div key={k} className="flex border-b border-gray-200 py-2">
+              <span className="w-28 text-xs text-gray-500 font-bold">{k}</span>
+              <span className="flex-1 text-xs text-gray-800">{v}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-center text-xs text-gray-400 mt-6 whitespace-pre-line">{disclaimerText}</p>
+        <div className="mt-4 text-center">
+          <EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: 'font-sans', color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+        </div>
+      </div>
+    );
+
+    return basicBlocks;
+  };
+
   return (
     <div className="flex flex-row justify-center min-h-screen bg-gray-100 py-10 relative">
       {cropTarget && ( <ImageCropper imageUrl={cropTarget.url} onCrop={handleCropComplete} onCancel={() => setCropTarget(null)} /> )}
@@ -2618,7 +2860,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
           </div>
         </div>
       )}
-      <div className={`fixed left-4 top-24 w-64 bg-white rounded-xl shadow-xl border border-gray-200 p-6 z-40 hidden xl:block transition-opacity duration-300 ${isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`fixed left-4 top-24 w-64 bg-white rounded-xl shadow-xl border border-gray-200 p-6 z-40 hidden xl:block transition-opacity duration-300 ${isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none'} ${detailMode === 'basic' ? '!hidden' : ''}`}>
         
         {/* Page Design Selector */}
         <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><ComputerDesktopIcon className="w-5 h-5 text-indigo-600" /> 전체 디자인 무드</h3>
@@ -2670,8 +2912,12 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             </div>
         </div>
         <div id="capture-area" className={`w-[860px] min-w-[860px] bg-white text-gray-800 flex flex-col items-center shadow-2xl origin-top ${isEditMode ? 'ring-1 ring-gray-200' : ''}`}>
-            {sectionOrder.map((sectionType, idx) => {
-                // AI 연출 이미지를 섹션 "사이"에 삽입하는 맵
+            {detailMode === 'basic' ? (
+              /* ═══ 기본형: 이미지 + AI배너이미지 + 텍스트배너 패턴 ═══ */
+              renderBasicMode()
+            ) : (
+              /* ═══ 고급형: 섹션 기반 레이아웃 ═══ */
+              sectionOrder.map((sectionType, idx) => {
                 const styledAfter: Record<string, number> = { 'DETAILS': 0, 'POINTS': 1, 'REVIEW': 2 };
                 const styledIdx = styledAfter[sectionType];
                 return (
@@ -2682,42 +2928,18 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 <img src={styledImageList[styledIdx]} alt={`AI 연출 ${styledIdx + 1}`} className="w-full h-auto block" crossOrigin="anonymous" />
                                 {isEditMode && !regeneratingStyled && (
                                     <div className="absolute top-3 right-3 opacity-0 group-hover/styled:opacity-100 transition-opacity z-20 flex flex-col gap-2">
-                                        <button
-                                            onClick={() => handleRegenerateStyled(styledIdx)}
-                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xl text-xs font-bold transition-colors"
-                                        >
-                                            <ArrowPathIcon className="w-4 h-4" /> AI 재생성
-                                        </button>
-                                        <button
-                                            onClick={() => setStyledPromptInput({ index: styledIdx, value: '' })}
-                                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-xl text-xs font-bold transition-colors"
-                                        >
-                                            <ChatBubbleBottomCenterTextIcon className="w-4 h-4" /> 프롬프트 재생성
-                                        </button>
+                                        <button onClick={() => handleRegenerateStyled(styledIdx)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xl text-xs font-bold transition-colors"><ArrowPathIcon className="w-4 h-4" /> AI 재생성</button>
+                                        <button onClick={() => setStyledPromptInput({ index: styledIdx, value: '' })} className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-xl text-xs font-bold transition-colors"><ChatBubbleBottomCenterTextIcon className="w-4 h-4" /> 프롬프트 재생성</button>
                                     </div>
                                 )}
                                 {styledPromptInput?.index === styledIdx && (
                                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30 p-6">
                                         <div className="bg-white rounded-xl shadow-2xl p-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
                                             <h4 className="text-sm font-bold text-gray-800 mb-3">연출 이미지 프롬프트 입력</h4>
-                                            <input
-                                                type="text"
-                                                value={styledPromptInput.value}
-                                                onChange={e => setStyledPromptInput(prev => prev ? { ...prev, value: e.target.value } : null)}
-                                                onKeyDown={e => { if (e.key === 'Enter' && styledPromptInput.value.trim()) handleRegenerateStyled(styledIdx, styledPromptInput.value); }}
-                                                placeholder="예: 등을 긁는 모습, 나무 배경에 놓기..."
-                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:ring-2 focus:ring-purple-500 outline-none"
-                                                autoFocus
-                                            />
+                                            <input type="text" value={styledPromptInput.value} onChange={e => setStyledPromptInput(prev => prev ? { ...prev, value: e.target.value } : null)} onKeyDown={e => { if (e.key === 'Enter' && styledPromptInput.value.trim()) handleRegenerateStyled(styledIdx, styledPromptInput.value); }} placeholder="예: 등을 긁는 모습, 나무 배경에 놓기..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:ring-2 focus:ring-purple-500 outline-none" autoFocus />
                                             <div className="flex gap-2 justify-end">
                                                 <button onClick={() => setStyledPromptInput(null)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 font-bold">취소</button>
-                                                <button
-                                                    onClick={() => handleRegenerateStyled(styledIdx, styledPromptInput.value)}
-                                                    disabled={!styledPromptInput.value.trim()}
-                                                    className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold disabled:opacity-50"
-                                                >
-                                                    재생성
-                                                </button>
+                                                <button onClick={() => handleRegenerateStyled(styledIdx, styledPromptInput.value)} disabled={!styledPromptInput.value.trim()} className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold disabled:opacity-50">재생성</button>
                                             </div>
                                         </div>
                                     </div>
@@ -2734,7 +2956,8 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         )}
                     </React.Fragment>
                 );
-            })}
+              })
+            )}
         </div>
       </div>
     </div>

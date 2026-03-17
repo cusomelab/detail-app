@@ -210,7 +210,7 @@ export const AdvancedDetailTab: React.FC = () => {
       infoDisclosure={infoDisclosure}
       planSections={planSections}
       onReset={resetAll}
-      detailMode="advanced"
+      detailMode="basic"
       sizeChartData={sizeChartData || undefined}
     />
   );
