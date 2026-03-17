@@ -1844,6 +1844,24 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                             {/* ═══ CARDS: 카드형 ═══ */}
                                             {pointLayout === 'CARDS' && (
                                                 <div className="text-center">
+                                                    {block.sideImage && (
+                                                        <div className="relative group/side mb-6 rounded-2xl overflow-hidden aspect-[4/3]">
+                                                            <img src={block.sideImage} alt="Point" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                                            {isEditMode && (
+                                                                <div className="absolute top-2 right-2 z-40 flex gap-1 opacity-0 group-hover/side:opacity-100 transition-opacity">
+                                                                    <label className="bg-white hover:bg-gray-50 text-gray-800 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200"><ArrowPathIcon className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
+                                                                    <button onClick={() => openCropper(block.id, block.sideImage!, 'POINT_SIDE')} className="bg-white text-gray-800 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200 hover:bg-gray-50"><ScissorsIcon className="w-4 h-4" /></button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {!block.sideImage && isEditMode && (
+                                                        <label className="flex flex-col items-center cursor-pointer bg-gray-50 hover:bg-gray-100 p-6 rounded-2xl mb-6 border-2 border-dashed border-gray-200 transition-colors">
+                                                            <PhotoIcon className="w-8 h-8 text-gray-300 mb-2" />
+                                                            <span className="text-xs font-bold text-gray-400">이미지 추가</span>
+                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} />
+                                                        </label>
+                                                    )}
                                                     {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
                                                     <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="mb-4 leading-snug" toolbarPosition="right" />
                                                     <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: bodyTextColor, align: 'text-center', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
@@ -1852,6 +1870,24 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                             {/* ═══ SIMPLE: 심플 리스트 ═══ */}
                                             {pointLayout === 'SIMPLE' && (
                                                 <>
+                                                    {block.sideImage && (
+                                                        <div className="relative group/side mb-4 rounded-xl overflow-hidden w-full aspect-[16/9]">
+                                                            <img src={block.sideImage} alt="Point" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                                            {isEditMode && (
+                                                                <div className="absolute top-2 right-2 z-40 flex gap-1 opacity-0 group-hover/side:opacity-100 transition-opacity">
+                                                                    <label className="bg-white hover:bg-gray-50 text-gray-800 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200"><ArrowPathIcon className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} /></label>
+                                                                    <button onClick={() => openCropper(block.id, block.sideImage!, 'POINT_SIDE')} className="bg-white text-gray-800 p-1.5 rounded-lg cursor-pointer shadow-lg border border-gray-200 hover:bg-gray-50"><ScissorsIcon className="w-4 h-4" /></button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {!block.sideImage && isEditMode && (
+                                                        <label className="flex items-center gap-2 cursor-pointer bg-gray-50 hover:bg-gray-100 px-4 py-3 rounded-lg mb-4 border border-dashed border-gray-200 transition-colors">
+                                                            <PhotoIcon className="w-5 h-5 text-gray-300" />
+                                                            <span className="text-xs font-bold text-gray-400">이미지 추가</span>
+                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} />
+                                                        </label>
+                                                    )}
                                                     {pointIconStyle !== 'NONE' && <div className="text-3xl mb-3">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
                                                     <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2 leading-snug" toolbarPosition="right" />
                                                     <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: bodyTextColor, align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
