@@ -1,13 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { ProductData, GeneratedCopy, ProcessedImage, AppStep, ProductCategory, PlanSection, ProductInfoDisclosure } from '../../types';
-import { generateProductCopy, generatePlan, generateStyledShots, setApiKey } from '../../services/geminiService';
+import { generateProductCopy, generatePlan, generateStyledShots, translateSizeChart } from '../../services/geminiService';
 import { ProcessingStep } from '../ProcessingStep';
 import { PlanStep } from '../PlanStep';
 import { ResultPreview } from '../ResultPreview';
 import {
   ArrowUpTrayIcon, PhotoIcon, SparklesIcon, LinkIcon,
   ShoppingBagIcon, HomeIcon, FireIcon, CakeIcon, SwatchIcon,
-  ChevronDownIcon, ChevronUpIcon, DocumentTextIcon, ArrowLeftIcon, CheckCircleIcon
+  ChevronDownIcon, ChevronUpIcon, DocumentTextIcon, ArrowLeftIcon, CheckCircleIcon,
+  TableCellsIcon, ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 // ── 템플릿 정의 ──
@@ -190,6 +191,9 @@ export const AdvancedDetailTab: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [planSections, setPlanSections] = useState<PlanSection[]>([]);
   const [showInfo, setShowInfo] = useState(false);
+  const [sizeChartImage, setSizeChartImage] = useState<File | null>(null);
+  const [sizeChartData, setSizeChartData] = useState<string[][] | null>(null);
+  const [isTranslatingSizeChart, setIsTranslatingSizeChart] = useState(false);
 
   const [isDraggingMain, setIsDraggingMain] = useState(false);
   const [isDraggingDetail, setIsDraggingDetail] = useState(false);
@@ -232,6 +236,30 @@ export const AdvancedDetailTab: React.FC = () => {
 
   const addLog = (m: string) => setLogs(p => [...p, m]);
   const templateInfo = TEMPLATES.find(t => t.id === selectedTemplate)!;
+
+  // 템플릿 → ResultPreview 매핑
+  const getTemplateDesignType = (): 'MODERN' | 'EMOTIONAL' | 'IMPACT' => templateInfo.designType;
+  const getTemplateThemeColor = (): 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE' => {
+    return templateInfo.themeColor as any;
+  };
+  const getTemplatePointLayout = (): 'ZIGZAG' | 'CARDS' | 'SIMPLE' => {
+    return templateInfo.preview.pointStyle as any;
+  };
+
+  // 사이즈표 이미지 번역
+  const handleSizeChartUpload = async (file: File) => {
+    setSizeChartImage(file);
+    setIsTranslatingSizeChart(true);
+    try {
+      const data = await translateSizeChart(file);
+      setSizeChartData(data);
+    } catch (err) {
+      console.warn('사이즈표 번역 실패:', err);
+      alert('사이즈표 번역에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsTranslatingSizeChart(false);
+    }
+  };
 
   // 저장된 정보고시 불러오기/저장
   React.useEffect(() => {
@@ -359,6 +387,10 @@ export const AdvancedDetailTab: React.FC = () => {
       planSections={planSections}
       onReset={resetAll}
       detailMode="advanced"
+      templateDesignType={getTemplateDesignType()}
+      templateThemeColor={getTemplateThemeColor()}
+      templatePointLayout={getTemplatePointLayout()}
+      sizeChartData={sizeChartData || undefined}
     />
   );
 
@@ -494,6 +526,47 @@ export const AdvancedDetailTab: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* 사이즈표 이미지 (FASHION만) */}
+        {productData.category === 'FASHION' && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <TableCellsIcon className="w-5 h-5 text-indigo-500"/>
+              <label className="text-sm font-bold text-gray-700">중국 사이즈표 자동 번역</label>
+              <span className="text-xs text-gray-400">(선택)</span>
+            </div>
+            <p className="text-xs text-indigo-600 bg-indigo-50 rounded-lg px-3 py-2 mb-3">
+              📏 중국어 사이즈표 이미지를 업로드하면 AI가 자동으로 한국어로 번역해서 사이즈 가이드를 만들어줍니다
+            </p>
+            <div className="border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer relative transition-all border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/30">
+              <input type="file" accept="image/*" onChange={e => { if (e.target.files?.[0]) handleSizeChartUpload(e.target.files[0]); }} className="absolute inset-0 opacity-0 cursor-pointer" />
+              {isTranslatingSizeChart ? (
+                <div className="flex flex-col items-center py-2">
+                  <ArrowPathIcon className="w-8 h-8 text-indigo-500 animate-spin mb-2"/>
+                  <span className="text-sm font-bold text-indigo-600">AI 번역 중...</span>
+                </div>
+              ) : sizeChartImage ? (
+                <div className="flex items-center gap-4 w-full">
+                  <img src={URL.createObjectURL(sizeChartImage)} alt="사이즈표" className="h-24 object-contain rounded-lg border border-gray-200"/>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-green-600 mb-1">번역 완료</p>
+                    {sizeChartData && (
+                      <p className="text-xs text-gray-500">{sizeChartData.length}행 x {sizeChartData[0]?.length || 0}열 사이즈표</p>
+                    )}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setSizeChartImage(null); setSizeChartData(null); }}
+                      className="mt-1 text-xs text-red-500 hover:text-red-700 font-bold">삭제</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-2">
+                  <TableCellsIcon className="w-8 h-8 text-gray-300 mb-1"/>
+                  <span className="text-sm font-medium text-gray-500">사이즈표 이미지 업로드</span>
+                  <span className="text-xs text-gray-400 mt-0.5">중국어 → 한국어 자동 번역</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 상품정보고시 */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

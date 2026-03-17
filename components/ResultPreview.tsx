@@ -20,13 +20,17 @@ interface ResultPreviewProps {
   planSections?: PlanSection[];
   onReset: () => void;
   detailMode?: 'basic' | 'advanced';
+  templateDesignType?: 'MODERN' | 'EMOTIONAL' | 'IMPACT';
+  templateThemeColor?: 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
+  templatePointLayout?: 'ZIGZAG' | 'CARDS' | 'SIMPLE';
+  sizeChartData?: string[][];
 }
 
 type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE';
 type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
 type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
 type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
-type SectionType = 'HERO' | 'STORY' | 'POINTS' | 'OPTIONS' | 'DETAILS' | 'REVIEW' | 'RECOMMEND' | 'INFO';
+type SectionType = 'HERO' | 'STORY' | 'POINTS' | 'OPTIONS' | 'DETAILS' | 'REVIEW' | 'RECOMMEND' | 'INFO' | 'SIZE_CHART';
 
 // Detail Block System
 type BlockType = 'IMAGE' | 'TEXT' | 'SIZE_CHART' | 'REVIEW_EMBED' | 'RECOMMEND_EMBED';
@@ -89,19 +93,19 @@ const safeIcon = (icon: string | undefined): string => {
 const getSectionBg = (type: SectionType, design: PageDesignType): string => {
   const bgs: Record<PageDesignType, Record<SectionType, string>> = {
     MODERN: {
-      HERO: 'bg-white', STORY: 'bg-[#fafafa]', DETAILS: 'bg-white', 
+      HERO: 'bg-white', STORY: 'bg-[#fafafa]', DETAILS: 'bg-white',
       POINTS: 'bg-[#f5f5f5]', REVIEW: 'bg-[#fafafa]', RECOMMEND: 'bg-[#f5f5f5]',
-      OPTIONS: 'bg-white', INFO: 'bg-[#f5f5f5]'
+      OPTIONS: 'bg-white', INFO: 'bg-[#f5f5f5]', SIZE_CHART: 'bg-white'
     },
     EMOTIONAL: {
       HERO: 'bg-[#fdfbf7]', STORY: 'bg-[#f4f1ea]', DETAILS: 'bg-[#fdfbf7]',
       POINTS: 'bg-[#f4f1ea]', REVIEW: 'bg-[#fdfbf7]', RECOMMEND: 'bg-[#f4f1ea]',
-      OPTIONS: 'bg-[#fdfbf7]', INFO: 'bg-[#f4f1ea]'
+      OPTIONS: 'bg-[#fdfbf7]', INFO: 'bg-[#f4f1ea]', SIZE_CHART: 'bg-[#fdfbf7]'
     },
     IMPACT: {
       HERO: 'bg-black', STORY: 'bg-[#111111]', DETAILS: 'bg-black',
       POINTS: 'bg-white', REVIEW: 'bg-[#111111]', RECOMMEND: 'bg-[#0a0a0a]',
-      OPTIONS: 'bg-black', INFO: 'bg-[#111111]'
+      OPTIONS: 'bg-black', INFO: 'bg-[#111111]', SIZE_CHART: 'bg-[#0a0a0a]'
     }
   };
   return bgs[design]?.[type] || 'bg-white';
@@ -937,20 +941,23 @@ const SectionControlWrapper: React.FC<{
     );
 };
 
-export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, productName, category, infoDisclosure, planSections, onReset, detailMode = 'advanced' }) => {
+export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, productName, category, infoDisclosure, planSections, onReset, detailMode = 'advanced', templateDesignType, templateThemeColor, templatePointLayout, sizeChartData }) => {
   const [isEditMode, setIsEditMode] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
-  
-  const [pointLayout, setPointLayout] = useState<PointLayoutType>('ZIGZAG');
-  const [pageDesign, setPageDesign] = useState<PageDesignType>('MODERN');
+
+  const [pointLayout, setPointLayout] = useState<PointLayoutType>(templatePointLayout || 'ZIGZAG');
+  const [pageDesign, setPageDesign] = useState<PageDesignType>(templateDesignType || 'MODERN');
   const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>('EMOJI');
-  const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
+  const [pointTheme, setPointTheme] = useState<PointThemeColor>(templateThemeColor || getThemeByCategory(category));
+  const [editableSizeChart, setEditableSizeChart] = useState<string[][] | null>(sizeChartData || null);
   // planSections를 기반으로 섹션 순서 결정
   const getInitialSectionOrder = (): SectionType[] => {
-    if (detailMode === 'basic') {
-      return ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'INFO'];
+    const base = ['HERO', 'STORY', 'DETAILS', 'POINTS', 'REVIEW', 'RECOMMEND', 'OPTIONS'] as SectionType[];
+    if (sizeChartData && sizeChartData.length > 0) {
+      base.push('SIZE_CHART' as SectionType);
     }
-    return ['HERO', 'STORY', 'DETAILS', 'POINTS', 'REVIEW', 'RECOMMEND', 'OPTIONS', 'INFO'];
+    base.push('INFO');
+    return base;
   };
   const [sectionOrder, setSectionOrder] = useState<SectionType[]>(getInitialSectionOrder);
 
@@ -2308,6 +2315,62 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
             </div>
         );
+        case 'SIZE_CHART': return editableSizeChart && editableSizeChart.length > 0 ? (
+            <div className={`w-full py-14 px-10 ${getSectionBg('SIZE_CHART', pageDesign)}`}>
+                <div className="max-w-4xl mx-auto">
+                    <div className="text-center mb-8">
+                        <span className="text-3xl mb-3 block">📏</span>
+                        <h3 className={`text-2xl font-black ${pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text}`}>SIZE GUIDE</h3>
+                        <p className={`text-sm mt-1 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>사이즈 가이드 (단위: cm / kg)</p>
+                    </div>
+                    <div className={`overflow-hidden rounded-xl border ${themeStyles.tableBorder}`}>
+                        <table className="w-full">
+                            {editableSizeChart.map((row, rIdx) => (
+                                <tr key={rIdx} className={rIdx === 0
+                                    ? (pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9] text-gray-800' : `${theme.bg} text-white`)
+                                    : (rIdx % 2 === 0
+                                        ? (pageDesign === 'IMPACT' ? 'bg-gray-800' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0]' : 'bg-gray-50')
+                                        : (pageDesign === 'IMPACT' ? 'bg-gray-900' : pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : 'bg-white'))
+                                }>
+                                    {row.map((cell, cIdx) => (
+                                        <td key={cIdx} className={`px-4 py-3 text-center border-b ${themeStyles.tableBorder} ${rIdx === 0 ? 'font-black text-sm' : 'text-sm'} ${rIdx > 0 && cIdx === 0 ? 'font-bold' : ''}`}>
+                                            {isEditMode ? (
+                                                <input type="text" value={cell}
+                                                    onChange={e => {
+                                                        const newChart = editableSizeChart.map(r => [...r]);
+                                                        newChart[rIdx][cIdx] = e.target.value;
+                                                        setEditableSizeChart(newChart);
+                                                    }}
+                                                    className={`w-full text-center bg-transparent outline-none focus:ring-1 focus:ring-indigo-400 rounded px-1 py-0.5 ${
+                                                        rIdx === 0 ? 'font-black' : rIdx > 0 && cIdx === 0 ? 'font-bold' : ''
+                                                    } ${pageDesign === 'IMPACT' ? (rIdx === 0 ? 'text-white' : 'text-gray-300') : rIdx === 0 ? 'text-white' : 'text-gray-700'}`}
+                                                />
+                                            ) : (
+                                                <span className={pageDesign === 'IMPACT' ? (rIdx === 0 ? 'text-white' : 'text-gray-300') : rIdx === 0 ? '' : 'text-gray-700'}>{cell}</span>
+                                            )}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </table>
+                    </div>
+                    {isEditMode && (
+                        <div className="flex justify-center gap-3 mt-4">
+                            <button onClick={() => {
+                                const cols = editableSizeChart[0]?.length || 4;
+                                setEditableSizeChart(prev => [...(prev || []), Array(cols).fill('')]);
+                            }} className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50">+ 행 추가</button>
+                            <button onClick={() => {
+                                setEditableSizeChart(prev => (prev || []).map(row => [...row, '']));
+                            }} className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50">+ 열 추가</button>
+                        </div>
+                    )}
+                    <p className={`text-center text-xs mt-4 ${pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400'}`}>
+                        * 실측 사이즈는 측정 방법에 따라 1~3cm 오차가 있을 수 있습니다
+                    </p>
+                </div>
+            </div>
+        ) : null;
         default: return null;
     }
   };

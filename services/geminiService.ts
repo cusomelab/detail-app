@@ -431,3 +431,52 @@ export const generateStyledShots = async (
 
   return results;
 };
+
+// ── 사이즈표 이미지 번역 (중국어 → 한국어) ──────────
+export const translateSizeChart = async (imageFile: File): Promise<string[][]> => {
+  const ai = getAI();
+  const base64Data = await fileToGenerativePart(imageFile);
+
+  const prompt = `이 사이즈표 이미지를 분석해서 JSON 2D 배열로 변환하세요.
+
+규칙:
+1. 중국어 헤더를 한국어로 번역:
+   - 尺码/码数 → 사이즈
+   - 胸围 → 가슴둘레
+   - 后中长 → 총장
+   - 袖长 → 소매길이
+   - 腰围 → 허리둘레
+   - 臀围 → 엉덩이둘레
+   - 肩宽 → 어깨너비
+   - 裤长 → 바지길이
+   - 建议体重 → 권장체중
+   - 建议身高 → 권장키
+   - 衣长 → 옷길이
+   - 下摆 → 밑단
+   - 大腿围 → 허벅지둘레
+   - 裙长 → 치마길이
+2. 숫자는 그대로 유지 (cm 단위)
+3. "以内" → "이하", S/M/L/XL 등은 그대로
+4. "90-100" 같은 범위도 그대로 유지
+5. 첫 번째 행은 헤더(컬럼명)
+
+JSON 배열만 반환하세요. 다른 텍스트 없이.
+예: [["사이즈","가슴둘레","총장","소매길이"],["S","84","26","31"],["M","88","27","32"]]`;
+
+  const response = await ai.models.generateContent({
+    model: TEXT_MODEL,
+    contents: [{ role: 'user', parts: [
+      { inlineData: { mimeType: imageFile.type, data: base64Data } },
+      { text: prompt }
+    ]}],
+  });
+
+  const text = response.text?.trim() || '[]';
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) throw new Error('사이즈표 파싱 실패');
+
+  const data = JSON.parse(jsonMatch[0]) as string[][];
+  if (!Array.isArray(data) || data.length === 0) throw new Error('사이즈표 데이터 없음');
+
+  return data;
+};
