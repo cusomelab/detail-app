@@ -129,10 +129,9 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       return initialPreset.sectionOrder;
     }
     const planTypeMap: Record<string, SectionType> = {
-      'HERO': 'HERO', 'STORY': 'STORY', 'OVERVIEW': 'HERO',
-      'POINT': 'POINTS', 'DETAIL': 'DETAILS', 'REVIEW': 'STORY',
-      'OPTIONS': 'OPTIONS', 'RECOMMEND': 'STORY', 'SIZE': 'INFO',
-      'GUIDE': 'INFO', 'INFO': 'INFO', 'CAUTION': 'INFO', 'CUSTOM': 'DETAILS'
+      'HERO': 'HERO', 'STORY': 'STORY',
+      'POINT': 'POINTS', 'RECOMMEND': 'DETAILS',
+      'OPTIONS': 'OPTIONS', 'INFO': 'INFO'
     };
     const seen = new Set<SectionType>();
     const order: SectionType[] = [];
@@ -232,12 +231,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     }
     
     const enabledSections = planSections?.filter(s => s.enabled) || [];
-    const sizeSection = enabledSections.find(s => s.type === 'SIZE');
-    const guideSection = enabledSections.find(s => s.type === 'GUIDE');
     const recommendSection = enabledSections.find(s => s.type === 'RECOMMEND');
+    const infoSection = enabledSections.find(s => s.type === 'INFO');
 
-    if (sizeSection?.content && (!enriched.sizeTip || enriched.sizeTip.length < 10)) {
-        enriched.sizeTip = sizeSection.content;
+    if (infoSection?.content && (!enriched.sizeTip || enriched.sizeTip.length < 10)) {
+        enriched.sizeTip = infoSection.content;
     }
     
     // 스토리 텍스트 길이 제한 (모바일 가독성)
@@ -252,16 +250,12 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     
     if (category !== 'FASHION') {
         const info = {...infoLabels};
-        if (guideSection?.content) {
-            info.washGuide = guideSection.content;
-        } else if (copy.productInfo.caution) {
+        if (copy.productInfo.caution) {
             info.washGuide = copy.productInfo.caution;
         } else {
             info.washGuide = "14세 이상 사용가능\n화기에 주의 하세요";
         }
         setInfoLabels(info);
-    } else if (guideSection?.content) {
-        setInfoLabels(prev => ({ ...prev, washGuide: guideSection.content }));
     }
     
     // disclaimerText는 기본값 유지 (기획안 내용으로 덮어쓰지 않음)
@@ -279,17 +273,6 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     
     // 셀링포인트 제목을 배너 카피로 활용
     const bannerCopies = enriched.sellingPoints.map(sp => sp.title).filter(Boolean);
-    
-    // MD Comment (짧게)
-    if (enriched.mdComment) {
-        initialDetailBlocks.push({
-            id: `text-md-${ts}`,
-            type: 'TEXT',
-            content: `[MD's Pick]\n${enriched.mdComment}`,
-            width: 'FULL',
-            style: { fontSize: 'text-xl', fontFamily: 'font-sans', color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl', backgroundColor: 'bg-yellow-50' }
-        });
-    }
     
     // 상세이미지만 배치 (AI 연출 샷은 포인트 sideImage에서만 사용)
     const allImages = [...propDetails];
