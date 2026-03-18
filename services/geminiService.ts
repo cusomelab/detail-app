@@ -2,8 +2,8 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GeneratedCopy, ProductCategory, PlanSection } from "../types";
 
 // ── 모델 ───────────────────────────────────────────────
-const TEXT_MODEL  = 'gemini-3-flash-preview';
-const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
+const TEXT_MODEL  = 'gemini-2.5-flash';
+const IMAGE_MODEL = 'gemini-2.5-flash-preview-image-generation';
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOVE_TEXT' | 'ERASE_PART' | 'CUSTOM';
 
@@ -27,25 +27,6 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-};
-
-// ── API 호출 재시도 (500 에러 대응) ─────────────────
-const withRetry = async <T>(fn: () => Promise<T>, maxRetries = 2, baseDelay = 2000): Promise<T> => {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (err: any) {
-      const status = err?.status || err?.httpStatusCode || err?.code;
-      const isRetryable = status === 500 || status === 503 || status === 429 ||
-        err?.message?.includes('500') || err?.message?.includes('Internal server error') ||
-        err?.message?.includes('overloaded');
-      if (!isRetryable || attempt === maxRetries) throw err;
-      const delay = baseDelay * Math.pow(2, attempt);
-      console.warn(`API 오류 (${status}), ${delay/1000}초 후 재시도... (${attempt + 1}/${maxRetries})`);
-      await new Promise(r => setTimeout(r, delay));
-    }
-  }
-  throw new Error('최대 재시도 횟수 초과');
 };
 
 const stripMarkdown = (text: string): string => {
@@ -98,7 +79,7 @@ function getCategoryInstruction(category: ProductCategory) {
 }
 
 // ════════════════════════════════════════════════════
-// 1. 기획안 생성 (8개 섹션)
+// 1. 기획안 생성 (후커블 스타일 - 13개 섹션)
 // ════════════════════════════════════════════════════
 export const generatePlan = async (
   productName: string,
@@ -125,16 +106,16 @@ ${getCategoryInstruction(category)}
 카테고리: ${categoryLabel[category]}
 특징: ${features || '이미지를 분석하여 특징 파악'}
 
-아래 8개 섹션으로 구성된 기획안을 JSON 배열로 작성하세요:
+아래 섹션들로 구성된 기획안을 JSON 배열로 작성하세요:
 
-1. HERO - 메인 히어로 (강렬한 첫 인상, 핵심 카피 한 줄 + 간단한 제품 소개)
-2. STORY - 감성 스토리 (일상 속 사용 시나리오, 감성적 표현 2~3문장)
-3. POINT - 셀링포인트1 (첫 번째 핵심 기능/특징, 구체적 설명)
-4. POINT - 셀링포인트2 (두 번째 핵심 기능/특징, 구체적 설명)
-5. POINT - 셀링포인트3 (세 번째 핵심 기능/특징, 구체적 설명)
-6. RECOMMEND - 추천 대상 (이런 분들께 추천, 4~5가지)
+1. HERO - 메인 히어로 (강렬한 첫 인상, 핵심 카피 한 줄)
+2. STORY - 감성 스토리 (한 줄로 감성적 표현, 50자 이내)
+3. POINT - 셀링포인트1 (첫 번째 핵심 기능/특징, 제목은 짧고 임팩트있게)
+4. POINT - 셀링포인트2 (두 번째 핵심 기능/특징)
+5. POINT - 셀링포인트3 (세 번째 핵심 기능/특징)
+6. REVIEW - 고객 후기 (만족도 4.9/5.0, 실제 구매자 후기 3개를 각각 줄바꿈으로 구분)
 7. OPTIONS - 컬러/옵션 (색상별 옵션 안내)
-8. INFO - 제품 정보 (소재, 사이즈, 세탁법, 주의사항 통합)
+8. RECOMMEND - 추천 대상 (이런 분들께 추천, 5가지를 각각 줄바꿈으로 구분)
 
 각 섹션의 title은 한국어로, content는 구체적인 마케팅 문구로 작성하세요.
 JSON 배열 형식: [{"type":"HERO","label":"히어로","title":"...","content":"..."},...]`;
@@ -145,7 +126,7 @@ JSON 배열 형식: [{"type":"HERO","label":"히어로","title":"...","content":
     requestContents.unshift({ inlineData: { mimeType: mainImage.type, data: base64Data } });
   }
 
-  const response = await withRetry(() => ai.models.generateContent({
+  const response = await ai.models.generateContent({
     model: TEXT_MODEL,
     contents: requestContents,
     config: {
@@ -153,7 +134,7 @@ JSON 배열 형식: [{"type":"HERO","label":"히어로","title":"...","content":
       responseMimeType: 'application/json',
       maxOutputTokens: 4096,
     }
-  }));
+  });
 
   let raw = response.text?.trim() || '[]';
   if (raw.startsWith('```')) {
@@ -185,11 +166,11 @@ export const regeneratePlanSection = async (
 더 매력적이고 구매욕구를 높이는 내용으로 개선해주세요.
 JSON으로만 응답: {"title":"...","content":"..."}`;
 
-  const response = await withRetry(() => ai.models.generateContent({
+  const response = await ai.models.generateContent({
     model: TEXT_MODEL,
     contents: prompt,
     config: { responseMimeType: 'application/json' }
-  }));
+  });
 
   let raw = response.text?.trim() || '{}';
   if (raw.startsWith('```')) {
@@ -224,9 +205,22 @@ ${getCategoryInstruction(category)}
 
 규칙:
 1. 마침표(.)로 끝내지 마세요
-2. 줄바꿈은 \\n으로 의미 단위로
-3. 단어 중간에 줄바꿈 금지
-4. 감성적이고 구매욕구를 높이는 문장`;
+2. 문장은 반드시 완성된 형태여야 합니다. 절대로 단어 중간에서 끊지 마세요
+3. sellingPoints의 title은 한 줄 또는 두 줄로, 의미가 완성되는 단위에서만 줄바꿈
+   - ❌ "체형 보정을 돕는 밑단\\n셔링 레이스" (밑단/셔링이 분리됨)
+   - ✅ "체형 보정을 돕는\\n밑단 셔링 레이스" (의미 단위로 끊김)
+   - title에서 줄바꿈 후 남은 줄은 최소 6자 이상
+4. sellingPoints의 description은 2~3문장으로, 한 문장이 한 줄에 완전히 들어가야 합니다
+5. 줄바꿈(\\n)은 반드시 "의미 단위"로만 사용하세요
+   - ❌ 나쁜 예: "아름다운 여성에 핏 되어 맞는 포인트\\n레이어드" (단어가 잘림)
+   - ✅ 좋은 예: "아름다운 여성에 핏 되어 맞는\\n포인트 레이어드" (의미 단위로 끊김)
+   - 한 줄은 최소 8자 이상이어야 합니다. 2~3글자짜리 줄이 혼자 남으면 안 됩니다
+   - 조사(은/는/이/가/을/를/에/의)나 단어 중간에서 절대 끊지 마세요
+6. mainHook은 1~2줄, 한 줄당 12~18자 내외로 구성
+7. 감성적이고 구매욕구를 높이는 자연스러운 문장
+8. story는 2~3줄, 총 120자 이내. 감성적이고 풍부한 표현으로. 줄바꿈은 의미 단위로
+9. sellingPoints의 icon은 반드시 이모지 한 글자만 (예: ✨, 👗, 💎, 🧵, 💫, 🎀). 절대로 영어 단어(sparkles, heart 등)나 URL을 넣지 마세요. 반드시 유니코드 이모지 1개만 출력
+10. detailCopies: 상세이미지 사이에 삽입할 짧은 카피 2개를 배열로 생성. 각 카피는 15자 이내의 감성적 한 줄 문구 (예: "손이 가는 부드러운 촉감", "일상을 채우는 감성 무드")`;
 
   const schema: Schema = {
     type: Type.OBJECT,
@@ -254,6 +248,10 @@ ${getCategoryInstruction(category)}
           wash: { type: Type.STRING },
           caution: { type: Type.STRING }
         }
+      },
+      detailCopies: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING }
       }
     },
     required: ['mainHook', 'sellingPoints', 'story', 'sizeTip', 'mdComment', 'productInfo']
@@ -271,7 +269,7 @@ ${planContext ? `\n[기획안 기반으로 작성]\n${planContext}` : ''}`;
     requestContents.unshift({ inlineData: { mimeType: mainImage.type, data: b64 } });
   }
 
-  const response = await withRetry(() => ai.models.generateContent({
+  const response = await ai.models.generateContent({
     model: TEXT_MODEL,
     contents: requestContents,
     config: {
@@ -281,7 +279,7 @@ ${planContext ? `\n[기획안 기반으로 작성]\n${planContext}` : ''}`;
       maxOutputTokens: 4096,
       temperature: 0.95,
     }
-  }));
+  });
 
   if (response.text) {
     return cleanTextResponse(JSON.parse(response.text)) as GeneratedCopy;
@@ -292,13 +290,13 @@ ${planContext ? `\n[기획안 기반으로 작성]\n${planContext}` : ''}`;
 // ── 카피 재생성 ───────────────────────────────────────
 export const regenerateCopy = async (currentText: string, fieldLabel: string): Promise<string> => {
   const ai = getAI();
-  const response = await withRetry(() => ai.models.generateContent({
+  const response = await ai.models.generateContent({
     model: TEXT_MODEL,
     contents: `한국 이커머스 "${fieldLabel}" 문구를 더 매력적으로 재작성해주세요.
 규칙: 마침표 없이, \\n으로 줄바꿈, 단어 중간 줄바꿈 금지, 마크다운 서식(**굵게** 등) 절대 사용 금지. 순수 텍스트만 출력.
 현재: "${currentText}"`,
     config: { temperature: 0.85 }
-  }));
+  });
   let text = response.text?.trim() || currentText;
   // 마크다운 서식 제거: **bold**, *italic*, __underline__, ~strikethrough~, `code`, # 헤딩
   text = text.replace(/\*\*(.+?)\*\*/g, '$1');   // **bold** → bold
@@ -340,11 +338,11 @@ export const processProductImage = async (
   }
   parts.push({ text: prompt });
 
-  const response = await withRetry(() => ai.models.generateContent({
+  const response = await ai.models.generateContent({
     model: IMAGE_MODEL,
     contents: { parts },
     config: { responseModalities: ['TEXT', 'IMAGE'] }
-  }));
+  });
 
   // @ts-ignore
   for (const part of response.candidates[0].content.parts) {
@@ -366,15 +364,15 @@ function getStyledShotPrompts(category: ProductCategory): { prompt: string; labe
   switch (category) {
     case 'FASHION':
       return [
-        { prompt: 'Generate a lifestyle photo of a Korean woman wearing this exact clothing item. She is walking on a sunny Seoul street with cherry blossoms. Natural lighting, editorial fashion photography style. Keep the clothing design and color exactly the same.', label: '라이프스타일 연출' },
-        { prompt: 'Generate a close-up detail shot focusing on the fabric texture and stitching of this clothing item. Macro photography, soft studio lighting, showing material quality. Keep the clothing design exactly the same.', label: '소재 클로즈업' },
-        { prompt: 'Generate a flat lay styling photo of this clothing item arranged beautifully on a clean white surface with minimal accessories (a watch, sunglasses, a bag). Top-down view, magazine styling. Keep the clothing design and color exactly the same.', label: '코디 스타일링' },
+        { prompt: 'Generate a full-body fashion photo of a trendy Korean woman wearing this exact clothing item in a clean white studio with soft diffused lighting. Professional editorial fashion photography. ABSOLUTE RULES: 1) The clothing must be 100% identical to the source image — same fabric, pattern, color, silhouette, neckline, hemline, length, lace details, embroidery. 2) Do NOT add ANY accessories that are not in the original photo — NO belts, NO bags, NO watches, NO jewelry, NO scarves, NO hats. 3) Do NOT modify the garment in any way — no tucking, no rolling, no styling changes. 4) The model should simply wear the exact garment as-is. Only change the background and add a model.', label: '스튜디오 착용' },
+        { prompt: 'Generate a close-up macro detail shot focusing on the fabric texture, stitching, and material quality of this clothing item. Clean white background, soft studio lighting. ABSOLUTE RULES: Show ONLY the actual fabric and details from the source image. Same pattern, same color, same texture. Do NOT alter, redesign, or reimagine any part of the clothing.', label: '소재 클로즈업' },
+        { prompt: 'Generate a flat lay styling photo of this clothing item arranged beautifully on a clean white surface. Top-down view, clean studio lighting, magazine editorial styling. ABSOLUTE RULES: The clothing must be 100% identical to the source image — same fabric, pattern, color, silhouette, all design details. Do NOT add accessories that are not in the original. Props should be minimal and neutral (e.g. dried flowers, plain fabric). Do NOT create a different version of the clothing.', label: '플랫레이 스타일링' },
       ];
     case 'LIVING':
       return [
-        { prompt: 'Place this product in a beautiful modern Korean living room interior. Warm lighting, cozy atmosphere, Scandinavian minimal style. Keep the product exactly the same.', label: '인테리어 연출' },
-        { prompt: 'Generate a close-up detail shot of this product showing material quality and craftsmanship. Soft studio lighting, macro photography. Keep the product exactly the same.', label: '디테일 클로즈업' },
-        { prompt: 'Show this product being used in a real home setting with a person enjoying it. Natural warm lighting, lifestyle photography. Keep the product exactly the same.', label: '사용 장면' },
+        { prompt: 'Place this product in a clean, bright Scandinavian-style room with white walls and natural wood furniture. Soft warm studio lighting. Keep the product exactly the same.', label: 'interior' },
+        { prompt: 'Generate a close-up detail shot of this product showing material quality and craftsmanship. Clean white background, soft studio lighting, macro photography. Keep the product exactly the same.', label: 'detail' },
+        { prompt: 'Show this product being used in a minimalist home setting with a person. Clean studio-like environment with warm lighting. Keep the product exactly the same.', label: 'lifestyle' },
       ];
     case 'KITCHEN':
       return [
@@ -404,7 +402,7 @@ export const generateStyledShots = async (
   for (let i = 0; i < prompts.length; i++) {
     onProgress?.(i + 1, prompts.length);
     try {
-      const response = await withRetry(() => ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: IMAGE_MODEL,
         contents: {
           parts: [
@@ -413,7 +411,7 @@ export const generateStyledShots = async (
           ]
         },
         config: { responseModalities: ['TEXT', 'IMAGE'] }
-      }));
+      });
 
       // @ts-ignore
       for (const part of response.candidates[0].content.parts) {
@@ -432,4 +430,53 @@ export const generateStyledShots = async (
   }
 
   return results;
+};
+
+// ── 사이즈표 이미지 번역 (중국어 → 한국어) ──────────
+export const translateSizeChart = async (imageFile: File): Promise<string[][]> => {
+  const ai = getAI();
+  const base64Data = await fileToGenerativePart(imageFile);
+
+  const prompt = `이 사이즈표 이미지를 분석해서 JSON 2D 배열로 변환하세요.
+
+규칙:
+1. 중국어 헤더를 한국어로 번역:
+   - 尺码/码数 → 사이즈
+   - 胸围 → 가슴둘레
+   - 后中长 → 총장
+   - 袖长 → 소매길이
+   - 腰围 → 허리둘레
+   - 臀围 → 엉덩이둘레
+   - 肩宽 → 어깨너비
+   - 裤长 → 바지길이
+   - 建议体重 → 권장체중
+   - 建议身高 → 권장키
+   - 衣长 → 옷길이
+   - 下摆 → 밑단
+   - 大腿围 → 허벅지둘레
+   - 裙长 → 치마길이
+2. 숫자는 그대로 유지 (cm 단위)
+3. "以内" → "이하", S/M/L/XL 등은 그대로
+4. "90-100" 같은 범위도 그대로 유지
+5. 첫 번째 행은 헤더(컬럼명)
+
+JSON 배열만 반환하세요. 다른 텍스트 없이.
+예: [["사이즈","가슴둘레","총장","소매길이"],["S","84","26","31"],["M","88","27","32"]]`;
+
+  const response = await ai.models.generateContent({
+    model: TEXT_MODEL,
+    contents: [{ role: 'user', parts: [
+      { inlineData: { mimeType: imageFile.type, data: base64Data } },
+      { text: prompt }
+    ]}],
+  });
+
+  const text = response.text?.trim() || '[]';
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) throw new Error('사이즈표 파싱 실패');
+
+  const data = JSON.parse(jsonMatch[0]) as string[][];
+  if (!Array.isArray(data) || data.length === 0) throw new Error('사이즈표 데이터 없음');
+
+  return data;
 };

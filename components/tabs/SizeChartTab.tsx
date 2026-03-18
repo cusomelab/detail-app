@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { analyzeSizeChart } from '../../services/sizeChartService';
 import { SizeChartData, AppState } from '../../types/sizeChart';
 
@@ -56,15 +56,13 @@ const EditableTable: React.FC<{
   );
 };
 
-export const SizeChartTab: React.FC<{ onDataReady?: (data: SizeChartData | null) => void }> = ({ onDataReady }) => {
+export const SizeChartTab: React.FC = () => {
   const [state, setState] = useState<AppState>(AppState.IDLE);
   const [data, setData] = useState<SizeChartData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { onDataReady?.(data); }, [data, onDataReady]);
 
   const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) { setError('이미지 파일만 업로드 가능합니다'); setState(AppState.ERROR); return; }

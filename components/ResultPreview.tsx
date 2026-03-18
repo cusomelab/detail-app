@@ -1,17 +1,14 @@
 
-import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, forwardRef } from 'react';
+import { createPortal } from 'react-dom';
 import { GeneratedCopy, ProcessedImage, ProductCategory, ProductInfoDisclosure, PlanSection } from '../types';
-import { processProductImage, ImageProcessMode } from '../services/geminiService';
-import { EditableElement, AutoResizeTextarea, TextStyle } from './shared/EditableElement';
-import { ImageCropper, MaskEditor, CustomPromptModal } from './shared/ImageTools';
-import { getPreset, getThemeStyles, THEME_COLORS, FONT_FAMILIES, getBannerPositionClass,
-    PageDesignType, PointLayoutType, PointIconStyle, PointThemeColor, SectionType, LayoutPreset } from '../presets/layoutPresets';
-import {
-    ArrowDownTrayIcon, ArrowPathIcon, SwatchIcon, ViewColumnsIcon, ListBulletIcon, Square2StackIcon,
-    PhotoIcon, PlusIcon, SparklesIcon, TrashIcon, CheckIcon, PencilSquareIcon,
-    ChevronUpIcon, ChevronDownIcon, ScissorsIcon, LanguageIcon,
-    UserCircleIcon, HomeModernIcon, PaintBrushIcon, ChatBubbleBottomCenterTextIcon,
-    ComputerDesktopIcon, Bars3Icon, DocumentTextIcon, XMarkIcon, TableCellsIcon
+import { processProductImage, regenerateCopy, ImageProcessMode } from '../services/geminiService';
+import { 
+    ArrowDownTrayIcon, ArrowPathIcon, SwatchIcon, ViewColumnsIcon, ListBulletIcon, Square2StackIcon, 
+    PhotoIcon, PlusIcon, SparklesIcon, TrashIcon, DocumentTextIcon, CheckIcon, PencilSquareIcon, 
+    ChevronUpIcon, ChevronDownIcon, ScissorsIcon, XMarkIcon, LanguageIcon, EllipsisHorizontalIcon,
+    UserCircleIcon, HomeModernIcon, PaintBrushIcon, ArrowsUpDownIcon, HandRaisedIcon, ArrowsPointingOutIcon,
+    TableCellsIcon, ChatBubbleBottomCenterTextIcon, ComputerDesktopIcon, HeartIcon, BoltIcon
 } from '@heroicons/react/24/outline';
 
 interface ResultPreviewProps {
@@ -22,60 +19,904 @@ interface ResultPreviewProps {
   infoDisclosure?: ProductInfoDisclosure;
   planSections?: PlanSection[];
   onReset: () => void;
-  sizeChartData?: import('../types/sizeChart').SizeChartData;
+  detailMode?: 'basic' | 'advanced';
+  templateDesignType?: 'MODERN' | 'EMOTIONAL' | 'IMPACT';
+  templateThemeColor?: 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
+  templatePointLayout?: 'ZIGZAG' | 'CARDS' | 'SIMPLE';
+  sizeChartData?: string[][];
 }
 
-// ── Block Types ──
-type BlockType = 'IMAGE' | 'TEXT' | 'SIZE_CHART';
+type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE';
+type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
+type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
+type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
+type SectionType = 'HERO' | 'STORY' | 'POINTS' | 'OPTIONS' | 'DETAILS' | 'REVIEW' | 'RECOMMEND' | 'INFO' | 'SIZE_CHART';
+
+// Detail Block System
+type BlockType = 'IMAGE' | 'TEXT' | 'SIZE_CHART' | 'REVIEW_EMBED' | 'RECOMMEND_EMBED';
 type PointBlockType = 'POINT_ITEM' | 'IMAGE' | 'TEXT'; 
 type BlockWidth = 'FULL' | 'HALF' | 'THIRD';
 
+interface TextStyle {
+    fontSize: 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl' | 'text-3xl' | 'text-4xl' | 'text-5xl' | 'text-6xl';
+    fontFamily: 'font-sans' | 'font-serif-kr' | 'font-dodum' | 'font-pen';
+    color: string; 
+    backgroundColor?: string; 
+    align: 'text-left' | 'text-center' | 'text-right';
+    verticalAlign?: 'justify-start' | 'justify-center' | 'justify-end';
+    fontWeight: 'font-normal' | 'font-medium' | 'font-bold' | 'font-black';
+    maxWidth?: 'max-w-full' | 'max-w-6xl' | 'max-w-4xl' | 'max-w-2xl' | 'max-w-xl'; 
+    x?: number; 
+    y?: number; 
+}
+
 interface DetailBlock {
-    id: string; type: BlockType; content: string; width: BlockWidth;
-    isProcessing?: boolean; style?: TextStyle;
-    overlayText?: string; overlayStyle?: TextStyle;
-    tableData?: string[][];
-    bannerText?: string; // 자동 배너 카피
+    id: string;
+    type: BlockType;
+    content: string; 
+    width: BlockWidth;
+    isProcessing?: boolean;
+    style?: TextStyle; 
+    overlayText?: string;
+    overlayStyle?: TextStyle;
+    tableData?: string[][]; // For Size Chart
 }
 
 interface PointBlock {
-    id: string; type: PointBlockType;
-    icon?: string; title?: string; description?: string;
-    content?: string; width?: BlockWidth; style?: TextStyle;
-    isProcessing?: boolean; sideImage?: string;
+    id: string;
+    type: PointBlockType;
+    icon?: string;
+    title?: string;
+    description?: string;
+    content?: string; 
+    width?: BlockWidth; 
+    style?: TextStyle;
+    isProcessing?: boolean;
+    sideImage?: string; 
 }
 
 interface OptionBlock {
-    id: string; image: string; text: string; isProcessing?: boolean;
+    id: string;
+    image: string;
+    text: string;
+    isProcessing?: boolean;
 }
 
-// ══════════════════════════════════════════════
-// DragDrop Section Wrapper (네이티브 HTML5 DnD)
-// ══════════════════════════════════════════════
-const SectionControlWrapper: React.FC<{ 
-    children: React.ReactNode; type: SectionType; index: number; 
-    isEditMode: boolean; isFirst: boolean; isLast: boolean;
-    onMove: (idx: number, dir: -1 | 1) => void; 
+// ── 이모지 검증 헬퍼 (Gemini가 URL이나 영어를 반환하는 버그 방어) ──
+const safeIcon = (icon: string | undefined): string => {
+  if (!icon) return '✨';
+  if (icon.length > 4 || /^https?:\/\//.test(icon) || /^[a-zA-Z_]+$/.test(icon)) return '✨';
+  return icon;
+};
+
+// ── 섹션별 배경색 교차 (리듬감) ──
+const getSectionBg = (type: SectionType, design: PageDesignType): string => {
+  const bgs: Record<PageDesignType, Record<SectionType, string>> = {
+    MODERN: {
+      HERO: 'bg-white', STORY: 'bg-[#fafafa]', DETAILS: 'bg-white',
+      POINTS: 'bg-[#f5f5f5]', REVIEW: 'bg-[#fafafa]', RECOMMEND: 'bg-[#f5f5f5]',
+      OPTIONS: 'bg-white', INFO: 'bg-[#f5f5f5]', SIZE_CHART: 'bg-white'
+    },
+    EMOTIONAL: {
+      HERO: 'bg-[#fdfbf7]', STORY: 'bg-[#f4f1ea]', DETAILS: 'bg-[#fdfbf7]',
+      POINTS: 'bg-[#f4f1ea]', REVIEW: 'bg-[#fdfbf7]', RECOMMEND: 'bg-[#f4f1ea]',
+      OPTIONS: 'bg-[#fdfbf7]', INFO: 'bg-[#f4f1ea]', SIZE_CHART: 'bg-[#fdfbf7]'
+    },
+    IMPACT: {
+      HERO: 'bg-black', STORY: 'bg-[#111111]', DETAILS: 'bg-black',
+      POINTS: 'bg-white', REVIEW: 'bg-[#111111]', RECOMMEND: 'bg-[#0a0a0a]',
+      OPTIONS: 'bg-black', INFO: 'bg-[#111111]', SIZE_CHART: 'bg-[#0a0a0a]'
+    }
+  };
+  return bgs[design]?.[type] || 'bg-white';
+};
+
+// Theme Config
+const THEME_COLORS: Record<PointThemeColor, { bg: string, text: string, border: string, lightBg: string, badge: string }> = {
+    INDIGO: { bg: 'bg-indigo-600', text: 'text-indigo-600', border: 'border-indigo-600', lightBg: 'bg-indigo-50', badge: 'bg-indigo-600' },
+    BLACK: { bg: 'bg-gray-900', text: 'text-gray-900', border: 'border-gray-900', lightBg: 'bg-gray-100', badge: 'bg-gray-900' },
+    PINK: { bg: 'bg-pink-500', text: 'text-pink-500', border: 'border-pink-500', lightBg: 'bg-pink-50', badge: 'bg-pink-500' },
+    BLUE: { bg: 'bg-blue-600', text: 'text-blue-600', border: 'border-blue-600', lightBg: 'bg-blue-50', badge: 'bg-blue-600' },
+    GREEN: { bg: 'bg-emerald-600', text: 'text-emerald-600', border: 'border-emerald-600', lightBg: 'bg-emerald-50', badge: 'bg-emerald-600' },
+    ORANGE: { bg: 'bg-orange-500', text: 'text-orange-500', border: 'border-orange-500', lightBg: 'bg-orange-50', badge: 'bg-orange-500' },
+};
+
+const FONT_FAMILIES = [
+    { name: '기본 (고딕)', value: 'font-sans' },
+    { name: '명조체', value: 'font-serif-kr' },
+    { name: '돋움체', value: 'font-dodum' },
+    { name: '손글씨', value: 'font-pen' },
+];
+
+const getThemeByCategory = (category: ProductCategory): PointThemeColor => {
+    switch (category) {
+        case 'FOOD': return 'ORANGE';
+        case 'LIVING': return 'GREEN';
+        case 'KITCHEN': return 'BLACK';
+        default: return 'INDIGO';
+    }
+};
+
+const getHeadersByCategory = (category: ProductCategory) => {
+    switch (category) {
+        case 'FOOD': return {
+            newArrival: "TODAY'S PICK",
+            whyThisItem: "WHY THIS ITEM?",
+            whySub: "이 맛을 선택해야 하는 이유",
+            detailView: "DETAIL & VIEW",
+            productInfo: "Product Info",
+            moodStory: "TASTE & STORY"
+        };
+        case 'LIVING': return {
+            newArrival: "LIVING BEST",
+            whyThisItem: "CHECK POINTS",
+            whySub: "이 상품을 선택해야 하는 이유",
+            detailView: "DETAIL & VIEW",
+            productInfo: "Product Info",
+            moodStory: "SPACE & MOOD"
+        };
+        case 'KITCHEN': return {
+            newArrival: "KITCHEN PICK",
+            whyThisItem: "SMART POINTS",
+            whySub: "이 상품을 선택해야 하는 이유",
+            detailView: "DETAIL & VIEW",
+            productInfo: "Product Info",
+            moodStory: "KITCHEN GUIDE"
+        };
+        default: return {
+            newArrival: "NEW ARRIVAL COLLECTION",
+            whyThisItem: "WHY THIS ITEM?",
+            whySub: "지금 이 아이템이어야 하는 이유",
+            detailView: "DETAIL & VIEW",
+            productInfo: "Product Info",
+            moodStory: "MOOD & STORY"
+        };
+    }
+};
+
+// --- Image Cropper Component ---
+interface ImageCropperProps {
+    imageUrl: string;
+    onCrop: (croppedUrl: string) => void;
+    onCancel: () => void;
+}
+
+const ImageCropper: React.FC<ImageCropperProps> = ({ imageUrl, onCrop, onCancel }) => {
+    const imageRef = useRef<HTMLElement>(null);
+    const cropperRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (imageRef.current && (window as any).Cropper) {
+            cropperRef.current = new (window as any).Cropper(imageRef.current, {
+                viewMode: 1, 
+                dragMode: 'move',
+                autoCropArea: 1, 
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false,
+                minContainerWidth: 300,
+                minContainerHeight: 300,
+                checkCrossOrigin: false,
+            });
+        }
+        return () => {
+            if (cropperRef.current) {
+                cropperRef.current.destroy();
+            }
+        };
+    }, [imageUrl]);
+
+    const handleCrop = () => {
+        if (cropperRef.current) {
+            const canvas = cropperRef.current.getCroppedCanvas();
+            if (canvas) {
+                onCrop(canvas.toDataURL());
+            }
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl overflow-hidden shadow-2xl w-full max-w-5xl flex flex-col h-[80vh] z-[110]">
+                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <ScissorsIcon className="w-5 h-5" /> 이미지 자르기
+                    </h3>
+                    <button onClick={onCancel} className="p-2 hover:bg-gray-200 rounded-full">
+                        <XMarkIcon className="w-6 h-6 text-gray-500" />
+                    </button>
+                </div>
+                <div className="flex-1 bg-gray-900 relative flex items-center justify-center overflow-hidden">
+                     <img ref={imageRef as any} src={imageUrl} alt="Crop Target" className="block max-w-full max-h-full" crossOrigin="anonymous" />
+                </div>
+                <div className="p-4 bg-white border-t border-gray-100 flex justify-end gap-3">
+                    <button onClick={onCancel} className="px-5 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-lg">
+                        취소
+                    </button>
+                    <button onClick={handleCrop} className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-lg flex items-center gap-2">
+                        <CheckIcon className="w-5 h-5" /> 자르기 완료
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Mask Editor Component ---
+interface MaskEditorProps {
+    imageUrl: string;
+    onSave: (maskFile: File) => void;
+    onCancel: () => void;
+}
+
+const MaskEditor: React.FC<MaskEditorProps> = ({ imageUrl, onSave, onCancel }) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [brushSize, setBrushSize] = useState(30);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        const container = containerRef.current;
+        if (!canvas || !container) return;
+
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = imageUrl;
+        img.onload = () => {
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            const scale = Math.min(containerWidth / img.width, containerHeight / img.height);
+            const width = img.width * scale;
+            const height = img.height * scale;
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = brushSize;
+            }
+        };
+    }, [imageUrl]);
+
+    useEffect(() => {
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx) ctx.lineWidth = brushSize;
+    }, [brushSize]);
+
+    const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            setIsDrawing(true);
+        }
+    };
+
+    const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (!isDrawing) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
+    };
+
+    const stopDrawing = () => {
+        setIsDrawing(false);
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx) ctx.closePath();
+    };
+
+    const handleSave = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width = canvas.width;
+        maskCanvas.height = canvas.height;
+        const maskCtx = maskCanvas.getContext('2d');
+        if (!maskCtx) return;
+
+        maskCtx.fillStyle = '#000000';
+        maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+
+        maskCtx.drawImage(canvas, 0, 0);
+        
+        const imageData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+             if (data[i] > 0 || data[i+1] > 0 || data[i+2] > 0) {
+                 data[i] = 255;
+                 data[i+1] = 255;
+                 data[i+2] = 255;
+                 data[i+3] = 255;
+             }
+        }
+        maskCtx.putImageData(imageData, 0, 0);
+
+        maskCanvas.toBlob((blob) => {
+            if (blob) {
+                const file = new File([blob], "mask.png", { type: "image/png" });
+                onSave(file);
+            }
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4">
+             <div className="w-full max-w-5xl h-[85vh] flex flex-col bg-gray-900 rounded-xl overflow-hidden">
+                <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 className="text-white font-bold flex items-center gap-2"><PaintBrushIcon className="w-5 h-5"/> 지울 영역 선택 (색칠하기)</h3>
+                    <button onClick={onCancel}><XMarkIcon className="w-6 h-6 text-gray-400 hover:text-white"/></button>
+                </div>
+                <div ref={containerRef} className="flex-1 relative flex items-center justify-center bg-gray-900 overflow-hidden cursor-crosshair">
+                     <img src={imageUrl} alt="Target" className="absolute max-w-full max-h-full object-contain pointer-events-none" crossOrigin="anonymous"/>
+                     <canvas 
+                        ref={canvasRef}
+                        onMouseDown={startDrawing}
+                        onMouseMove={draw}
+                        onMouseUp={stopDrawing}
+                        onMouseLeave={stopDrawing}
+                        className="absolute"
+                     />
+                </div>
+                <div className="p-4 bg-gray-800 border-t border-gray-700 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <span className="text-gray-400 text-sm">브러쉬 크기</span>
+                        <input 
+                            type="range" 
+                            min="10" 
+                            max="100" 
+                            value={brushSize} 
+                            onChange={(e) => setBrushSize(Number(e.target.value))} 
+                            className="w-40"
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={onCancel} className="px-6 py-2 bg-gray-700 text-white rounded hover:bg-gray-600">취소</button>
+                        <button onClick={handleSave} className="px-6 py-2 bg-indigo-600 text-white font-bold rounded hover:bg-indigo-700 flex items-center gap-2"><CheckIcon className="w-5 h-5"/> 지우기 실행</button>
+                    </div>
+                </div>
+             </div>
+        </div>
+    );
+};
+
+// --- Custom Prompt Modal ---
+interface CustomPromptModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (prompt: string) => void;
+}
+
+const CustomPromptModal: React.FC<CustomPromptModalProps> = ({ isOpen, onClose, onSubmit }) => {
+    const [prompt, setPrompt] = useState("");
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                    <ChatBubbleBottomCenterTextIcon className="w-6 h-6 text-indigo-600" /> 직접 입력 (프롬프트)
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                    원하는 편집 내용을 AI에게 구체적으로 명령하세요. (예: "배경에 벚꽃을 추가해줘", "상품 색상을 파스텔 톤으로 변경해줘")
+                </p>
+                <textarea 
+                    className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none mb-4 text-gray-800"
+                    placeholder="편집 요청 사항 입력..."
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                    <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium">취소</button>
+                    <button 
+                        onClick={() => {
+                            if (prompt.trim()) onSubmit(prompt);
+                            setPrompt("");
+                        }} 
+                        disabled={!prompt.trim()}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                        <SparklesIcon className="w-4 h-4"/> 생성하기
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// --- Helper Component for Text Rewriting ---
+const MagicRewriter = ({ text, onUpdate, label, className = "top-0 right-0" }: { text: string, onUpdate: (t: string) => void, label: string, className?: string }) => {
+    const [loading, setLoading] = useState(false);
+  
+    const handleRewrite = async (e: React.MouseEvent) => {
+      e.stopPropagation(); 
+      if (!text) return;
+      setLoading(true);
+      try {
+          const newText = await regenerateCopy(text, label);
+          onUpdate(newText);
+      } catch(e) {
+          console.error(e);
+          alert("텍스트 생성에 실패했습니다.");
+      } finally {
+          setLoading(false);
+      }
+    };
+  
+    return (
+      <button 
+          onClick={handleRewrite} 
+          disabled={loading}
+          className={`absolute z-20 p-2 bg-white text-indigo-600 rounded-full shadow-md border border-indigo-200 transition-all hover:bg-indigo-50 hover:scale-110 hover:border-indigo-400 ${className}`}
+          title="AI로 문구 다듬기 (다른 표현 추천)"
+          onMouseDown={(e) => e.stopPropagation()}
+      >
+          {loading ? (
+             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+             <div className="flex items-center gap-1">
+                <SparklesIcon className="w-4 h-4" />
+                <span className="text-[10px] font-bold whitespace-nowrap hidden md:inline-block">AI 수정</span>
+             </div>
+          )}
+      </button>
+    );
+};
+
+// --- Independent Toolbar Component ---
+interface ToolbarProps {
+    style: TextStyle;
+    setStyle: React.Dispatch<React.SetStateAction<TextStyle>>;
     onDelete?: () => void;
-    onDragStart: (idx: number) => void;
-    onDragOver: (e: React.DragEvent, idx: number) => void;
-    onDrop: (idx: number) => void;
-    isDragTarget: boolean;
-}> = ({ children, type, index, isEditMode, isFirst, isLast, onMove, onDelete, onDragStart, onDragOver, onDrop, isDragTarget }) => {
+    enableDrag?: boolean;
+    handleDragStart: (e: React.MouseEvent) => void;
+}
+
+const Toolbar = forwardRef<HTMLDivElement, ToolbarProps>(({ style, setStyle, onDelete, enableDrag, handleDragStart }, ref) => {
+    const handleFontSizeChange = (delta: number) => {
+        const sizes = ['text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl'];
+        const currentIndex = sizes.indexOf(style.fontSize);
+        const newIndex = Math.min(Math.max(currentIndex + delta, 0), sizes.length - 1);
+        setStyle(prev => ({ ...prev, fontSize: sizes[newIndex] as any }));
+    };
+
+    const handleFontWeightToggle = () => {
+        setStyle(prev => ({
+            ...prev,
+            fontWeight: prev.fontWeight === 'font-bold' ? 'font-normal' : 'font-bold'
+        }));
+    };
+
+    const colors = [
+        { name: 'Black', value: 'text-gray-900' },
+        { name: 'Gray', value: 'text-gray-500' },
+        { name: 'White', value: 'text-white' },
+        { name: 'Navy', value: 'text-indigo-900' },
+        { name: 'Blue', value: 'text-blue-600' },
+        { name: 'Red', value: 'text-red-600' },
+        { name: 'Green', value: 'text-emerald-600' },
+    ];
+
+    const bgColors = [
+        { name: 'None', value: '' },
+        { name: 'White', value: 'bg-white' },
+        { name: 'Black', value: 'bg-gray-900' },
+        { name: 'Gray', value: 'bg-gray-100' },
+        { name: 'Yellow', value: 'bg-yellow-50' },
+        { name: 'Blue', value: 'bg-blue-50' },
+        { name: 'Pink', value: 'bg-pink-50' },
+        { name: 'Green', value: 'bg-emerald-50' },
+    ];
+
+    const stopPropagationAndKeepFocus = (e: React.MouseEvent) => {
+        if (!(e.target instanceof HTMLSelectElement)) {
+            e.preventDefault();
+        }
+        e.stopPropagation();
+    };
+
     return (
         <div 
-            className={`relative group/section w-full transition-all ${isDragTarget ? 'border-t-4 border-indigo-500' : ''}`}
-            draggable={isEditMode}
-            onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(index)); onDragStart(index); }}
-            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver(e, index); }}
-            onDrop={(e) => { e.preventDefault(); onDrop(index); }}
-            onDragEnd={() => onDrop(-1)}
+            ref={ref}
+            className="fixed top-24 z-[9999] bg-gray-900/95 backdrop-blur text-white p-4 rounded-xl shadow-2xl flex flex-col gap-3 min-w-[260px] animate-fade-in border border-gray-700 select-none"
+            style={{ left: 'calc(50% + 440px)' }}
+            onMouseDown={stopPropagationAndKeepFocus}
         >
+            <div className="text-xs font-bold text-gray-400 mb-1 flex items-center justify-between">
+                <span>텍스트 편집</span>
+                <span className="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-gray-300">편집 중</span>
+            </div>
+            <div className="flex items-center gap-2 border-b border-gray-700 pb-3 w-full">
+                <select 
+                    value={style.fontFamily} 
+                    onChange={(e) => setStyle(prev => ({...prev, fontFamily: e.target.value as any}))}
+                    className="bg-gray-800 text-xs text-white rounded p-1.5 border border-gray-600 outline-none w-28 cursor-pointer"
+                    onMouseDown={(e) => e.stopPropagation()} 
+                >
+                    {FONT_FAMILIES.map(f => <option key={f.value} value={f.value}>{f.name}</option>)}
+                </select>
+                <button onMouseDown={stopPropagationAndKeepFocus} onClick={handleFontWeightToggle} className={`p-1.5 w-7 h-7 rounded text-xs font-serif flex items-center justify-center ${style.fontWeight === 'font-bold' ? 'bg-white text-black' : 'bg-gray-800 hover:bg-gray-700'}`}>B</button>
+                <div className="w-[1px] h-4 bg-gray-600"></div>
+                <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => handleFontSizeChange(-1)} className="p-1.5 bg-gray-800 hover:bg-gray-700 rounded text-xs font-bold w-7 h-7">A-</button>
+                <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => handleFontSizeChange(1)} className="p-1.5 bg-gray-800 hover:bg-gray-700 rounded text-xs font-bold w-7 h-7">A+</button>
+            </div>
+            <div className="flex items-center gap-2 border-b border-gray-700 pb-3 w-full justify-between">
+                <div className="flex gap-1">
+                    <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => setStyle(prev => ({ ...prev, align: 'text-left' }))} className={`p-1.5 rounded text-[10px] w-7 h-7 ${style.align === 'text-left' ? 'bg-indigo-600' : 'bg-gray-800 hover:bg-gray-700'}`}>L</button>
+                    <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => setStyle(prev => ({ ...prev, align: 'text-center' }))} className={`p-1.5 rounded text-[10px] w-7 h-7 ${style.align === 'text-center' ? 'bg-indigo-600' : 'bg-gray-800 hover:bg-gray-700'}`}>C</button>
+                    <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => setStyle(prev => ({ ...prev, align: 'text-right' }))} className={`p-1.5 rounded text-[10px] w-7 h-7 ${style.align === 'text-right' ? 'bg-indigo-600' : 'bg-gray-800 hover:bg-gray-700'}`}>R</button>
+                </div>
+            </div>
+            <div>
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] text-gray-400">텍스트 색상</span>
+                    <label className="text-[10px] text-gray-400 flex items-center gap-1 cursor-pointer hover:text-white" onMouseDown={stopPropagationAndKeepFocus}>
+                        <span className="w-3 h-3 rounded-full bg-gradient-to-br from-red-500 to-blue-500 block"></span>
+                        커스텀
+                        <input type="color" className="w-0 h-0 opacity-0" onChange={(e) => setStyle(prev => ({ ...prev, color: e.target.value }))} />
+                    </label>
+                </div>
+                <div className="flex items-center gap-2 w-full overflow-x-auto hide-scrollbar pb-1">
+                    {colors.map(c => (
+                        <button 
+                            key={c.name}
+                            onMouseDown={stopPropagationAndKeepFocus}
+                            onClick={() => setStyle(prev => ({ ...prev, color: c.value }))}
+                            className={`w-6 h-6 rounded-full border border-gray-600 shrink-0 ${c.value.replace('text-', 'bg-')}`}
+                            title={c.name}
+                        />
+                    ))}
+                </div>
+            </div>
+            <div>
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] text-gray-400">배경 색상</span>
+                    <label className="text-[10px] text-gray-400 flex items-center gap-1 cursor-pointer hover:text-white" onMouseDown={stopPropagationAndKeepFocus}>
+                        <span className="w-3 h-3 rounded-full bg-gradient-to-br from-white to-black block"></span>
+                        커스텀
+                        <input type="color" className="w-0 h-0 opacity-0" onChange={(e) => setStyle(prev => ({ ...prev, backgroundColor: e.target.value }))} />
+                    </label>
+                </div>
+                <div className="flex items-center gap-2 w-full overflow-x-auto hide-scrollbar pb-1">
+                    {bgColors.map(c => (
+                        <button 
+                            key={c.name}
+                            onMouseDown={stopPropagationAndKeepFocus}
+                            onClick={() => setStyle(prev => ({ ...prev, backgroundColor: c.value }))}
+                            className={`w-6 h-6 rounded-full border border-gray-600 shrink-0 ${c.value.startsWith('bg-') ? c.value : 'bg-transparent text-red-400 text-[8px] flex items-center justify-center font-bold'}`}
+                            title={c.name}
+                        >
+                            {!c.value && 'X'}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div className="flex items-center gap-2 pt-2 border-t border-gray-700 w-full">
+                <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => setStyle(prev => ({ ...prev, maxWidth: 'max-w-full' }))} className={`px-2 py-1 hover:bg-gray-700 rounded text-[10px] ${!style.maxWidth || style.maxWidth === 'max-w-full' ? 'text-green-400 font-bold' : ''}`}>100%</button>
+                <button onMouseDown={stopPropagationAndKeepFocus} onClick={() => setStyle(prev => ({ ...prev, maxWidth: 'max-w-2xl' }))} className={`px-2 py-1 hover:bg-gray-700 rounded text-[10px] ${style.maxWidth === 'max-w-2xl' ? 'text-green-400 font-bold' : ''}`}>50%</button>
+                <div className="flex-1"></div>
+                {onDelete && (
+                    <button onMouseDown={stopPropagationAndKeepFocus} onClick={onDelete} className="p-1.5 hover:bg-red-600 bg-red-500 rounded text-white flex items-center gap-1 text-xs">
+                        <TrashIcon className="w-3 h-3" /> 삭제
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+});
+
+// --- Auto-Resize Textarea for Table ---
+interface AutoResizeTextareaProps {
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+    className?: string;
+    readOnly?: boolean;
+}
+
+const AutoResizeTextarea: React.FC<AutoResizeTextareaProps> = ({ value, onChange, className, readOnly }) => {
+    const ref = useRef<HTMLTextAreaElement>(null);
+
+    useLayoutEffect(() => {
+        if (ref.current) {
+            ref.current.style.height = '0px';
+            ref.current.style.height = `${ref.current.scrollHeight + 10}px`;
+        }
+    }, [value, className]); 
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (ref.current) {
+                ref.current.style.height = '0px';
+                ref.current.style.height = `${ref.current.scrollHeight + 10}px`;
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    return (
+        <textarea
+            ref={ref}
+            value={value}
+            onChange={onChange}
+            readOnly={readOnly}
+            className={`w-full bg-transparent resize-none overflow-hidden outline-none leading-normal ${className}`}
+            rows={1}
+        />
+    );
+};
+
+// --- Editable Element Component ---
+interface EditableElementProps {
+    value: string;
+    onChange: (val: string) => void;
+    onDelete?: () => void;
+    onStyleChange?: (style: TextStyle) => void; 
+    isEditMode: boolean;
+    placeholder?: string;
+    defaultStyle: TextStyle;
+    allowStyleChange?: boolean;
+    enableVerticalAlign?: boolean;
+    enableDrag?: boolean; 
+    className?: string;
+    aiLabel?: string; 
+    toolbarPosition?: 'default' | 'right';
+    onDragStart?: (e: React.MouseEvent) => void;
+}
+
+const EditableElement: React.FC<EditableElementProps> = ({
+    value, onChange, onDelete, onStyleChange, isEditMode, placeholder, defaultStyle, 
+    allowStyleChange = true, enableVerticalAlign = false, enableDrag = false, 
+    className = "", aiLabel, toolbarPosition = 'default'
+}) => {
+    const [style, setStyle] = useState<TextStyle>(defaultStyle);
+    const [isFocused, setIsFocused] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const toolbarRef = useRef<HTMLDivElement>(null);
+    const dragRef = useRef({ isDragging: false, startX: 0, startY: 0, initialLeft: 0, initialTop: 0 });
+
+    // ★ 스타일 영구 저장: defaultStyle 변경 시 현재 스타일 덮어쓰지 않음
+    const isStyleInitialized = useRef(false);
+    useEffect(() => {
+        if (!isStyleInitialized.current) {
+            setStyle(defaultStyle);
+            isStyleInitialized.current = true;
+        }
+    }, []); // 최초 1회만 실행
+
+    useEffect(() => {
+        if (onStyleChange && isFocused) {
+            onStyleChange(style);
+        }
+    }, [style, onStyleChange, isFocused]);
+
+    useLayoutEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = '0px';
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 10}px`;
+        }
+    }, [value, isEditMode, style, style.fontSize, style.fontWeight, style.fontFamily]); 
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (!enableDrag || !isEditMode || !containerRef.current || isFocused) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        dragRef.current.isDragging = false;
+        dragRef.current.startX = e.clientX;
+        dragRef.current.startY = e.clientY;
+        
+        const parentRect = containerRef.current.offsetParent?.getBoundingClientRect();
+        if (parentRect) {
+             dragRef.current.initialLeft = style.x || 50;
+             dragRef.current.initialTop = style.y || 50;
+        }
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+        if (!containerRef.current?.offsetParent) return;
+        
+        if (!dragRef.current.isDragging) {
+             const dist = Math.hypot(e.clientX - dragRef.current.startX, e.clientY - dragRef.current.startY);
+             if (dist > 5) dragRef.current.isDragging = true;
+        }
+
+        if (dragRef.current.isDragging) {
+            const parentRect = containerRef.current.offsetParent.getBoundingClientRect();
+            const deltaX = e.clientX - dragRef.current.startX;
+            const deltaY = e.clientY - dragRef.current.startY;
+            const percentX = (deltaX / parentRect.width) * 100;
+            const percentY = (deltaY / parentRect.height) * 100;
+            let newX = dragRef.current.initialLeft + percentX;
+            let newY = dragRef.current.initialTop + percentY;
+            newX = Math.max(0, Math.min(100, newX));
+            newY = Math.max(0, Math.min(100, newY));
+            setStyle(prev => ({ ...prev, x: newX, y: newY }));
+        }
+    };
+
+    const handleMouseUp = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        
+        if (!dragRef.current.isDragging) {
+            textareaRef.current?.focus();
+            setIsFocused(true);
+        }
+        dragRef.current.isDragging = false;
+    };
+
+    const handleBlur = (e: React.FocusEvent) => {
+        const relatedTarget = e.relatedTarget as Node;
+        if (toolbarRef.current?.contains(relatedTarget)) {
+            return;
+        }
+        // ★ 스타일 저장: blur 시 현재 스타일을 외부로 전달
+        if (onStyleChange) onStyleChange(style);
+        setIsFocused(false);
+    };
+
+    const handleToolbarDragStart = (e: React.MouseEvent) => {
+        if (!enableDrag || !isEditMode || !containerRef.current) return;
+        e.preventDefault();
+        e.stopPropagation();
+        dragRef.current.isDragging = true;
+        dragRef.current.startX = e.clientX;
+        dragRef.current.startY = e.clientY;
+        const parentRect = containerRef.current.offsetParent?.getBoundingClientRect();
+        if (parentRect) {
+             dragRef.current.initialLeft = style.x || 50;
+             dragRef.current.initialTop = style.y || 50;
+        }
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const containerWidthClass = style.maxWidth || 'max-w-full';
+    const isHexColor = style.color.startsWith('#') || style.color.startsWith('rgb');
+    const isHexBg = style.backgroundColor && (style.backgroundColor.startsWith('#') || style.backgroundColor.startsWith('rgb'));
+    const colorClass = isHexColor ? '' : style.color;
+    const bgColorClass = isHexBg ? '' : style.backgroundColor;
+    const paddingClass = (style.backgroundColor || isHexBg) ? 'p-6 rounded-xl shadow-sm' : '';
+    const inlineStyle: React.CSSProperties = {
+        color: isHexColor ? style.color : undefined,
+        backgroundColor: isHexBg ? style.backgroundColor : undefined,
+    };
+    
+    const positionStyle: React.CSSProperties = enableDrag ? {
+        position: 'absolute',
+        left: `${style.x ?? 50}%`,
+        top: `${style.y ?? 50}%`,
+        transform: 'translate(-50%, -50%)',
+        zIndex: isFocused ? 40 : 20,
+        width: style.maxWidth ? 'auto' : undefined,
+        minWidth: '200px',
+        cursor: isFocused ? 'default' : 'move',
+        ...inlineStyle 
+    } : { ...inlineStyle };
+
+    if (!isEditMode) {
+        if (!value) return null; 
+        const previewStyle: React.CSSProperties = {
+            ...inlineStyle,
+            ...(enableDrag ? {
+                position: 'absolute',
+                left: `${style.x ?? 50}%`,
+                top: `${style.y ?? 50}%`,
+                transform: 'translate(-50%, -50%)',
+                zIndex: 20
+            } : {})
+        };
+        return (
+            <div 
+                className={`w-full flex ${style.align === 'text-center' ? 'justify-center' : style.align === 'text-right' ? 'justify-end' : 'justify-start'}`}
+                style={enableDrag ? previewStyle : {}}
+            >
+                <div 
+                    className={`${style.fontSize} ${style.fontFamily} ${colorClass} ${style.align} ${style.fontWeight} ${containerWidthClass} ${!enableDrag ? bgColorClass + ' ' + paddingClass : ''} ${className} whitespace-pre-wrap break-keep leading-normal`}
+                    style={{
+                      ...(!enableDrag ? previewStyle : {}),
+                      wordBreak: 'keep-all',
+                      overflowWrap: 'break-word'
+                    }}
+                >
+                    {value}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div 
+            ref={containerRef}
+            style={positionStyle}
+            onMouseDown={handleMouseDown}
+            className={`relative group/edit transition-all flex ${!enableDrag ? 'w-full' : ''} ${style.align === 'text-center' ? 'justify-center' : style.align === 'text-right' ? 'justify-end' : 'justify-start'} ${isFocused ? 'z-40' : ''} ${enableDrag ? bgColorClass + ' ' + paddingClass : ''} ${enableDrag && !isFocused ? 'hover:outline hover:outline-2 hover:outline-indigo-400 hover:outline-dashed' : ''}`}
+        >
+            {allowStyleChange && isFocused && createPortal(
+                <Toolbar 
+                    ref={toolbarRef}
+                    style={style} 
+                    setStyle={setStyle} 
+                    onDelete={onDelete} 
+                    enableDrag={enableDrag} 
+                    handleDragStart={handleToolbarDragStart} 
+                />, 
+                document.body
+            )}
+            
+            {aiLabel && (
+                <MagicRewriter 
+                    text={value} 
+                    label={aiLabel} 
+                    onUpdate={onChange} 
+                    className={`absolute -right-3 top-0 opacity-100 ${enableDrag ? '-right-8' : ''}`} 
+                />
+            )}
+            <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={handleBlur}
+                placeholder={placeholder}
+                className={`bg-transparent border-0 p-2 resize-none overflow-hidden outline-none focus:ring-2 focus:ring-indigo-400/50 w-full ${style.fontSize} ${style.fontFamily} ${colorClass} ${style.align} ${style.fontWeight} ${containerWidthClass} ${!enableDrag ? bgColorClass + ' ' + paddingClass : ''} ${className} leading-normal ${isFocused ? 'cursor-text' : 'cursor-move'}`}
+                style={{
+                  ...(!enableDrag ? inlineStyle : {}),
+                  wordBreak: 'keep-all',
+                  overflowWrap: 'break-word'
+                }}
+                rows={1}
+                spellCheck={false}
+                onMouseDown={(e) => isFocused && e.stopPropagation()}
+            />
+        </div>
+    );
+};
+
+const SectionControlWrapper: React.FC<{ 
+    children: React.ReactNode; 
+    type: SectionType; 
+    index: number; 
+    isEditMode: boolean; 
+    isFirst: boolean; 
+    isLast: boolean; 
+    onMove: (idx: number, dir: -1 | 1) => void; 
+    onDelete?: () => void;
+}> = ({ children, type, index, isEditMode, isFirst, isLast, onMove, onDelete }) => {
+    return (
+        <div className="relative group/section w-full">
             {isEditMode && (
                 <div className="absolute left-[-50px] top-4 flex flex-col gap-1 z-50 opacity-40 hover:opacity-100 transition-opacity">
-                    <div className="p-1.5 bg-white border border-gray-300 rounded-lg text-gray-400 cursor-grab active:cursor-grabbing shadow-sm" title="드래그하여 순서 변경">
-                        <Bars3Icon className="w-5 h-5" />
-                    </div>
                     <button onClick={() => onMove(index, -1)} disabled={isFirst} className="p-1.5 bg-white border border-gray-300 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 shadow-sm">
                         <ChevronUpIcon className="w-5 h-5" />
                     </button>
@@ -83,7 +924,12 @@ const SectionControlWrapper: React.FC<{
                         <ChevronDownIcon className="w-5 h-5" />
                     </button>
                     {onDelete && (
-                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} className="p-1.5 bg-white border border-red-300 rounded-lg text-red-500 hover:bg-red-50 shadow-sm cursor-pointer z-50 pointer-events-auto" title="섹션 삭제">
+                        <button 
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} 
+                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            className="p-1.5 bg-white border border-red-300 rounded-lg text-red-500 hover:bg-red-50 shadow-sm cursor-pointer z-50 pointer-events-auto" 
+                            title="섹션 삭제"
+                        >
                             <TrashIcon className="w-5 h-5" />
                         </button>
                     )}
@@ -95,59 +941,25 @@ const SectionControlWrapper: React.FC<{
     );
 };
 
-export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, productName, category, infoDisclosure, planSections, onReset, sizeChartData }) => {
+export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, productName, category, infoDisclosure, planSections, onReset, detailMode = 'advanced', templateDesignType, templateThemeColor, templatePointLayout, sizeChartData }) => {
   const [isEditMode, setIsEditMode] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
-  
-  // ── 프리셋 기반 초기화 ──
-  const initialPreset = getPreset(category, 'MODERN');
-  const [pointLayout, setPointLayout] = useState<PointLayoutType>(initialPreset.pointLayout);
-  const [pageDesign, setPageDesign] = useState<PageDesignType>(initialPreset.pageDesign);
-  const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>(initialPreset.pointIconStyle);
-  const [pointTheme, setPointTheme] = useState<PointThemeColor>(initialPreset.themeColor);
-  
-  // ── DnD state ──
-  const [dragFromIdx, setDragFromIdx] = useState<number>(-1);
-  const [dragOverIdx, setDragOverIdx] = useState<number>(-1);
-  const handleSectionDragStart = (idx: number) => setDragFromIdx(idx);
-  const handleSectionDragOver = (_e: React.DragEvent, idx: number) => setDragOverIdx(idx);
-  const handleSectionDrop = (toIdx: number) => {
-    if (dragFromIdx >= 0 && toIdx >= 0 && dragFromIdx !== toIdx) {
-      setSectionOrder(prev => {
-        const next = [...prev];
-        const [moved] = next.splice(dragFromIdx, 1);
-        next.splice(toIdx, 0, moved);
-        return next;
-      });
-    }
-    setDragFromIdx(-1); setDragOverIdx(-1);
-  };
 
+  const [pointLayout, setPointLayout] = useState<PointLayoutType>(templatePointLayout || 'ZIGZAG');
+  const [pageDesign, setPageDesign] = useState<PageDesignType>(templateDesignType || 'MODERN');
+  const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>('EMOJI');
+  const [pointTheme, setPointTheme] = useState<PointThemeColor>(templateThemeColor || getThemeByCategory(category));
+  const [editableSizeChart, setEditableSizeChart] = useState<string[][] | null>(sizeChartData || null);
   // planSections를 기반으로 섹션 순서 결정
   const getInitialSectionOrder = (): SectionType[] => {
-    if (!planSections || planSections.length === 0) {
-      return initialPreset.sectionOrder;
+    const base = ['HERO', 'STORY', 'DETAILS', 'POINTS', 'REVIEW', 'RECOMMEND', 'OPTIONS'] as SectionType[];
+    if (sizeChartData && sizeChartData.length > 0) {
+      base.push('SIZE_CHART' as SectionType);
     }
-    const planTypeMap: Record<string, SectionType> = {
-      'HERO': 'HERO', 'STORY': 'HERO',
-      'POINT': 'POINTS', 'RECOMMEND': 'POINTS',
-      'OPTIONS': 'OPTIONS', 'INFO': 'INFO'
-    };
-    const seen = new Set<SectionType>();
-    const order: SectionType[] = [];
-    planSections.filter(s => s.enabled).forEach(s => {
-      const mapped = planTypeMap[s.type] || 'DETAILS';
-      if (!seen.has(mapped)) { seen.add(mapped); order.push(mapped); }
-    });
-    // 없는 섹션 추가
-    (['HERO','DETAILS','POINTS','OPTIONS','INFO'] as SectionType[]).forEach(s => {
-      if (!seen.has(s)) order.push(s);
-    });
-    return order;
+    base.push('INFO');
+    return base;
   };
   const [sectionOrder, setSectionOrder] = useState<SectionType[]>(getInitialSectionOrder);
-
-  const [editableSizeChart, setEditableSizeChart] = useState(sizeChartData || null);
 
   const [cropTarget, setCropTarget] = useState<{ id: string, url: string, type: 'MAIN' | 'DETAIL' | 'POINT' | 'POINT_SIDE' | 'OPTION' } | null>(null);
   const [maskEditorTarget, setMaskEditorTarget] = useState<{ id: string, url: string } | null>(null);
@@ -181,7 +993,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     setTextStyles(prev => ({ ...prev, [key]: style }));
   };
   
-  const [headers, setHeaders] = useState(initialPreset.headers);
+  const [headers, setHeaders] = useState(getHeadersByCategory(category));
   const [copyright, setCopyright] = useState("MARKETPIA BEST OF BEST");
 
   const [infoLabels, setInfoLabels] = useState({
@@ -194,16 +1006,6 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       imgRef: "이미지 참조",
       washGuide: "미지근한 물에 중성세제로 손세탁 또는 세탁망에 넣어 울코스 세탁을 권장합니다"
   });
-
-  // ── 리뷰 & 추천 상태 ──
-  const [reviewTitle, setReviewTitle] = useState('실제 구매 고객 만족도 4.9/5.0');
-  const [reviewItems, setReviewItems] = useState([
-    { name: '김**', comment: '사진이랑 똑같아요! 레이스 디테일이 정말 예쁘고 퀄리티가 좋아서 만족합니다.' },
-    { name: '이**', comment: '핏이 정말 깔끔하고, 소재가 고급스러워요. 여름에 입기 딱 좋습니다.' },
-    { name: '박**', comment: '가격 대비 퀄리티가 최고입니다. 주변에서 어디서 샀냐고 물어봐요!' },
-  ]);
-  const [recommendTitle, setRecommendTitle] = useState('이런 분들에 강력 추천드려요');
-  const [recommendText, setRecommendText] = useState('');
 
   const [disclaimerText, setDisclaimerText] = useState(
       "본 제품은 모니터 해상도 상 실제 제품과 색상 차이가 있을 수 있습니다\n" +
@@ -219,9 +1021,12 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   });
 
   const [mainImage, setMainImage] = useState<string | null>(null);
+  const [styledImageList, setStyledImageList] = useState<string[]>([]);
   const [detailBlocks, setDetailBlocks] = useState<DetailBlock[]>([]);
   const [pointBlocks, setPointBlocks] = useState<PointBlock[]>([]);
   const [optionBlocks, setOptionBlocks] = useState<OptionBlock[]>([]);
+  const [reviewData, setReviewData] = useState<{ title: string; content: string }>({ title: '실제 구매자 후기', content: '' });
+  const [recommendData, setRecommendData] = useState<{ title: string; items: string[] }>({ title: '이런 분들께 추천합니다', items: [] });
   const [isProcessingMain, setIsProcessingMain] = useState(false);
   const [dragOverId, setDragOverId] = useState<string | null>(null); 
 
@@ -234,104 +1039,86 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   };
 
   useEffect(() => {
-    // ── planSections 기반으로 카피 보강 ──
-    const enriched = getEnrichedCopy();
-    if (enriched.productInfo) {
-        enriched.productInfo.origin = "Made in China";
+    const newCopy = { ...copy };
+    if (newCopy.productInfo) newCopy.productInfo.origin = "Made in China";
+    if (newCopy.story && newCopy.story.length > 120) {
+        const lines = newCopy.story.split('\n').filter((l: string) => l.trim());
+        newCopy.story = lines.slice(0, 3).join('\n');
+        if (newCopy.story.length > 120) newCopy.story = newCopy.story.substring(0, 120);
     }
-    
-    const enabledSections = planSections?.filter(s => s.enabled) || [];
-    const recommendSection = enabledSections.find(s => s.type === 'RECOMMEND');
-    const infoSection = enabledSections.find(s => s.type === 'INFO');
-
-    if (infoSection?.content && (!enriched.sizeTip || enriched.sizeTip.length < 10)) {
-        enriched.sizeTip = infoSection.content;
-    }
-    
-    // 스토리 텍스트 길이 제한 (모바일 가독성)
-    if (enriched.story && enriched.story.length > 60) {
-        const lines = enriched.story.split('\n').filter(l => l.trim());
-        enriched.story = lines.slice(0, 2).join('\n');
-        if (enriched.story.length > 60) enriched.story = enriched.story.substring(0, 60);
-    }
-    
-    setEditableCopy(enriched);
+    // 정보고시에서 입력한 소재/색상이 있으면 상단 테이블에 반영
+    if (infoDisclosure?.material) newCopy.productInfo.material = infoDisclosure.material;
+    setEditableCopy(newCopy);
     setEditableProductName(productName);
     
     if (category !== 'FASHION') {
         const info = {...infoLabels};
-        if (copy.productInfo.caution) {
-            info.washGuide = copy.productInfo.caution;
-        } else {
-            info.washGuide = "14세 이상 사용가능\n화기에 주의 하세요";
-        }
+        if (copy.productInfo.caution) { info.washGuide = copy.productInfo.caution; }
+        else { info.washGuide = "14세 이상 사용가능\n화기에 주의 하세요"; }
         setInfoLabels(info);
     }
-    
-    // disclaimerText는 기본값 유지 (기획안 내용으로 덮어쓰지 않음)
 
     const propMain = images.find(img => img.type === 'main')?.processedUrl;
     if (propMain) setMainImage(propMain);
 
-    // ── AI 연출 샷 추출 ──
-    const styledImages = images.filter(img => img.type === 'styled').map(img => img.processedUrl).filter(Boolean) as string[];
+    // ── 기획안에서 REVIEW / RECOMMEND 추출 ──
+    const enabledPlan = planSections?.filter(s => s.enabled) || [];
+    const reviewPlan = enabledPlan.find(s => s.type === 'REVIEW');
+    const recommendPlan = enabledPlan.find(s => s.type === 'RECOMMEND');
+    
+    if (reviewPlan) {
+        setReviewData({ title: reviewPlan.title || '실제 구매자 후기', content: reviewPlan.content || '' });
+    }
+    if (recommendPlan) {
+        const items = recommendPlan.content.split('\n').filter((l: string) => l.trim()).map((l: string) => l.replace(/^\d+[\.\)]\s*/, '').trim());
+        setRecommendData({ title: recommendPlan.title || '이런 분들께 추천합니다', items });
+    }
 
-    // ── Detail Blocks: 상세이미지 + AI 연출 샷 + 감성 배너 교차 배치 ──
+    // ── AI 연출 이미지 → 섹션 "사이"에 독립 배치하기 위해 state 저장 ──
+    const styledImages = images.filter(img => img.type === 'styled').map(img => img.processedUrl).filter(Boolean) as string[];
+    setStyledImageList(styledImages);
+
+    // ── DETAILS: 상세이미지만 + 사이사이 카피 자동 삽입 ──
     const propDetails = images.filter(img => img.type === 'detail').map(img => img.processedUrl).filter(Boolean) as string[];
     const initialDetailBlocks: DetailBlock[] = [];
     const ts = Date.now();
-    
-    // 셀링포인트 제목을 배너 카피로 활용
-    const bannerCopies = enriched.sellingPoints.map(sp => sp.title).filter(Boolean);
-    
-    // 상세이미지만 배치 (AI 연출 샷은 포인트 sideImage에서만 사용)
-    const allImages = [...propDetails];
+    const totalUserImages = propDetails.length;
+    const detailCopies = copy.detailCopies || [];
 
-    allImages.forEach((url, idx) => {
-        initialDetailBlocks.push({
-            id: `img-${ts}-${idx}`,
-            type: 'IMAGE',
-            content: url,
-            width: 'FULL'
-        });
+    propDetails.forEach((url, idx) => {
+        const useHalf = totalUserImages > 4 && idx >= 2 && idx < totalUserImages - 1;
+        initialDetailBlocks.push({ id: `img-${ts}-${idx}`, type: 'IMAGE', content: url, width: useHalf ? 'HALF' : 'FULL' });
+        // 2~3장마다 한 줄 카피 삽입 (detailCopies가 있을 때만)
+        const copyIdx = Math.floor(idx / 2);
+        if (idx > 0 && idx % 2 === 1 && copyIdx < detailCopies.length) {
+            initialDetailBlocks.push({
+                id: `dcopy-${ts}-${copyIdx}`, type: 'TEXT',
+                content: detailCopies[copyIdx], width: 'FULL',
+                style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-center', fontWeight: 'font-bold', maxWidth: 'max-w-4xl' }
+            });
+        }
     });
-    
-    // 추천 대상 → POINTS 섹션 안의 별도 영역으로 렌더링
-    if (recommendSection?.content) {
-        const items = recommendSection.content.split('\n').filter(l => l.trim());
-        const formattedItems = items.map(item => item.replace(/^\d+[\.\)]\s*/, '').trim()).filter(Boolean);
-        setRecommendText(formattedItems.join('\n'));
-    }
     
     setDetailBlocks(initialDetailBlocks);
 
-    // ── Option Blocks: 파일명 → 텍스트 자동 ──
     const propOptions = images.filter(img => img.type === 'option');
-    const initialOptionBlocks: OptionBlock[] = propOptions.map((img, idx) => ({
-        id: `opt-${ts}-${idx}`,
-        image: img.processedUrl || img.originalUrl,
+    setOptionBlocks(propOptions.map((img, idx) => ({
+        id: `opt-${ts}-${idx}`, image: img.processedUrl || img.originalUrl,
         text: img.fileName ? stripExtension(img.fileName) : '옵션 설명을 입력하세요'
-    }));
-    setOptionBlocks(initialOptionBlocks);
+    })));
 
-    // ── Point Blocks: AI 연출 샷을 sideImage에 자동 배치 ──
-    const initialPointBlocks: PointBlock[] = enriched.sellingPoints.map((p, i) => ({
-        id: `pt-${ts}-${i}`,
-        type: 'POINT_ITEM',
-        icon: p.icon,
-        title: p.title,
-        description: p.description,
-        // AI 연출 샷이 있으면 순서대로 sideImage에 자동 배치
+    // ── 포인트 블록 (AI 연출 샷을 sideImage에 자동 배치) ──
+    setPointBlocks(copy.sellingPoints.map((p, i) => ({
+        id: `pt-${ts}-${i}`, type: 'POINT_ITEM' as PointBlockType,
+        icon: safeIcon(p.icon), title: p.title, description: p.description,
         sideImage: styledImages[i] || undefined
-    }));
-    setPointBlocks(initialPointBlocks);
+    })));
 
   }, [copy, images, productName, category]);
 
   useEffect(() => {
-    const newPreset = getPreset(category, pageDesign);
-    setPointTheme(newPreset.themeColor);
-    setHeaders(prev => ({ ...prev, ...newPreset.headers }));
+    setPointTheme(getThemeByCategory(category));
+    setHeaders(prev => ({ ...prev, ...getHeadersByCategory(category) }));
   }, [category]);
 
   const handleCopyChange = (field: keyof GeneratedCopy, value: any) => {
@@ -404,7 +1191,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       setPointBlocks(prev => [...prev, { id: `pt-new-${Date.now()}`, type: 'POINT_ITEM', icon: '✨', title: '새로운 포인트', description: '내용을 입력해주세요.' }]);
   };
   const addPointBlock = (type: 'IMAGE' | 'TEXT') => {
-      setPointBlocks(prev => [...prev, { id: `pt-blk-${Date.now()}`, type, content: type === 'IMAGE' ? '' : '새로운 설명 텍스트입니다.', width: 'FULL', style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' } }]);
+      setPointBlocks(prev => [...prev, { id: `pt-blk-${Date.now()}`, type, content: type === 'IMAGE' ? '' : '새로운 설명 텍스트입니다.', width: 'FULL', style: { fontSize: 'text-2xl', fontFamily: 'font-sans', color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' } }]);
   };
   const movePointBlock = (index: number, direction: -1 | 1) => {
       const newBlocks = [...pointBlocks];
@@ -852,18 +1639,49 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       );
   };
 
-  const themeStyles = getThemeStyles(pageDesign);
-
-  // ── 프리셋 적용 함수 ──
-  const applyPreset = (design: PageDesignType) => {
-    const preset = getPreset(category, design);
-    setPageDesign(preset.pageDesign);
-    setPointLayout(preset.pointLayout);
-    setPointIconStyle(preset.pointIconStyle);
-    setPointTheme(preset.themeColor);
-    setSectionOrder(preset.sectionOrder);
-    setHeaders(preset.headers);
+  const getThemeStyles = () => {
+    switch(pageDesign) {
+        case 'EMOTIONAL': return {
+            bg: 'bg-[#fdfbf7]', 
+            text: 'text-gray-800', 
+            fontHead: 'font-serif-kr', 
+            fontBody: 'font-serif-kr',
+            storyQuote: 'text-gray-400 font-serif',
+            sectionDivider: 'bg-[#e0dcd0]',
+            cardBg: 'bg-white',
+            tableHeader: 'bg-[#f7f5f0] text-gray-800',
+            tableBorder: 'border-[#d4d1c9]'
+        };
+        case 'IMPACT': return {
+            bg: 'bg-black', 
+            text: 'text-white', 
+            fontHead: 'font-sans', 
+            fontBody: 'font-sans',
+            storyQuote: 'text-red-600 font-sans',
+            sectionDivider: 'bg-red-600',
+            cardBg: 'bg-gray-900',
+            tableHeader: 'bg-red-600 text-white',
+            tableBorder: 'border-gray-700'
+        };
+        case 'MODERN':
+        default: return {
+            bg: 'bg-white', 
+            text: 'text-gray-900', 
+            fontHead: 'font-sans', 
+            fontBody: 'font-sans',
+            storyQuote: 'text-gray-300 font-serif',
+            sectionDivider: 'bg-gray-100',
+            cardBg: 'bg-gray-50',
+            tableHeader: 'bg-gray-50 text-gray-700',
+            tableBorder: 'border-gray-200'
+        };
+    }
   };
+  const themeStyles = getThemeStyles();
+  // IMPACT 모드 글씨색 헬퍼
+  const bodyTextColor = pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600';
+  const subTextColor = pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500';
+  const valueTextColor = pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600';
 
   const renderSectionContent = (type: SectionType) => {
     const theme = THEME_COLORS[pointTheme];
@@ -911,34 +1729,39 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 </label>
                             )}
                         </div>
-                        <div className={`w-full px-10 text-center relative ${
-                            pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-16 border-b border-[#e0dcd0]' :
-                            pageDesign === 'IMPACT' ? 'bg-black py-12' :
-                            'bg-white py-10 border-b border-gray-200'
-                        }`}>
+                        <div className={`w-full px-10 text-center relative ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-16 border-b border-[#e0dcd0]' : pageDesign === 'IMPACT' ? 'bg-black py-12' : 'bg-white py-10 border-b border-gray-200'}`}>
                             {visibleHeaders.newArrival && (
                                 <div className="mb-4 flex justify-center">
-                                     <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-sm' : 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : pageDesign === 'EMOTIONAL' ? theme.text : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-bold' : 'font-bold' }} className={`uppercase ${pageDesign === 'IMPACT' ? 'tracking-[0.5em]' : 'tracking-[0.3em]'}`} toolbarPosition="right" />
+                                     <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-sm' as any : 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`uppercase ${pageDesign === 'IMPACT' ? 'tracking-[0.5em]' : 'tracking-[0.3em]'}`} toolbarPosition="right" />
                                 </div>
                             )}
-                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-3xl' : 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-4 leading-snug" toolbarPosition="right" />
-                            {pageDesign === 'MODERN' && <div className="w-16 h-1.5 bg-gray-900 mx-auto mb-6"></div>}
-                            {pageDesign === 'EMOTIONAL' && <div className="w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-2 mb-6"></div>}
-                            {pageDesign === 'IMPACT' && <div className="w-full h-1 bg-red-600 mx-auto mt-2 mb-6"></div>}
-                            {editableCopy.story && (
-                                <EditableElement value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-3xl' }} className="mx-auto leading-relaxed" toolbarPosition="right" />
-                            )}
+                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-6 leading-snug" toolbarPosition="right" />
+                            {pageDesign === 'MODERN' && <div className="w-16 h-1.5 bg-gray-900 mx-auto"></div>}
+                            {pageDesign === 'EMOTIONAL' && <div className="w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-4"></div>}
+                            {pageDesign === 'IMPACT' && <div className="w-full h-1 bg-red-600 mx-auto mt-2"></div>}
                         </div>
                 </div>
         );
+        case 'STORY': return (
+            <div className={`w-full text-center relative ${getSectionBg('STORY', pageDesign)} ${pageDesign === 'EMOTIONAL' ? 'py-20 px-12' : pageDesign === 'IMPACT' ? 'py-16 px-12' : 'py-14 px-12'}`}>
+                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mb-4 block leading-none`}>"</span>}
+                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mb-8"></div>}
+                        <EditableElement key={`mood-${pointTheme}`} value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'EMOTIONAL' ? 'font-normal' : 'font-medium', maxWidth: 'max-w-4xl' }} className={`leading-relaxed mx-auto ${pageDesign === 'EMOTIONAL' ? 'italic' : ''}`} toolbarPosition="right" />
+                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mt-4 block leading-none`}>"</span>}
+                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mt-8"></div>}
+                        {visibleHeaders.moodStory && (
+                            <div className="mt-10 flex justify-center items-center gap-6">
+                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
+                                <EditableElement value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
+                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
+                            </div>
+                        )}
+                </div>
+        );
         case 'POINTS': return (
-            <div className={`w-full relative ${
-                pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-14' :
-                pageDesign === 'IMPACT' ? 'bg-white py-14 border-t-8 border-black' :
-                'bg-white py-14'
-            }`}>
+            <div className={`w-full relative ${getSectionBg('POINTS', pageDesign)} py-14`}>
                         {isEditMode && (
-                             <div className="absolute top-4 right-10 flex gap-2 flex-wrap justify-end">
+                             <div className="absolute top-4 right-10 flex gap-2 flex-wrap justify-end z-20">
                                 <div className="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
                                     <button onClick={() => setPointIconStyle('EMOJI')} className={`px-3 py-1 text-xs font-bold rounded ${pointIconStyle === 'EMOJI' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}>😊 이모지</button>
                                     <button onClick={() => setPointIconStyle('NUMBER')} className={`px-3 py-1 text-xs font-bold rounded ${pointIconStyle === 'NUMBER' ? 'bg-white shadow text-indigo-600' : 'text-gray-500'}`}>🔢 숫자</button>
@@ -953,16 +1776,16 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                              </div>
                         )}
                         <div className="text-center mb-12 px-10">
-                            <EditableElement value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-3" toolbarPosition="right" />
+                            <EditableElement value={headers.whyThisItem} onChange={(v) => handleHeaderChange('whyThisItem', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-tight mb-3" toolbarPosition="right" />
                             {visibleHeaders.whySub && (
-                                <EditableElement value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                <EditableElement value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: subTextColor, align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                             )}
                         </div>
                         <div className={`px-10 ${pointLayout === 'CARDS' ? 'grid gap-10' : pointLayout === 'SIMPLE' ? 'space-y-12' : 'flex flex-wrap'}`}>
                             {pointBlocks.map((block, idx) => {
                                 if (block.type === 'POINT_ITEM') {
                                     return (
-                                        <div key={block.id} className={`relative group/point w-full ${pointLayout === 'ZIGZAG' ? `flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-stretch min-h-[400px] border-b ${themeStyles.tableBorder} last:border-0` : ''} ${pointLayout === 'CARDS' ? `${themeStyles.cardBg} rounded-3xl p-12 border border-gray-200` : ''} ${pointLayout === 'SIMPLE' ? `flex flex-col items-start border-l-8 ${theme.border} pl-10 py-4` : ''}`}>   
+                                        <div key={block.id} className={`relative group/point w-full ${pointLayout === 'ZIGZAG' ? `flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-center border-b ${themeStyles.tableBorder} last:border-0` : ''} ${pointLayout === 'CARDS' ? `${themeStyles.cardBg} rounded-3xl p-12 border border-gray-200` : ''} ${pointLayout === 'SIMPLE' ? `flex flex-col items-start border-l-8 ${theme.border} pl-10 py-4` : ''}`}>
                                             {isEditMode && (
                                                 <div className="absolute top-2 left-2 z-30 flex gap-1 opacity-0 group-hover/point:opacity-100 transition-opacity">
                                                     <button onClick={() => movePointBlock(idx, -1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronUpIcon className="w-3 h-3"/></button>
@@ -970,15 +1793,16 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                     <button onClick={() => removePointBlock(block.id)} className="p-2 bg-red-50 text-red-500 rounded-full shadow border border-gray-200 hover:bg-red-100"><TrashIcon className="w-3 h-3" /></button>
                                                 </div>
                                             )}
+                                            {/* ═══ ZIGZAG: 텍스트 + sideImage 교차 ═══ */}
                                             {pointLayout === 'ZIGZAG' && (
                                                 <>
-                                                    <div className={`flex-1 p-10 flex flex-col justify-center ${themeStyles.bg} relative`}>
-                                                        {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div>}
-                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-4 leading-snug" toolbarPosition="right" />
-                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-600', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-relaxed" toolbarPosition="right" />
+                                                    <div className={`flex-1 p-10 flex flex-col justify-center relative`}>
+                                                        {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
+                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-4 leading-snug" toolbarPosition="right" />
+                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: bodyTextColor, align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-relaxed" toolbarPosition="right" />
                                                     </div>
-                                                    <div 
-                                                        className={`w-1/3 ${theme.lightBg} flex items-center justify-center relative group/side overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
+                                                    <div
+                                                        className={`w-2/5 aspect-[3/4] ${theme.lightBg} flex items-center justify-center relative group/side overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
                                                         onDragEnter={(e) => handleDragEnter(e, block.id)}
                                                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                                         onDragLeave={handleDragLeave}
@@ -1008,7 +1832,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                                 {isEditMode && (
                                                                     <label className="flex flex-col items-center cursor-pointer bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-indigo-400 group/upload">
                                                                         <div className="bg-gray-50 p-3 rounded-full mb-2 group-hover/upload:bg-indigo-50"><PhotoIcon className="w-6 h-6 text-gray-400 group-hover:text-indigo-600" /></div>
-                                                                        <span className="text-xs font-bold text-gray-500 group-hover/upload:text-indigo-600">이미지 추가</span>
+                                                                        <span className="text-xs font-bold text-gray-500">이미지 추가</span>
                                                                         <input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} />
                                                                     </label>
                                                                 )}
@@ -1017,31 +1841,30 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                     </div>
                                                 </>
                                             )}
+                                            {/* ═══ CARDS: 카드형 ═══ */}
                                             {pointLayout === 'CARDS' && (
-                                                <div className="flex flex-col items-center text-center w-full">
-                                                    <div className={`absolute top-0 right-0 ${theme.badge} text-white font-bold text-xl px-4 py-2 rounded-bl-2xl`}>POINT {idx+1}</div>
-                                                    {pointIconStyle !== 'NONE' && ( <div className="bg-white w-24 h-24 rounded-full flex items-center justify-center text-5xl shadow-md mb-6">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</div> )}
-                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-4" toolbarPosition="right" />
-                                                    <div className="w-10 h-1 bg-gray-300 mb-6"></div>
-                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-2xl' }} className="leading-normal" toolbarPosition="right" />
+                                                <div className="text-center">
+                                                    {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
+                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="mb-4 leading-snug" toolbarPosition="right" />
+                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: bodyTextColor, align: 'text-center', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
                                                 </div>
                                             )}
+                                            {/* ═══ SIMPLE: 심플 리스트 ═══ */}
                                             {pointLayout === 'SIMPLE' && (
-                                                <div className="w-full">
-                                                    {pointIconStyle !== 'NONE' && ( <div className="flex items-center gap-4 mb-2"><span className="text-4xl">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : block.icon}</span></div> )}
-                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2" toolbarPosition="right" />
-                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-800' : 'text-gray-500', align: 'text-left', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }} className="leading-normal" toolbarPosition="right" />
-                                                </div>
+                                                <>
+                                                    {pointIconStyle !== 'NONE' && <div className="text-3xl mb-3">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
+                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2 leading-snug" toolbarPosition="right" />
+                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: bodyTextColor, align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
+                                                </>
                                             )}
                                         </div>
                                     );
                                 } else if (block.type === 'IMAGE') {
-                                    const widthClass = block.width === 'HALF' ? 'w-1/2' : block.width === 'THIRD' ? 'w-1/3' : 'w-full';
                                     const toggleLabel = block.width === 'FULL' ? '◩ 2단' : block.width === 'HALF' ? '▦ 3단' : '⬛ 꽉참';
                                     return (
-                                        <div key={block.id} className={`relative group ${widthClass} p-2`}>
+                                        <div key={block.id} className={`relative group ${block.width === 'FULL' ? 'w-full' : block.width === 'HALF' ? 'w-1/2' : 'w-1/3'}`}>
                                             <div 
-                                                className={`w-full h-full relative min-h-[200px] bg-gray-100 flex items-center justify-center rounded-xl overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
+                                                className={`w-full relative min-h-[200px] bg-gray-200 flex items-center justify-center ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
                                                 onDragEnter={(e) => handleDragEnter(e, block.id)}
                                                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                                 onDragLeave={handleDragLeave}
@@ -1095,7 +1918,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                     <button onClick={() => removePointBlock(block.id)} className="p-2 bg-red-50 text-red-500 rounded shadow hover:bg-red-100"><TrashIcon className="w-4 h-4"/></button>
                                                 </div>
                                             )}
-                                            <EditableElement value={block.content || ''} onChange={(v) => updatePointBlock(block.id, 'content', v)} onStyleChange={(s) => setPointBlocks(prev => prev.map(b => b.id === block.id ? { ...b, style: s } : b))} isEditMode={isEditMode} aiLabel="Text" defaultStyle={block.style || { fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }} className="p-6 rounded-xl leading-normal" toolbarPosition="right" />
+                                            <EditableElement value={block.content || ''} onChange={(v) => updatePointBlock(block.id, 'content', v)} onStyleChange={(s) => setPointBlocks(prev => prev.map(b => b.id === block.id ? { ...b, style: s } : b))} isEditMode={isEditMode} aiLabel="Text" defaultStyle={block.style || { fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: bodyTextColor, align: 'text-center', fontWeight: 'font-normal', maxWidth: 'max-w-4xl' }} className="p-6 rounded-xl leading-normal" toolbarPosition="right" />
                                         </div>
                                     );
                                 }
@@ -1109,77 +1932,15 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 <button onClick={() => addPointBlock('TEXT')} className="flex items-center gap-2 px-5 py-3 bg-white hover:bg-gray-50 text-gray-600 rounded-full font-bold transition-all border border-gray-300 shadow-sm"><DocumentTextIcon className="w-5 h-5" /> 텍스트 추가</button>
                             </div>
                         )}
-
-                        {/* ── 별점 리뷰 섹션 ── */}
-                        <div className={`w-full mt-16 py-14 ${pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0]' : 'bg-gray-50'}`}>
-                            <div className="max-w-3xl mx-auto px-8">
-                                <div className="flex justify-center gap-1 mb-3">
-                                    {[1,2,3,4,5].map(i => (
-                                        <span key={i} className="text-2xl text-yellow-400">★</span>
-                                    ))}
-                                </div>
-                                <EditableElement value={reviewTitle} onChange={setReviewTitle} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="mb-8" toolbarPosition="right" />
-
-                                {/* 제품 이미지 (스타일 이미지 중 첫 번째) */}
-                                {(() => {
-                                    const styledImg = images.find(img => img.type === 'styled' && img.processedUrl);
-                                    return styledImg ? (
-                                        <div className="w-full mb-8 rounded-lg overflow-hidden">
-                                            <img src={styledImg.processedUrl!} alt="Product" className="w-full h-auto" crossOrigin="anonymous" />
-                                        </div>
-                                    ) : null;
-                                })()}
-
-                                <div className="space-y-4">
-                                    {reviewItems.map((review, idx) => (
-                                        <div key={idx} className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white ${idx === 0 ? 'bg-pink-400' : idx === 1 ? 'bg-indigo-400' : 'bg-emerald-400'}`}>{review.name.charAt(0)}</div>
-                                                <span className="text-sm font-bold text-gray-700">{review.name}</span>
-                                                <span className="text-xs text-yellow-400 ml-auto">{'★'.repeat(5)}</span>
-                                            </div>
-                                            {isEditMode ? (
-                                                <textarea value={review.comment} onChange={e => { const newItems = [...reviewItems]; newItems[idx] = {...review, comment: e.target.value}; setReviewItems(newItems); }}
-                                                    className="w-full text-sm text-gray-600 bg-transparent outline-none resize-none leading-relaxed" rows={2} />
-                                            ) : (
-                                                <p className="text-sm text-gray-600 leading-relaxed">{review.comment}</p>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ── 추천 대상 섹션 ── */}
-                        {recommendText && (
-                            <div className={`w-full py-14 ${themeStyles.bg}`}>
-                                <div className="max-w-3xl mx-auto px-8 text-center">
-                                    <EditableElement value={recommendTitle} onChange={setRecommendTitle} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="mb-8" toolbarPosition="right" />
-                                    <div className="space-y-3 text-left max-w-xl mx-auto">
-                                        {recommendText.split('\n').filter(l => l.trim()).map((item, idx) => (
-                                            <div key={idx} className="flex items-start gap-3 py-2">
-                                                <span className="text-green-500 font-bold mt-0.5">✓</span>
-                                                {isEditMode ? (
-                                                    <input value={item} onChange={e => { const lines = recommendText.split('\n'); lines[idx] = e.target.value; setRecommendText(lines.join('\n')); }}
-                                                        className="flex-1 text-sm text-gray-600 bg-transparent outline-none" />
-                                                ) : (
-                                                    <span className="text-sm text-gray-600">{item}</span>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                 </div>
         );
         case 'OPTIONS': return (
-            <div className={`w-full py-14 ${themeStyles.bg} border-t ${themeStyles.tableBorder}`}>
-                    <div className="text-center mb-8">
-                        <EditableElement value="COLORS & OPTIONS" onChange={() => {}} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="uppercase tracking-widest leading-normal" toolbarPosition="right" />
+            <div className={`w-full py-20 ${getSectionBg('OPTIONS', pageDesign)}`}>
+                    <div className="text-center mb-10">
+                        <EditableElement value="COLORS & OPTIONS" onChange={() => {}} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-widest leading-normal" toolbarPosition="right" />
                     </div>
                     <div className="flex flex-wrap justify-center gap-4 px-6">
-                        {optionBlocks.length === 0 && <div className="text-gray-400">옵션 이미지가 없습니다. 상단에서 추가하거나 아래 버튼을 눌러주세요.</div>}
+                        {optionBlocks.length === 0 && <div className={pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-400'}>옵션 이미지가 없습니다. 상단에서 추가하거나 아래 버튼을 눌러주세요.</div>}
                         {optionBlocks.map((block) => (
                             <div key={block.id} className="flex flex-col items-center w-[260px] group relative">
                                 {isEditMode && (
@@ -1211,11 +1972,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-gray-50 text-gray-300 hover:text-gray-500"><PhotoIcon className="w-10 h-10 mb-2"/><span className="text-xs">이미지 추가</span><input type="file" className="hidden" accept="image/*" onChange={(e) => handleOptionImageUpload(block.id, e)} /></label>
                                     )}
                                 </div>
-                                <EditableElement value={block.text} onChange={(v) => updateOptionBlock(block.id, 'text', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                <EditableElement value={block.text} onChange={(v) => updateOptionBlock(block.id, 'text', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
                             </div>
                         ))}
                         {isEditMode && (
-                            <button onClick={addOptionBlock} className="w-[260px] aspect-[3/4] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-white transition-all">
+                            <button onClick={addOptionBlock} className={`w-[260px] aspect-[3/4] border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-all ${pageDesign === 'IMPACT' ? 'border-gray-600 text-gray-400 hover:border-red-500 hover:text-red-400' : 'border-gray-300 text-gray-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-white'}`}>
                                 <PlusIcon className="w-10 h-10 mb-2" />
                                 <span className="font-bold">옵션 추가</span>
                             </button>
@@ -1224,22 +1985,16 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
         );
         case 'DETAILS': return (
-                     <div className={`w-full pb-6 ${
-                         pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' :
-                         pageDesign === 'IMPACT' ? 'bg-white' :
-                         'bg-white'
-                     }`}>
-                        <div className="w-full py-8 flex justify-center items-center gap-4 px-10">
-                            <span className={`flex-1 h-[1px] ${pageDesign === 'IMPACT' ? 'bg-gray-300' : 'bg-gray-200'}`}></span>
-                            <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: themeStyles.fontHead as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase whitespace-nowrap" toolbarPosition="right" />
-                            <span className={`flex-1 h-[1px] ${pageDesign === 'IMPACT' ? 'bg-gray-300' : 'bg-gray-200'}`}></span>
+                     <div className={`w-full pb-10 ${getSectionBg('DETAILS', pageDesign)}`}>
+                        <div className={`w-full py-10 text-center ${pageDesign === 'IMPACT' ? 'bg-black' : ''}`}>
+                            <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-black' : 'font-bold' }} className={`inline-block px-8 py-3 tracking-[0.2em] uppercase ${pageDesign === 'IMPACT' ? 'border-b-2 border-red-600' : pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' : `border-2 ${themeStyles.tableBorder} bg-white w-72`}`} toolbarPosition="right" />
                         </div>
-                        <div className="w-full flex flex-col gap-6 py-6 px-4">
+                        <div className="w-full flex flex-wrap">
                             {detailBlocks.map((block, bIdx) => {
                                 const widthClass = block.width === 'FULL' ? 'w-full' : block.width === 'HALF' ? 'w-1/2' : 'w-1/3';
                                 const toggleLabel = block.width === 'FULL' ? '◩ 2단' : block.width === 'HALF' ? '▦ 3단' : '⬛ 꽉참';
                                 return (
-                                <div key={block.id} className={`relative group ${widthClass}`}>
+                                <div key={block.id} className={`relative group border-b border-gray-100/50 ${widthClass}`}>
                                     {isEditMode && (
                                         <div className="absolute top-4 right-4 z-30 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => moveBlock(bIdx, -1)} className="bg-white text-gray-500 p-2 rounded shadow border border-gray-200 hover:text-indigo-600 hover:bg-indigo-50"><ChevronUpIcon className="w-4 h-4"/></button>
@@ -1266,12 +2021,6 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                             {block.content ? (
                                                 <>
                                                     <img src={block.content} alt="Detail" className="w-full h-auto block" crossOrigin="anonymous" />
-                                                    {/* 자동 배너 카피 오버레이 */}
-                                                    {block.bannerText && !block.overlayText && (
-                                                        <div className={`absolute ${getBannerPositionClass(getPreset(category, pageDesign).bannerStyle.position)} ${getPreset(category, pageDesign).bannerStyle.bgColor} px-6 py-4 flex items-center justify-center`}>
-                                                            <EditableElement value={block.bannerText} onChange={(v) => setDetailBlocks(prev => prev.map(b => b.id === block.id ? { ...b, bannerText: v } : b))} isEditMode={isEditMode} defaultStyle={{ fontSize: getPreset(category, pageDesign).bannerStyle.fontSize as any, fontFamily: getPreset(category, pageDesign).bannerStyle.fontFamily as any, color: getPreset(category, pageDesign).bannerStyle.textColor, align: 'text-center', fontWeight: getPreset(category, pageDesign).bannerStyle.fontWeight as any }} className="drop-shadow-md" toolbarPosition="right" />
-                                                        </div>
-                                                    )}
                                                     {(block.overlayText !== undefined || isEditMode) && block.overlayText !== undefined && (
                                                         <EditableElement value={block.overlayText} onChange={(v) => updateOverlayText(block.id, v)} onStyleChange={(s) => updateOverlayStyle(block.id, s)} isEditMode={isEditMode} enableDrag={true} defaultStyle={block.overlayStyle || { fontSize: 'text-4xl', fontFamily: 'font-sans', color: 'text-white', align: 'text-center', verticalAlign: 'justify-center', fontWeight: 'font-bold', x: 50, y: 50 }} className="drop-shadow-md" toolbarPosition="right" />
                                                     )}
@@ -1292,7 +2041,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         </div>
                                     )}
                                     {block.type === 'TEXT' && (
-                                        <div className={`w-full ${pageDesign === 'EMOTIONAL' ? 'bg-[#f4f1ea]' : 'bg-gray-100'} p-12 relative group/textblock h-full flex items-center`}>
+                                        <div className={`w-full ${block.style?.backgroundColor || (pageDesign === 'EMOTIONAL' ? 'bg-[#f4f1ea]' : 'bg-gray-100')} p-10 relative group/textblock h-full flex items-center justify-center`}>
                                             <EditableElement value={block.content} onChange={(v) => updateBlockContent(block.id, v)} onStyleChange={(s) => setDetailBlocks(prev => prev.map(b => b.id === block.id ? { ...b, style: s } : b))} isEditMode={isEditMode} aiLabel="Detail Text" defaultStyle={block.style || { fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }} className="leading-relaxed" toolbarPosition="right" />
                                         </div>
                                     )}
@@ -1337,6 +2086,49 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                             )}
                                         </div>
                                     )}
+                                    {block.type === 'REVIEW_EMBED' && reviewData.content && (
+                                        <div className={`w-full py-12 px-8 ${pageDesign === 'IMPACT' ? 'bg-gray-900' : pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : 'bg-gray-50'}`}>
+                                            <div className="max-w-4xl mx-auto">
+                                                <div className="text-center mb-8">
+                                                    <span className="text-2xl">⭐⭐⭐⭐⭐</span>
+                                                    <p className={`text-2xl font-black mt-2 ${pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text}`}>{reviewData.title}</p>
+                                                    <p className={`text-xs mt-1 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>만족도 4.9 / 5.0</p>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    {reviewData.content.split('\n').filter((l: string) => l.trim()).slice(0, 3).map((review: string, ri: number) => (
+                                                        <div key={ri} className={`p-5 rounded-xl ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0]' : 'bg-white border border-gray-200'} shadow-sm`}>
+                                                            <div className="flex items-center gap-3 mb-2">
+                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : 'bg-indigo-100 text-indigo-600'}`}>{['👩','👨','👩‍💼'][ri%3]}</div>
+                                                                <div>
+                                                                    <p className={`text-xs font-bold ${pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-800'}`}>{['kh**','김0진','sun****'][ri%3]}</p>
+                                                                    <p className="text-xs text-yellow-500">★★★★★</p>
+                                                                </div>
+                                                            </div>
+                                                            <p className={`text-lg leading-relaxed ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>{review.replace(/^\d+[\.\)]\s*/, '').trim()}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {block.type === 'RECOMMEND_EMBED' && recommendData.items.length > 0 && (
+                                        <div className={`w-full py-12 px-8 ${pageDesign === 'IMPACT' ? 'bg-black' : pageDesign === 'EMOTIONAL' ? 'bg-[#f4f1ea]' : 'bg-gradient-to-b from-indigo-50 to-white'}`}>
+                                            <div className="max-w-4xl mx-auto">
+                                                <div className="text-center mb-8">
+                                                    <span className="text-3xl">💡</span>
+                                                    <p className={`text-xl font-black mt-2 ${pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text}`}>{recommendData.title}</p>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {recommendData.items.slice(0, 4).map((item, ri) => (
+                                                        <div key={ri} className={`flex items-start gap-3 p-5 rounded-xl ${pageDesign === 'IMPACT' ? 'bg-gray-900 border border-gray-800' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0]' : 'bg-white border border-gray-200'} shadow-sm`}>
+                                                            <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ${pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9] text-white' : 'bg-indigo-600 text-white'}`}>{ri+1}</div>
+                                                            <p className={`text-lg font-medium leading-relaxed ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700'}`}>{item}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 )
                             })}
@@ -1351,144 +2143,238 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                     </div>
             );
         case 'INFO': return (
-                    <div className={`w-full pt-10 pb-16 px-6 ${
-                        pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' :
-                        pageDesign === 'IMPACT' ? 'bg-gray-50' :
-                        'bg-white'
-                    }`}>
-                        <div className={`max-w-3xl mx-auto p-5 text-center rounded-lg mb-10 ${
-                            pageDesign === 'IMPACT' ? 'bg-black' :
-                            pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#d4d1c9]' :
-                            'bg-red-50 border border-red-100'
-                        }`}>
-                            <h4 className={`font-bold text-base mb-2 uppercase tracking-wide flex items-center justify-center gap-2 ${
-                                pageDesign === 'IMPACT' ? 'text-red-500' : 'text-red-500'
-                            }`}>⚠️ Check Point</h4>
-                            <EditableElement value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                    <div className={`w-full pt-14 pb-20 px-10 ${getSectionBg('INFO', pageDesign)}`}>
+                        <div className="mb-6 text-center">
+                             <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                         </div>
-                        <div className="max-w-3xl mx-auto">
-                            <div className="flex justify-center mb-6">
-                                <EditableElement value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`pb-2 px-6 ${
-                                    pageDesign === 'IMPACT' ? 'border-b-2 border-black' :
-                                    pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' :
-                                    'border-b-2 border-gray-200'
-                                }`} toolbarPosition="right" />
-                            </div>
-                            <table className={`w-full text-sm border-t-2 ${themeStyles.tableBorder} table-fixed`}>
-                                <colgroup><col className="w-[20%] bg-gray-50" /><col className="w-[30%]" /><col className="w-[20%] bg-gray-50" /><col className="w-[30%]" /></colgroup>
-                                <tbody>
-                                    <tr className="border-b border-gray-200">
-                                        <th className={`py-3 px-3 text-left font-bold text-sm ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'bg-gray-50 text-gray-600'} align-top`}><EditableElement value={infoLabels.product} onChange={(v) => handleInfoLabelChange('product', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-600', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className="py-3 px-3 text-gray-600 align-top text-sm" colSpan={3}><EditableElement value={editableProductName} onChange={setEditableProductName} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                    </tr>
-                                    <tr className="border-b border-gray-200">
-                                        <th className={`py-3 px-3 text-left font-bold text-sm ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'bg-gray-50 text-gray-600'} align-top`}><EditableElement value={infoLabels.material} onChange={(v) => handleInfoLabelChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-600', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className="py-3 px-3 text-gray-600 align-top text-sm"><EditableElement value={editableCopy.productInfo.material} onChange={(v) => handleProductInfoChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                        <th className={`py-3 px-3 text-left font-bold text-sm ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'bg-gray-50 text-gray-600'} align-top`}><EditableElement value={infoLabels.color} onChange={(v) => handleInfoLabelChange('color', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-600', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className="py-3 px-3 text-gray-600 align-top text-sm"><EditableElement value={infoLabels.imgRef} onChange={(v) => handleInfoLabelChange('imgRef', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                    </tr>
-                                    <tr className={`border-b ${themeStyles.tableBorder}`}>
-                                        <th className={`py-3 px-3 text-left font-bold text-sm ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'bg-gray-50 text-gray-600'} align-top`}><EditableElement value={infoLabels.origin} onChange={(v) => handleInfoLabelChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-600', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                        <td className="py-3 px-3 text-gray-600 align-top text-sm"><EditableElement value={editableCopy.productInfo.origin} onChange={(v) => handleProductInfoChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-
-                                        {category === 'FASHION' ? (
-                                            <>
-                                                <th className={`py-3 px-3 text-left font-bold text-sm ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'bg-gray-50 text-gray-600'} align-top`}><EditableElement value={infoLabels.wash} onChange={(v) => handleInfoLabelChange('wash', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-600', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                                <td className="py-3 px-3 text-gray-600 align-top text-sm"><EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: themeStyles.fontBody as any, color: 'text-gray-500', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <th className={`py-3 px-3 text-left font-bold text-sm ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'bg-gray-50 text-gray-600'} align-top`}><EditableElement value={infoLabels.caution} onChange={(v) => handleInfoLabelChange('caution', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-600', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" /></th>
-                                                <td className="py-3 px-3 text-gray-600 align-top text-sm"><EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: themeStyles.fontBody as any, color: 'text-gray-500', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" /></td>
-                                            </>
-                                        )}
-                                    </tr>
-                                    {/* ── infoDisclosure 데이터 통합 행 ── */}
-                                    {infoDisclosure && [
-                                        { label: '제조사/수입자', value: infoDisclosure.manufacturer },
-                                        { label: '고객센터', value: infoDisclosure.customerService },
-                                        { label: '인증여부', value: infoDisclosure.haccp || infoDisclosure.certifications },
-                                        { label: '품질보증', value: infoDisclosure.warranty },
-                                    ].filter(r => r.value).map((row, i) => (
-                                        <tr key={`info-${i}`} className="border-b border-gray-200">
-                                            <th className={`py-3 px-3 text-left font-bold text-sm ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'bg-gray-50 text-gray-600'} align-top`}>{row.label}</th>
-                                            <td className="py-3 px-3 text-gray-600 align-top text-sm" colSpan={3}>{row.value}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                            {/* ── 사이즈 가이드 (sizeChartData 있을 때만) ── */}
-                            {editableSizeChart && category === 'FASHION' && (
-                              <div className="mt-10">
-                                <div className={`flex justify-center mb-6`}>
-                                  <span className={`text-lg ${themeStyles.fontHead} font-bold pb-2 px-6 ${
-                                    pageDesign === 'IMPACT' ? 'border-b-2 border-black' :
-                                    pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' :
-                                    'border-b-2 border-gray-200'
-                                  } ${themeStyles.text}`}>
-                                    📏 사이즈 가이드
-                                  </span>
+                        {/* ── CHECK POINT: 친절한 안내 박스 (가운데 정렬) ── */}
+                        <div className={`p-8 rounded-2xl mb-14 max-w-4xl mx-auto text-center ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#d4d1c9]' : 'bg-amber-50 border border-amber-200'}`}>
+                            <div className="flex items-center justify-center gap-3 mb-4">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${pageDesign === 'IMPACT' ? 'bg-red-600' : pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9]' : 'bg-amber-400'}`}>
+                                    <span className="text-white text-lg">📋</span>
                                 </div>
-                                {(editableSizeChart.productCode || editableSizeChart.weight) && (
-                                  <p className="text-center text-sm text-gray-500 mb-4">
-                                    {editableSizeChart.productCode && `품번: ${editableSizeChart.productCode}`}
-                                    {editableSizeChart.productCode && editableSizeChart.weight && ' · '}
-                                    {editableSizeChart.weight && `중량: ${editableSizeChart.weight}`}
-                                  </p>
-                                )}
-                                <table className={`w-full text-sm border-t-2 ${themeStyles.tableBorder} table-fixed`}>
-                                  <thead>
-                                    <tr>
-                                      {editableSizeChart.headers.map((h, i) => (
-                                        <th key={i} className={`py-2 px-3 font-bold text-center text-xs border-b border-gray-200 ${pageDesign === 'IMPACT' ? 'bg-black text-white' : 'bg-gray-50 text-gray-600'}`}>
-                                          {isEditMode ? (
-                                            <input value={h} onChange={e => { const newHeaders = [...editableSizeChart.headers]; newHeaders[i] = e.target.value; setEditableSizeChart({...editableSizeChart, headers: newHeaders}); }}
-                                              className="bg-transparent text-center w-full outline-none font-bold" />
-                                          ) : h}
-                                        </th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {editableSizeChart.rows.map((row, ri) => (
-                                      <tr key={ri} className="border-b border-gray-200">
-                                        {row.map((cell, ci) => (
-                                          <td key={ci} className="py-2 px-3 text-center text-gray-600 text-xs">
-                                            {isEditMode ? (
-                                              <input value={cell} onChange={e => { const newRows = editableSizeChart.rows.map((r, idx) => idx === ri ? r.map((c, cidx) => cidx === ci ? e.target.value : c) : r); setEditableSizeChart({...editableSizeChart, rows: newRows}); }}
-                                                className="bg-transparent text-center w-full outline-none text-xs" />
-                                            ) : cell}
-                                          </td>
-                                        ))}
-                                        {isEditMode && (
-                                          <td className="px-1">
-                                            <button onClick={() => { const newRows = editableSizeChart.rows.filter((_, idx) => idx !== ri); setEditableSizeChart({...editableSizeChart, rows: newRows}); }} className="text-red-400 hover:text-red-600 text-xs">✕</button>
-                                          </td>
-                                        )}
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                                {isEditMode && (
-                                  <div className="flex gap-2 mt-2">
-                                    <button onClick={() => setEditableSizeChart({...editableSizeChart, rows: [...editableSizeChart.rows, Array(editableSizeChart.headers.length).fill('')]})} className="text-xs text-indigo-600 hover:underline">+ 행 추가</button>
-                                    <button onClick={() => setEditableSizeChart({...editableSizeChart, headers: [...editableSizeChart.headers, ''], rows: editableSizeChart.rows.map(r => [...r, ''])})} className="text-xs text-indigo-600 hover:underline">+ 열 추가</button>
-                                  </div>
-                                )}
-                                {editableSizeChart.notes && editableSizeChart.notes.length > 0 && (
-                                  <div className="mt-4 text-center">
-                                    {editableSizeChart.notes.map((note, i) => (
-                                      <p key={i} className="text-sm text-gray-400">{note}</p>
-                                    ))}
-                                  </div>
-                                )}
-                                <p className="text-center text-xs text-gray-400 mt-4">※ 측정 방법에 따라 1~3cm 오차가 있을 수 있습니다</p>
-                              </div>
-                            )}
-                            <div className="mt-8 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
+                                <h4 className={`font-black text-xl ${pageDesign === 'IMPACT' ? 'text-white' : pageDesign === 'EMOTIONAL' ? 'text-gray-800' : 'text-amber-800'}`}>구매 전 꼭 확인하세요</h4>
+                            </div>
+                            <EditableElement value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700', align: 'text-center', fontWeight: 'font-medium' }} toolbarPosition="right" />
+                        </div>
+                        {/* ── Product Info 테이블 (단일 컬럼 라벨:값) ── */}
+                        <div className="max-w-4xl mx-auto">
+                            <div className="flex justify-center mb-8">
+                                <EditableElement value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-black' : 'font-bold' }} className={`pb-2 px-8 ${pageDesign === 'IMPACT' ? 'border-b-4 border-red-600 uppercase tracking-widest' : pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' : `border-b-4 ${themeStyles.tableBorder}`}`} toolbarPosition="right" />
+                            </div>
+                            <div className={`border-t-[3px] ${themeStyles.tableBorder} divide-y ${themeStyles.tableBorder}`}>
+                                {/* 제품명 */}
+                                <div className="flex">
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.product} onChange={(v) => handleInfoLabelChange('product', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    </div>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        <EditableElement value={editableProductName} onChange={setEditableProductName} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    </div>
+                                </div>
+                                {/* 소재 */}
+                                <div className="flex">
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.material} onChange={(v) => handleInfoLabelChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    </div>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        <EditableElement value={editableCopy.productInfo.material} onChange={(v) => handleProductInfoChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: valueTextColor, align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    </div>
+                                </div>
+                                {/* 색상 */}
+                                <div className="flex">
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.color} onChange={(v) => handleInfoLabelChange('color', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    </div>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        <EditableElement value={infoLabels.imgRef} onChange={(v) => handleInfoLabelChange('imgRef', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: valueTextColor, align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    </div>
+                                </div>
+                                {/* 제조국 */}
+                                <div className="flex">
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.origin} onChange={(v) => handleInfoLabelChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    </div>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        <EditableElement value={editableCopy.productInfo.origin} onChange={(v) => handleProductInfoChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: valueTextColor, align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    </div>
+                                </div>
+                                {/* 세탁/주의사항 */}
+                                <div className="flex">
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                        <EditableElement value={category === 'FASHION' ? infoLabels.wash : infoLabels.caution} onChange={(v) => handleInfoLabelChange(category === 'FASHION' ? 'wash' : 'caution', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    </div>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        <EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: valueTextColor, align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    </div>
+                                </div>
+                                {/* 정보고시 추가 항목 */}
+                                {infoDisclosure && [
+                                    { label: '제조사/수입자', value: infoDisclosure.manufacturer },
+                                    { label: '사이즈', value: infoDisclosure.size },
+                                    { label: '세탁방법', value: infoDisclosure.wash },
+                                    { label: '인증여부', value: infoDisclosure.haccp || infoDisclosure.certifications },
+                                    { label: '품질보증', value: infoDisclosure.warranty },
+                                    { label: '주의사항', value: infoDisclosure.caution },
+                                    { label: '고객센터', value: infoDisclosure.customerService },
+                                ].filter(r => r.value).map((row, i) => (
+                                    <div key={`info-${i}`} className="flex">
+                                        <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>{row.label}</div>
+                                        <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>{row.value}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-8 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
                         </div>
                     </div>
             );
+        case 'REVIEW': return (
+            <div className={`w-full ${getSectionBg('REVIEW', pageDesign)}`}>
+                <div className="py-16 px-10">
+                <div className="max-w-4xl mx-auto">
+                    <div className="text-center mb-10">
+                        <div className="flex items-center justify-center gap-2 mb-3">
+                            <span className="text-3xl">⭐⭐⭐⭐⭐</span>
+                        </div>
+                        <EditableElement value={reviewData.title} onChange={(v) => setReviewData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                        <p className={`text-lg mt-2 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>만족도 4.9 / 5.0</p>
+                    </div>
+                    {reviewData.content ? (
+                        <div className="space-y-5">
+                            {reviewData.content.split('\n').filter((l: string) => l.trim()).slice(0, 3).map((review: string, i: number) => {
+                                const purchaseDates = ['2025.12.15', '2025.12.22', '2026.01.03'];
+                                return (
+                                <div key={i} className={`p-7 rounded-2xl ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0]' : 'bg-white border border-gray-200'} shadow-sm`}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : theme.bg + ' text-white'}`}>
+                                                {['👩', '👨', '👩‍💼'][i % 3]}
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <p className={`text-lg font-bold ${pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-800'}`}>{['kh**', '김0진', 'sun****'][i % 3]}</p>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${pageDesign === 'IMPACT' ? 'bg-red-600/20 text-red-400' : theme.lightBg + ' ' + theme.text}`}>구매 인증</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <p className="text-xs text-yellow-500">★★★★★</p>
+                                                    <p className={`text-xs ${pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400'}`}>{purchaseDates[i % 3]} 구매</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <EditableElement value={review.replace(/^\d+[\.\)]\s*/, '').trim()} onChange={(v) => {
+                                        const lines = reviewData.content.split('\n');
+                                        lines[i] = v;
+                                        setReviewData(prev => ({...prev, content: lines.join('\n')}));
+                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-center text-gray-400 py-8">기획안에서 고객 후기가 생성됩니다</div>
+                    )}
+                </div>
+                </div>
+            </div>
+        );
+        case 'RECOMMEND': return (
+            <div className={`w-full ${getSectionBg('RECOMMEND', pageDesign)}`}>
+                <div className="py-16 px-10">
+                <div className="max-w-4xl mx-auto">
+                    <div className="text-center mb-10">
+                        <span className={`text-4xl mb-4 block`}>💡</span>
+                        <EditableElement value={recommendData.title} onChange={(v) => setRecommendData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                    </div>
+                    {recommendData.items.length > 0 ? (
+                        <div className="space-y-4">
+                            {recommendData.items.slice(0, 5).map((item, i) => (
+                                <div key={i} className={`flex items-center gap-5 p-6 rounded-2xl transition-all ${
+                                    pageDesign === 'IMPACT' ? 'bg-gray-900 border border-gray-800 hover:border-red-600' : 
+                                    pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0] hover:shadow-md' :
+                                    'bg-white border border-gray-200 hover:shadow-md hover:border-indigo-200'
+                                }`}>
+                                    {/* SVG 체크 원형 (디자인 요소) */}
+                                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                                        pageDesign === 'IMPACT' ? 'bg-red-600' :
+                                        pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9]' :
+                                        theme.bg
+                                    }`}>
+                                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    </div>
+                                    <EditableElement value={item} onChange={(v) => {
+                                        const newItems = [...recommendData.items];
+                                        newItems[i] = v;
+                                        setRecommendData(prev => ({...prev, items: newItems}));
+                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700', align: 'text-left', fontWeight: 'font-medium' }} toolbarPosition="right" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center text-gray-400 py-8">기획안에서 추천 대상이 생성됩니다</div>
+                    )}
+                </div>
+                </div>
+            </div>
+        );
+        case 'SIZE_CHART': return editableSizeChart && editableSizeChart.length > 0 ? (
+            <div className={`w-full py-14 px-10 ${getSectionBg('SIZE_CHART', pageDesign)}`}>
+                <div className="max-w-4xl mx-auto">
+                    <div className="text-center mb-8">
+                        <span className="text-3xl mb-3 block">📏</span>
+                        <h3 className={`text-2xl font-black ${pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text}`}>SIZE GUIDE</h3>
+                        <p className={`text-sm mt-1 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>사이즈 가이드 (단위: cm / kg)</p>
+                    </div>
+                    <div className={`overflow-hidden rounded-xl border ${themeStyles.tableBorder}`}>
+                        <table className="w-full">
+                            {editableSizeChart.map((row, rIdx) => (
+                                <tr key={rIdx} className={rIdx === 0
+                                    ? (pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9] text-gray-800' : `${theme.bg} text-white`)
+                                    : (rIdx % 2 === 0
+                                        ? (pageDesign === 'IMPACT' ? 'bg-gray-800' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0]' : 'bg-gray-50')
+                                        : (pageDesign === 'IMPACT' ? 'bg-gray-900' : pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : 'bg-white'))
+                                }>
+                                    {row.map((cell, cIdx) => (
+                                        <td key={cIdx} className={`px-4 py-3 text-center border-b ${themeStyles.tableBorder} ${rIdx === 0 ? 'font-black text-sm' : 'text-sm'} ${rIdx > 0 && cIdx === 0 ? 'font-bold' : ''}`}>
+                                            {isEditMode ? (
+                                                <input type="text" value={cell}
+                                                    onChange={e => {
+                                                        const newChart = editableSizeChart.map(r => [...r]);
+                                                        newChart[rIdx][cIdx] = e.target.value;
+                                                        setEditableSizeChart(newChart);
+                                                    }}
+                                                    className={`w-full text-center bg-transparent outline-none focus:ring-1 focus:ring-indigo-400 rounded px-1 py-0.5 ${
+                                                        rIdx === 0 ? 'font-black' : rIdx > 0 && cIdx === 0 ? 'font-bold' : ''
+                                                    } ${pageDesign === 'IMPACT' ? (rIdx === 0 ? 'text-white' : 'text-gray-300') : rIdx === 0 ? 'text-white' : 'text-gray-700'}`}
+                                                />
+                                            ) : (
+                                                <span className={pageDesign === 'IMPACT' ? (rIdx === 0 ? 'text-white' : 'text-gray-300') : rIdx === 0 ? '' : 'text-gray-700'}>{cell}</span>
+                                            )}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </table>
+                    </div>
+                    {isEditMode && (
+                        <div className="flex justify-center gap-3 mt-4">
+                            <button onClick={() => {
+                                const cols = editableSizeChart[0]?.length || 4;
+                                setEditableSizeChart(prev => [...(prev || []), Array(cols).fill('')]);
+                            }} className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50">+ 행 추가</button>
+                            <button onClick={() => {
+                                setEditableSizeChart(prev => (prev || []).map(row => [...row, '']));
+                            }} className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50">+ 열 추가</button>
+                        </div>
+                    )}
+                    <p className={`text-center text-xs mt-4 ${pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400'}`}>
+                        * 실측 사이즈는 측정 방법에 따라 1~3cm 오차가 있을 수 있습니다
+                    </p>
+                </div>
+            </div>
+        ) : null;
         default: return null;
     }
   };
@@ -1503,17 +2389,17 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         {/* Page Design Selector */}
         <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><ComputerDesktopIcon className="w-5 h-5 text-indigo-600" /> 전체 디자인 무드</h3>
         <div className="flex flex-col gap-2 mb-8">
-             <button onClick={() => applyPreset('MODERN')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'MODERN' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('MODERN'); setPointLayout('ZIGZAG'); setSectionOrder(prev => { const base = ['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS'] as SectionType[]; if (prev.includes('SIZE_CHART')) base.push('SIZE_CHART'); base.push('INFO'); return base; }); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'MODERN' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center font-sans text-xs">Ab</div>
                  <div className="text-left"><div className="font-bold">모던 (기본)</div><div className="text-xs opacity-70">깔끔한 고딕, 지그재그</div></div>
              </button>
-             <button onClick={() => applyPreset('EMOTIONAL')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'EMOTIONAL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('EMOTIONAL'); setPointLayout('SIMPLE'); setSectionOrder(prev => { const base = ['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS'] as SectionType[]; if (prev.includes('SIZE_CHART')) base.push('SIZE_CHART'); base.push('INFO'); return base; }); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'EMOTIONAL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-[#fdfbf7] border border-[#e0dcd0] flex items-center justify-center font-serif-kr text-xs">가</div>
-                 <div className="text-left"><div className="font-bold">감성 (무드)</div><div className="text-xs opacity-70">명조체, 이미지 먼저</div></div>
+                 <div className="text-left"><div className="font-bold">감성 (무드)</div><div className="text-xs opacity-70">명조체, 심플 리스트</div></div>
              </button>
-             <button onClick={() => applyPreset('IMPACT')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+             <button onClick={() => { setPageDesign('IMPACT'); setPointLayout('CARDS'); setSectionOrder(prev => { const base = ['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS'] as SectionType[]; if (prev.includes('SIZE_CHART')) base.push('SIZE_CHART'); base.push('INFO'); return base; }); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-black text-white flex items-center justify-center font-sans text-xs font-black">B</div>
-                 <div className="text-left"><div className="font-bold">임팩트 (강조)</div><div className="text-xs opacity-70">볼드 카드, 포인트 먼저</div></div>
+                 <div className="text-left"><div className="font-bold">임팩트 (강조)</div><div className="text-xs opacity-70">강한 대비, 카드형</div></div>
              </button>
         </div>
 
@@ -1549,7 +2435,21 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             </div>
         </div>
         <div id="capture-area" className={`w-[860px] min-w-[860px] bg-white text-gray-800 flex flex-col items-center shadow-2xl origin-top ${isEditMode ? 'ring-1 ring-gray-200' : ''}`}>
-            {sectionOrder.map((sectionType, idx) => ( <SectionControlWrapper key={sectionType} type={sectionType} index={idx} isEditMode={isEditMode} isFirst={idx === 0} isLast={idx === sectionOrder.length - 1} onMove={moveSection} onDelete={sectionType === 'OPTIONS' ? () => removeSection('OPTIONS') : undefined} onDragStart={handleSectionDragStart} onDragOver={handleSectionDragOver} onDrop={handleSectionDrop} isDragTarget={dragOverIdx === idx && dragFromIdx !== idx}>{renderSectionContent(sectionType)}</SectionControlWrapper> ))}
+            {sectionOrder.map((sectionType, idx) => {
+                // AI 연출 이미지를 섹션 "사이"에 삽입하는 맵
+                const styledAfter: Record<string, number> = { 'DETAILS': 0, 'POINTS': 1, 'REVIEW': 2 };
+                const styledIdx = styledAfter[sectionType];
+                return (
+                    <React.Fragment key={sectionType}>
+                        <SectionControlWrapper type={sectionType} index={idx} isEditMode={isEditMode} isFirst={idx === 0} isLast={idx === sectionOrder.length - 1} onMove={moveSection} onDelete={sectionType === 'OPTIONS' ? () => removeSection('OPTIONS') : undefined}>{renderSectionContent(sectionType)}</SectionControlWrapper>
+                        {styledIdx !== undefined && styledImageList[styledIdx] && (
+                            <div className="w-full">
+                                <img src={styledImageList[styledIdx]} alt={`AI 연출 ${styledIdx + 1}`} className="w-full h-auto block" crossOrigin="anonymous" />
+                            </div>
+                        )}
+                    </React.Fragment>
+                );
+            })}
         </div>
       </div>
     </div>

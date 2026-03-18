@@ -16,16 +16,24 @@ interface PlanStepProps {
 
 const SECTION_COLORS: Record<string, string> = {
   HERO:      'bg-indigo-600',
+  OVERVIEW:  'bg-slate-600',
   STORY:     'bg-purple-600',
+  DETAIL:    'bg-blue-600',
+  REVIEW:    'bg-yellow-500',
   POINT:     'bg-emerald-600',
-  RECOMMEND: 'bg-orange-500',
   OPTIONS:   'bg-pink-500',
+  RECOMMEND: 'bg-orange-500',
+  SIZE:      'bg-cyan-600',
+  GUIDE:     'bg-teal-600',
   INFO:      'bg-gray-600',
+  CAUTION:   'bg-red-500',
+  CUSTOM:    'bg-violet-500',
 };
 
 const SECTION_ICONS: Record<string, string> = {
-  HERO: '🎯', STORY: '💫', POINT: '✨',
-  RECOMMEND: '👍', OPTIONS: '🎨', INFO: '📌',
+  HERO: '🎯', OVERVIEW: '📋', STORY: '💫', DETAIL: '🔍',
+  REVIEW: '⭐', POINT: '✨', OPTIONS: '🎨', RECOMMEND: '👍',
+  SIZE: '📏', GUIDE: '📖', INFO: '📌', CAUTION: '⚠️', CUSTOM: '🔧',
 };
 
 export const PlanStep: React.FC<PlanStepProps> = ({
@@ -84,7 +92,7 @@ export const PlanStep: React.FC<PlanStepProps> = ({
   const addCustomSection = () => {
     const newSection: PlanSection = {
       id: `custom-${Date.now()}`,
-      type: 'INFO',
+      type: 'CUSTOM',
       label: '커스텀',
       title: '새로운 섹션',
       content: '섹션 내용을 입력하세요',

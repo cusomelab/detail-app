@@ -36,7 +36,7 @@ export interface ProductInfoDisclosure {
 // ── 기획안 섹션 ───────────────────────────────────────
 export interface PlanSection {
   id: string;
-  type: 'HERO' | 'STORY' | 'POINT' | 'RECOMMEND' | 'OPTIONS' | 'INFO';
+  type: 'HERO' | 'OVERVIEW' | 'STORY' | 'DETAIL' | 'REVIEW' | 'POINT' | 'OPTIONS' | 'RECOMMEND' | 'SIZE' | 'GUIDE' | 'INFO' | 'CAUTION' | 'CUSTOM';
   label: string;       // 표시 이름 (예: 헤로, 제품 상세정보)
   title: string;       // 섹션 제목
   content: string;     // 섹션 설명/내용
@@ -59,6 +59,7 @@ export interface GeneratedCopy {
     wash: string;
     caution?: string;
   };
+  detailCopies?: string[];
 }
 
 export interface ProcessedImage {
