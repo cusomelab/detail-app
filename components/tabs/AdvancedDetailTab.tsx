@@ -164,9 +164,9 @@ export const AdvancedDetailTab: React.FC = () => {
             }]);
           });
           addLog(`✅ 연출 이미지 ${styledShots.length}장 생성 완료!`);
-        } catch (err) {
-          console.warn('연출 샷 생성 실패:', err);
-          addLog('⚠️ 연출 이미지 생성 스킵 (API 제한)');
+        } catch (err: any) {
+          console.error('연출 샷 생성 실패:', err);
+          addLog(`⚠️ 연출 이미지 생성 실패: ${err?.message || 'API 오류'}`);
         }
       }
       setTimeout(() => { setStep(AppStep.RESULT); setAdvStep('RESULT'); }, 800);

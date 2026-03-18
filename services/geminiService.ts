@@ -3,7 +3,7 @@ import { GeneratedCopy, ProductCategory, PlanSection } from "../types";
 
 // ── 모델 ───────────────────────────────────────────────
 const TEXT_MODEL  = 'gemini-2.5-flash';
-const IMAGE_MODEL = 'gemini-2.5-flash-preview-image-generation';
+const IMAGE_MODEL = 'gemini-2.0-flash-preview-image-generation';
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOVE_TEXT' | 'ERASE_PART' | 'CUSTOM';
 
@@ -401,31 +401,41 @@ export const generateStyledShots = async (
 
   for (let i = 0; i < prompts.length; i++) {
     onProgress?.(i + 1, prompts.length);
-    try {
-      const response = await ai.models.generateContent({
-        model: IMAGE_MODEL,
-        contents: {
-          parts: [
-            { inlineData: { mimeType: mainImage.type, data: base64Data } },
-            { text: prompts[i].prompt }
-          ]
-        },
-        config: { responseModalities: ['TEXT', 'IMAGE'] }
-      });
-
-      // @ts-ignore
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          results.push({
-            imageUrl: `data:image/png;base64,${part.inlineData.data}`,
-            label: prompts[i].label
-          });
-          break;
+    let success = false;
+    for (let attempt = 0; attempt < 2 && !success; attempt++) {
+      try {
+        if (attempt > 0) {
+          console.log(`연출 샷 ${i + 1} 재시도 (${attempt + 1}/2)...`);
+          await new Promise(r => setTimeout(r, 2000));
         }
+        const response = await ai.models.generateContent({
+          model: IMAGE_MODEL,
+          contents: {
+            parts: [
+              { inlineData: { mimeType: mainImage.type, data: base64Data } },
+              { text: prompts[i].prompt }
+            ]
+          },
+          config: { responseModalities: ['TEXT', 'IMAGE'] }
+        });
+
+        // @ts-ignore
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+          if (part.inlineData) {
+            results.push({
+              imageUrl: `data:image/png;base64,${part.inlineData.data}`,
+              label: prompts[i].label
+            });
+            success = true;
+            break;
+          }
+        }
+        if (!success) {
+          console.warn(`연출 샷 ${i + 1}: 응답에 이미지 데이터 없음`);
+        }
+      } catch (err: any) {
+        console.warn(`연출 샷 ${i + 1} 생성 실패 (시도 ${attempt + 1}):`, err?.message || err);
       }
-    } catch (err) {
-      console.warn(`연출 샷 ${i + 1} 생성 실패:`, err);
-      // 실패해도 나머지 계속 진행
     }
   }
 
