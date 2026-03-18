@@ -3,7 +3,7 @@ import { GeneratedCopy, ProductCategory, PlanSection } from "../types";
 
 // ── 모델 ───────────────────────────────────────────────
 const TEXT_MODEL  = 'gemini-2.5-flash';
-const IMAGE_MODEL = 'gemini-2.0-flash-preview-image-generation';
+const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 
 export type ImageProcessMode = 'MAGIC_FIX' | 'MODEL_SWAP' | 'BG_CHANGE' | 'REMOVE_TEXT' | 'ERASE_PART' | 'CUSTOM';
 
@@ -341,11 +341,14 @@ export const processProductImage = async (
   const response = await ai.models.generateContent({
     model: IMAGE_MODEL,
     contents: { parts },
-    config: { responseModalities: ['TEXT', 'IMAGE'] }
+    config: {
+      imageConfig: {
+        aspectRatio: '1:1'
+      }
+    }
   });
 
-  // @ts-ignore
-  for (const part of response.candidates[0].content.parts) {
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
     if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
   }
   throw new Error('이미지 생성 실패');
@@ -416,10 +419,13 @@ export const generateStyledShots = async (
               { text: prompts[i].prompt }
             ]
           },
-          config: { responseModalities: ['TEXT', 'IMAGE'] }
+          config: {
+            imageConfig: {
+              aspectRatio: '3:4'
+            }
+          }
         });
 
-        // @ts-ignore
         for (const part of response.candidates?.[0]?.content?.parts || []) {
           if (part.inlineData) {
             results.push({
