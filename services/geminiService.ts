@@ -370,21 +370,21 @@ function getStyledShotPrompts(category: ProductCategory): { prompt: string; labe
       ];
     case 'LIVING':
       return [
-        { prompt: 'Place this product in a clean, bright Scandinavian-style room with white walls and natural wood furniture. Soft warm studio lighting. Keep the product exactly the same.', label: 'interior' },
-        { prompt: 'Generate a close-up detail shot of this product showing material quality and craftsmanship. Clean white background, soft studio lighting, macro photography. Keep the product exactly the same.', label: 'detail' },
-        { prompt: 'Show this product being used in a minimalist home setting with a person. Clean studio-like environment with warm lighting. Keep the product exactly the same.', label: 'lifestyle' },
+        { prompt: 'Place this product on a clean white studio background with soft diffused lighting. Professional product photography, minimalist white backdrop. Keep the product exactly the same.', label: '스튜디오 촬영' },
+        { prompt: 'Generate a close-up detail shot of this product showing material quality and craftsmanship. Clean white background, soft studio lighting, macro photography. Keep the product exactly the same.', label: '소재 클로즈업' },
+        { prompt: 'Show this product in a clean, bright Scandinavian-style room with white walls. Soft warm studio lighting. White or very light background. Keep the product exactly the same.', label: '인테리어 연출' },
       ];
     case 'KITCHEN':
       return [
-        { prompt: 'Place this kitchen product in a beautiful modern kitchen counter setting. Clean white marble, natural sunlight, some fresh ingredients nearby. Keep the product exactly the same.', label: '주방 연출' },
-        { prompt: 'Show this kitchen product being used while cooking. Action shot, steam rising, fresh ingredients. Professional food photography lighting. Keep the product exactly the same.', label: '요리 장면' },
-        { prompt: 'Generate a clean studio shot of this product on a white background with dramatic lighting. Commercial product photography, showing every detail. Keep the product exactly the same.', label: '스튜디오 촬영' },
+        { prompt: 'Generate a clean studio shot of this kitchen product on a pure white background with soft diffused lighting. Commercial product photography, showing every detail clearly. Keep the product exactly the same.', label: '스튜디오 촬영' },
+        { prompt: 'Generate a close-up detail shot of this kitchen product showing material quality, texture, and craftsmanship. Clean white background, soft studio lighting. Keep the product exactly the same.', label: '소재 클로즈업' },
+        { prompt: 'Place this kitchen product on a clean white marble counter with minimal styling. White studio-like background, professional lighting. Keep the product exactly the same.', label: '주방 연출' },
       ];
     case 'FOOD':
       return [
-        { prompt: 'Style this food product on a beautiful wooden table with complementary dishes and garnishes. Top-down food photography, natural lighting. Keep the food product exactly the same.', label: '푸드 스타일링' },
-        { prompt: 'Show this food product in a close-up appetizing shot with steam or fresh texture visible. Macro food photography, warm lighting. Keep the food product exactly the same.', label: '식욕자극 클로즈업' },
-        { prompt: 'Show a person enjoying this food product at a cozy cafe or dining table. Natural lifestyle photography, warm atmosphere. Keep the food product exactly the same.', label: '다이닝 연출' },
+        { prompt: 'Style this food product on a clean white plate or surface. Professional food photography with white/light studio background, soft natural lighting. Keep the food product exactly the same.', label: '스튜디오 촬영' },
+        { prompt: 'Show this food product in a close-up appetizing shot with steam or fresh texture visible. Clean white background, macro food photography, warm studio lighting. Keep the food product exactly the same.', label: '식욕자극 클로즈업' },
+        { prompt: 'Style this food product beautifully on a minimal white surface with subtle garnishes. Top-down food photography, clean white studio background. Keep the food product exactly the same.', label: '푸드 스타일링' },
       ];
   }
 }

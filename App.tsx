@@ -5,12 +5,10 @@ import { SizeChartTab } from './components/tabs/SizeChartTab';
 import { OutfitTab } from './components/tabs/OutfitTab';
 import { HangulTab } from './components/tabs/HangulTab';
 import { AdvancedDetailTab } from './components/tabs/AdvancedDetailTab';
-import { FigmaEditorTab } from './components/tabs/FigmaEditorTab';
 import { SparklesIcon, KeyIcon } from '@heroicons/react/24/outline';
 
 const TABS = [
-  { id: 'basic',     label: '📄 기본형' },
-  { id: 'advanced',  label: '✨ 고급형' },
+  { id: 'basic',     label: '📄 상세페이지' },
   { id: 'imggen',    label: '🖼️ 대표이미지' },
   { id: 'outfit',    label: '👗 의상 체인저' },
   { id: 'sizeChart', label: '📏 사이즈표' },
@@ -78,7 +76,6 @@ function App() {
       </div>
 
       {activeTab==='basic' && <AdvancedDetailTab />}
-      {activeTab==='advanced' && <FigmaEditorTab />}
       {activeTab==='imggen' && <ImageGenTab />}
       {activeTab==='outfit' && <OutfitTab />}
       {activeTab==='sizeChart' && <SizeChartTab />}
