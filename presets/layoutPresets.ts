@@ -6,7 +6,7 @@
 import { ProductCategory } from '../types';
 
 // ── 타입 정의 ──
-export type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
+export type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT' | 'ATELIER' | 'PREMIUM';
 export type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE';
 export type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
 export type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
@@ -33,6 +33,16 @@ export interface ThemeStyles {
     cardBg: string;
     tableHeader: string;
     tableBorder: string;
+    // v2 — 5개 테마 통합 처리용
+    isDark?: boolean;          // 다크 계열 (IMPACT, PREMIUM)
+    isCream?: boolean;         // 크림 계열 (EMOTIONAL, ATELIER)
+    bgSecondary?: string;      // 섹션 교차용 보조 배경
+    cardBorder?: string;
+    mutedText?: string;        // 보조 텍스트
+    accentText?: string;       // 액센트 텍스트 색
+    accentBg?: string;         // 액센트 배경 색
+    accentBorder?: string;     // 액센트 보더 색
+    heroDivider?: string;      // HERO 하단 디바이더 (전체 className)
 }
 
 // ── 프리셋 전체 구조 ──
@@ -80,17 +90,44 @@ export function getThemeStyles(design: PageDesignType): ThemeStyles {
         case 'EMOTIONAL': return {
             bg: 'bg-[#fdfbf7]', text: 'text-gray-800', fontHead: 'font-serif-kr', fontBody: 'font-serif-kr',
             storyQuote: 'text-gray-400 font-serif', sectionDivider: 'bg-[#e0dcd0]',
-            cardBg: 'bg-white', tableHeader: 'bg-[#f7f5f0] text-gray-800', tableBorder: 'border-[#d4d1c9]'
+            cardBg: 'bg-white', tableHeader: 'bg-[#f7f5f0] text-gray-800', tableBorder: 'border-[#d4d1c9]',
+            isCream: true, bgSecondary: 'bg-[#f4f1ea]', cardBorder: 'border-[#e0dcd0]',
+            mutedText: 'text-gray-500', accentText: 'text-[#b89368]', accentBg: 'bg-[#d4d1c9]',
+            accentBorder: 'border-[#d4d1c9]', heroDivider: 'w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-4',
+        };
+        case 'ATELIER': return {
+            bg: 'bg-[#faf6ee]', text: 'text-[#2a2722]', fontHead: 'font-serif-kr', fontBody: 'font-sans',
+            storyQuote: 'text-[#a8825c] font-serif', sectionDivider: 'bg-[#c8b89e]',
+            cardBg: 'bg-[#fffcf6]', tableHeader: 'bg-[#ede4d3] text-[#2a2722]', tableBorder: 'border-[#c8b89e]',
+            isCream: true, bgSecondary: 'bg-[#ede4d3]', cardBorder: 'border-[#ddd1bc]',
+            mutedText: 'text-[#6b6358]', accentText: 'text-[#a8825c]', accentBg: 'bg-[#a8825c]',
+            accentBorder: 'border-[#a8825c]',
+            heroDivider: 'w-32 h-[1px] bg-[#a8825c] mx-auto mt-5 relative before:content-[\"◆\"] before:absolute before:left-1/2 before:-translate-x-1/2 before:-top-3 before:text-[#a8825c] before:text-xs before:bg-[#faf6ee] before:px-2',
         };
         case 'IMPACT': return {
             bg: 'bg-white', text: 'text-black', fontHead: 'font-sans', fontBody: 'font-sans',
             storyQuote: 'text-black font-sans', sectionDivider: 'bg-black',
-            cardBg: 'bg-gray-100', tableHeader: 'bg-black text-white', tableBorder: 'border-black'
+            cardBg: 'bg-gray-100', tableHeader: 'bg-black text-white', tableBorder: 'border-black',
+            isDark: true, bgSecondary: 'bg-[#111111]', cardBorder: 'border-gray-700',
+            mutedText: 'text-gray-400', accentText: 'text-red-600', accentBg: 'bg-red-600',
+            accentBorder: 'border-red-600', heroDivider: 'w-full h-1 bg-red-600 mx-auto mt-2',
+        };
+        case 'PREMIUM': return {
+            bg: 'bg-[#0a0a0a]', text: 'text-[#e8e4d8]', fontHead: 'font-serif-kr', fontBody: 'font-sans',
+            storyQuote: 'text-[#c8a467] font-serif', sectionDivider: 'bg-[#c8a467]',
+            cardBg: 'bg-[#1a1815]', tableHeader: 'bg-[#1a1815] text-[#c8a467]', tableBorder: 'border-[#2a2620]',
+            isDark: true, bgSecondary: 'bg-[#161512]', cardBorder: 'border-[#2a2620]',
+            mutedText: 'text-[#a39d8d]', accentText: 'text-[#c8a467]', accentBg: 'bg-[#c8a467]',
+            accentBorder: 'border-[#c8a467]',
+            heroDivider: 'w-40 h-[1px] bg-[#c8a467] mx-auto mt-5 relative before:content-[\"◆\"] before:absolute before:left-1/2 before:-translate-x-1/2 before:-top-3 before:text-[#c8a467] before:text-xs before:bg-[#0a0a0a] before:px-2',
         };
         default: return {
             bg: 'bg-white', text: 'text-gray-900', fontHead: 'font-sans', fontBody: 'font-sans',
             storyQuote: 'text-gray-300 font-serif', sectionDivider: 'bg-gray-100',
-            cardBg: 'bg-gray-50', tableHeader: 'bg-gray-50 text-gray-700', tableBorder: 'border-gray-200'
+            cardBg: 'bg-gray-50', tableHeader: 'bg-gray-50 text-gray-700', tableBorder: 'border-gray-200',
+            bgSecondary: 'bg-gray-50', cardBorder: 'border-gray-200', mutedText: 'text-gray-500',
+            accentText: 'text-gray-900', accentBg: 'bg-gray-900', accentBorder: 'border-gray-900',
+            heroDivider: 'w-16 h-1.5 bg-gray-900 mx-auto',
         };
     }
 }
@@ -136,6 +173,24 @@ function fashionPresets(design: PageDesignType): LayoutPreset {
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-black/70', fontSize: 'text-2xl', fontWeight: 'font-black', fontFamily: 'font-sans' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
+        case 'ATELIER': return {
+            ...base, pageDesign: 'ATELIER', pointLayout: 'SIMPLE', heroBadge: 'ATELIER EDITION',
+            headers: { ...base.headers, newArrival: 'EDITORIAL', moodStory: 'Atelier Note', whyThisItem: 'Crafted Detail', whySub: '한 벌의 감각, 디테일에 머물다' },
+            themeColor: 'BLACK' as PointThemeColor,
+            pointIconStyle: 'NUMBER' as PointIconStyle,
+            sectionOrder: ['HERO', 'STORY', 'DETAILS', 'POINTS', 'OPTIONS', 'INFO'],
+            bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-[#2a2722]/60', fontSize: 'text-xl', fontWeight: 'font-medium', fontFamily: 'font-serif-kr' },
+            detailPattern: 'IMAGE_BANNER_ALT',
+        };
+        case 'PREMIUM': return {
+            ...base, pageDesign: 'PREMIUM', pointLayout: 'ZIGZAG', heroBadge: 'PREMIUM SELECTION',
+            headers: { ...base.headers, newArrival: 'PREMIUM SELECTION', moodStory: 'Heritage Story', whyThisItem: 'SIGNATURE POINTS', whySub: '브랜드의 시그니처' },
+            themeColor: 'BLACK' as PointThemeColor,
+            pointIconStyle: 'NUMBER' as PointIconStyle,
+            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'STORY', 'OPTIONS', 'INFO'],
+            bannerStyle: { position: 'bottom', textColor: 'text-[#c8a467]', bgColor: 'bg-[#0a0a0a]/80', fontSize: 'text-2xl', fontWeight: 'font-bold', fontFamily: 'font-serif-kr' },
+            detailPattern: 'IMAGE_BANNER_ALT',
+        };
     }
 }
 
@@ -173,6 +228,24 @@ function livingPresets(design: PageDesignType): LayoutPreset {
             headers: { ...base.headers, whyThisItem: 'SPEC CHECK', whySub: '핵심 스펙을 확인하세요' },
             sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'INFO'],
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-black/70', fontSize: 'text-2xl', fontWeight: 'font-black', fontFamily: 'font-sans' },
+            detailPattern: 'IMAGE_BANNER_ALT',
+        };
+        case 'ATELIER': return {
+            ...base, pageDesign: 'ATELIER', pointLayout: 'SIMPLE', heroBadge: 'CURATED LIVING',
+            headers: { ...base.headers, newArrival: 'CURATED', moodStory: 'Atelier Mood', whyThisItem: 'Curator Note', whySub: '큐레이터의 시선' },
+            themeColor: 'BLACK' as PointThemeColor,
+            pointIconStyle: 'NUMBER' as PointIconStyle,
+            sectionOrder: ['HERO', 'STORY', 'DETAILS', 'POINTS', 'OPTIONS', 'INFO'],
+            bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-[#2a2722]/60', fontSize: 'text-xl', fontWeight: 'font-medium', fontFamily: 'font-serif-kr' },
+            detailPattern: 'IMAGE_BANNER_ALT',
+        };
+        case 'PREMIUM': return {
+            ...base, pageDesign: 'PREMIUM', pointLayout: 'ZIGZAG', heroBadge: 'PREMIUM HOME',
+            headers: { ...base.headers, newArrival: 'PREMIUM HOME', moodStory: 'Heritage Mood', whyThisItem: 'SIGNATURE SPEC', whySub: '프리미엄의 기준' },
+            themeColor: 'BLACK' as PointThemeColor,
+            pointIconStyle: 'NUMBER' as PointIconStyle,
+            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'STORY', 'OPTIONS', 'INFO'],
+            bannerStyle: { position: 'bottom', textColor: 'text-[#c8a467]', bgColor: 'bg-[#0a0a0a]/80', fontSize: 'text-2xl', fontWeight: 'font-bold', fontFamily: 'font-serif-kr' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
     }
@@ -213,6 +286,24 @@ function kitchenPresets(design: PageDesignType): LayoutPreset {
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-black/70', fontSize: 'text-2xl', fontWeight: 'font-black', fontFamily: 'font-sans' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
+        case 'ATELIER': return {
+            ...base, pageDesign: 'ATELIER', pointLayout: 'SIMPLE', heroBadge: 'CHEF\'S CHOICE',
+            themeColor: 'BLACK' as PointThemeColor,
+            pointIconStyle: 'NUMBER' as PointIconStyle,
+            headers: { ...base.headers, newArrival: 'CHEF\'S CHOICE', moodStory: 'Kitchen Note', whyThisItem: 'Crafted Detail', whySub: '셰프의 손길' },
+            sectionOrder: ['HERO', 'STORY', 'DETAILS', 'POINTS', 'OPTIONS', 'INFO'],
+            bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-[#2a2722]/60', fontSize: 'text-xl', fontWeight: 'font-medium', fontFamily: 'font-serif-kr' },
+            detailPattern: 'IMAGE_BANNER_ALT',
+        };
+        case 'PREMIUM': return {
+            ...base, pageDesign: 'PREMIUM', pointLayout: 'ZIGZAG', heroBadge: 'PREMIUM KITCHEN',
+            themeColor: 'BLACK' as PointThemeColor,
+            pointIconStyle: 'NUMBER' as PointIconStyle,
+            headers: { ...base.headers, newArrival: 'PREMIUM KITCHEN', moodStory: 'Heritage Story', whyThisItem: 'SIGNATURE SPEC', whySub: '프리미엄의 기준' },
+            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'STORY', 'OPTIONS', 'INFO'],
+            bannerStyle: { position: 'bottom', textColor: 'text-[#c8a467]', bgColor: 'bg-[#0a0a0a]/80', fontSize: 'text-2xl', fontWeight: 'font-bold', fontFamily: 'font-serif-kr' },
+            detailPattern: 'IMAGE_BANNER_ALT',
+        };
     }
 }
 
@@ -250,6 +341,24 @@ function foodPresets(design: PageDesignType): LayoutPreset {
             headers: { ...base.headers, whyThisItem: 'TASTE CHECK', whySub: '맛의 핵심을 확인하세요' },
             sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'OPTIONS', 'STORY', 'INFO'],
             bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-black/70', fontSize: 'text-2xl', fontWeight: 'font-black', fontFamily: 'font-sans' },
+            detailPattern: 'IMAGE_BANNER_ALT',
+        };
+        case 'ATELIER': return {
+            ...base, pageDesign: 'ATELIER', pointLayout: 'SIMPLE', heroBadge: '아틀리에 셀렉트',
+            themeColor: 'BLACK' as PointThemeColor,
+            pointIconStyle: 'NUMBER' as PointIconStyle,
+            headers: { ...base.headers, newArrival: 'CURATED TASTE', moodStory: 'Taste Note', whyThisItem: 'Crafted Flavor', whySub: '한 입의 정성, 그 이유' },
+            sectionOrder: ['HERO', 'STORY', 'DETAILS', 'POINTS', 'OPTIONS', 'INFO'],
+            bannerStyle: { position: 'bottom', textColor: 'text-white', bgColor: 'bg-[#2a2722]/60', fontSize: 'text-xl', fontWeight: 'font-medium', fontFamily: 'font-serif-kr' },
+            detailPattern: 'IMAGE_BANNER_ALT',
+        };
+        case 'PREMIUM': return {
+            ...base, pageDesign: 'PREMIUM', pointLayout: 'ZIGZAG', heroBadge: 'PREMIUM TASTE',
+            themeColor: 'BLACK' as PointThemeColor,
+            pointIconStyle: 'NUMBER' as PointIconStyle,
+            headers: { ...base.headers, newArrival: 'PREMIUM TASTE', moodStory: 'Heritage Taste', whyThisItem: 'SIGNATURE FLAVOR', whySub: '프리미엄의 맛' },
+            sectionOrder: ['HERO', 'POINTS', 'DETAILS', 'STORY', 'OPTIONS', 'INFO'],
+            bannerStyle: { position: 'bottom', textColor: 'text-[#c8a467]', bgColor: 'bg-[#0a0a0a]/80', fontSize: 'text-2xl', fontWeight: 'font-bold', fontFamily: 'font-serif-kr' },
             detailPattern: 'IMAGE_BANNER_ALT',
         };
     }

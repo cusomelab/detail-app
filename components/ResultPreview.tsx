@@ -22,7 +22,7 @@ interface ResultPreviewProps {
 }
 
 type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE';
-type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
+type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT' | 'ATELIER' | 'PREMIUM';
 type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
 type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
 type SectionType = 'HERO' | 'STORY' | 'POINTS' | 'OPTIONS' | 'DETAILS' | 'REVIEW' | 'RECOMMEND' | 'INFO';
@@ -88,7 +88,7 @@ const safeIcon = (icon: string | undefined): string => {
 const getSectionBg = (type: SectionType, design: PageDesignType): string => {
   const bgs: Record<PageDesignType, Record<SectionType, string>> = {
     MODERN: {
-      HERO: 'bg-white', STORY: 'bg-[#fafafa]', DETAILS: 'bg-white', 
+      HERO: 'bg-white', STORY: 'bg-[#fafafa]', DETAILS: 'bg-white',
       POINTS: 'bg-[#f5f5f5]', REVIEW: 'bg-[#fafafa]', RECOMMEND: 'bg-[#f5f5f5]',
       OPTIONS: 'bg-white', INFO: 'bg-[#f5f5f5]'
     },
@@ -101,6 +101,16 @@ const getSectionBg = (type: SectionType, design: PageDesignType): string => {
       HERO: 'bg-black', STORY: 'bg-[#111111]', DETAILS: 'bg-black',
       POINTS: 'bg-white', REVIEW: 'bg-[#111111]', RECOMMEND: 'bg-[#0a0a0a]',
       OPTIONS: 'bg-black', INFO: 'bg-[#111111]'
+    },
+    ATELIER: {
+      HERO: 'bg-[#faf6ee]', STORY: 'bg-[#ede4d3]', DETAILS: 'bg-[#faf6ee]',
+      POINTS: 'bg-[#ede4d3]', REVIEW: 'bg-[#faf6ee]', RECOMMEND: 'bg-[#ede4d3]',
+      OPTIONS: 'bg-[#faf6ee]', INFO: 'bg-[#ede4d3]'
+    },
+    PREMIUM: {
+      HERO: 'bg-[#0a0a0a]', STORY: 'bg-[#161512]', DETAILS: 'bg-[#0a0a0a]',
+      POINTS: 'bg-[#161512]', REVIEW: 'bg-[#0a0a0a]', RECOMMEND: 'bg-[#161512]',
+      OPTIONS: 'bg-[#0a0a0a]', INFO: 'bg-[#161512]'
     }
   };
   return bgs[design]?.[type] || 'bg-white';
@@ -1631,38 +1641,85 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const getThemeStyles = () => {
     switch(pageDesign) {
         case 'EMOTIONAL': return {
-            bg: 'bg-[#fdfbf7]', 
-            text: 'text-gray-800', 
-            fontHead: 'font-serif-kr', 
+            bg: 'bg-[#fdfbf7]',
+            text: 'text-gray-800',
+            fontHead: 'font-serif-kr',
             fontBody: 'font-serif-kr',
             storyQuote: 'text-gray-400 font-serif',
             sectionDivider: 'bg-[#e0dcd0]',
             cardBg: 'bg-white',
             tableHeader: 'bg-[#f7f5f0] text-gray-800',
-            tableBorder: 'border-[#d4d1c9]'
+            tableBorder: 'border-[#d4d1c9]',
+            isDark: false, isCream: true,
+            bgSecondary: 'bg-[#f4f1ea]', cardBorder: 'border-[#e0dcd0]',
+            mutedText: 'text-gray-500',
+            accentText: 'text-[#b89368]', accentBg: 'bg-[#d4d1c9]', accentBorder: 'border-[#d4d1c9]',
+            heroDivider: 'w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-4',
+        };
+        case 'ATELIER': return {
+            bg: 'bg-[#faf6ee]',
+            text: 'text-[#2a2722]',
+            fontHead: 'font-serif-kr',
+            fontBody: 'font-sans',
+            storyQuote: 'text-[#a8825c] font-serif',
+            sectionDivider: 'bg-[#c8b89e]',
+            cardBg: 'bg-[#fffcf6]',
+            tableHeader: 'bg-[#ede4d3] text-[#2a2722]',
+            tableBorder: 'border-[#c8b89e]',
+            isDark: false, isCream: true,
+            bgSecondary: 'bg-[#ede4d3]', cardBorder: 'border-[#ddd1bc]',
+            mutedText: 'text-[#6b6358]',
+            accentText: 'text-[#a8825c]', accentBg: 'bg-[#a8825c]', accentBorder: 'border-[#a8825c]',
+            heroDivider: 'w-32 h-[1px] bg-[#a8825c] mx-auto mt-5',
         };
         case 'IMPACT': return {
-            bg: 'bg-black', 
-            text: 'text-white', 
-            fontHead: 'font-sans', 
+            bg: 'bg-black',
+            text: 'text-white',
+            fontHead: 'font-sans',
             fontBody: 'font-sans',
             storyQuote: 'text-red-600 font-sans',
             sectionDivider: 'bg-red-600',
             cardBg: 'bg-gray-900',
             tableHeader: 'bg-red-600 text-white',
-            tableBorder: 'border-gray-700'
+            tableBorder: 'border-gray-700',
+            isDark: true, isCream: false,
+            bgSecondary: 'bg-[#111111]', cardBorder: 'border-gray-700',
+            mutedText: 'text-gray-400',
+            accentText: 'text-red-600', accentBg: 'bg-red-600', accentBorder: 'border-red-600',
+            heroDivider: 'w-full h-1 bg-red-600 mx-auto mt-2',
+        };
+        case 'PREMIUM': return {
+            bg: 'bg-[#0a0a0a]',
+            text: 'text-[#e8e4d8]',
+            fontHead: 'font-serif-kr',
+            fontBody: 'font-sans',
+            storyQuote: 'text-[#c8a467] font-serif',
+            sectionDivider: 'bg-[#c8a467]',
+            cardBg: 'bg-[#1a1815]',
+            tableHeader: 'bg-[#1a1815] text-[#c8a467]',
+            tableBorder: 'border-[#2a2620]',
+            isDark: true, isCream: false,
+            bgSecondary: 'bg-[#161512]', cardBorder: 'border-[#2a2620]',
+            mutedText: 'text-[#a39d8d]',
+            accentText: 'text-[#c8a467]', accentBg: 'bg-[#c8a467]', accentBorder: 'border-[#c8a467]',
+            heroDivider: 'w-40 h-[1px] bg-[#c8a467] mx-auto mt-5',
         };
         case 'MODERN':
         default: return {
-            bg: 'bg-white', 
-            text: 'text-gray-900', 
-            fontHead: 'font-sans', 
+            bg: 'bg-white',
+            text: 'text-gray-900',
+            fontHead: 'font-sans',
             fontBody: 'font-sans',
             storyQuote: 'text-gray-300 font-serif',
             sectionDivider: 'bg-gray-100',
             cardBg: 'bg-gray-50',
             tableHeader: 'bg-gray-50 text-gray-700',
-            tableBorder: 'border-gray-200'
+            tableBorder: 'border-gray-200',
+            isDark: false, isCream: false,
+            bgSecondary: 'bg-gray-50', cardBorder: 'border-gray-200',
+            mutedText: 'text-gray-500',
+            accentText: 'text-gray-900', accentBg: 'bg-gray-900', accentBorder: 'border-gray-900',
+            heroDivider: 'w-16 h-1.5 bg-gray-900 mx-auto',
         };
     }
   };
@@ -1714,31 +1771,29 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 </label>
                             )}
                         </div>
-                        <div className={`w-full px-10 text-center relative ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-16 border-b border-[#e0dcd0]' : pageDesign === 'IMPACT' ? 'bg-black py-12' : 'bg-white py-10 border-b border-gray-200'}`}>
+                        <div className={`w-full px-10 text-center relative ${themeStyles.bg} ${themeStyles.isCream ? 'py-16 border-b ' + (themeStyles.cardBorder || '') : themeStyles.isDark ? 'py-12' : 'py-10 border-b border-gray-200'}`}>
                             {visibleHeaders.newArrival && (
                                 <div className="mb-4 flex justify-center">
-                                     <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-sm' as any : 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`uppercase ${pageDesign === 'IMPACT' ? 'tracking-[0.5em]' : 'tracking-[0.3em]'}`} toolbarPosition="right" />
+                                     <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: themeStyles.isDark ? 'text-sm' as any : 'text-xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.isDark ? (themeStyles.mutedText || 'text-gray-400') : (themeStyles.accentText || themeStyles.text), align: 'text-center', fontWeight: 'font-bold' }} className={`uppercase ${themeStyles.isDark ? 'tracking-[0.5em]' : 'tracking-[0.3em]'}`} toolbarPosition="right" />
                                 </div>
                             )}
-                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-6 leading-snug" toolbarPosition="right" />
-                            {pageDesign === 'MODERN' && <div className="w-16 h-1.5 bg-gray-900 mx-auto"></div>}
-                            {pageDesign === 'EMOTIONAL' && <div className="w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-4"></div>}
-                            {pageDesign === 'IMPACT' && <div className="w-full h-1 bg-red-600 mx-auto mt-2"></div>}
+                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-6 leading-snug" toolbarPosition="right" />
+                            <div className={themeStyles.heroDivider}></div>
                         </div>
                 </div>
         );
         case 'STORY': return (
-            <div className={`w-full text-center relative ${getSectionBg('STORY', pageDesign)} ${pageDesign === 'EMOTIONAL' ? 'py-20 px-12' : pageDesign === 'IMPACT' ? 'py-16 px-12' : 'py-14 px-12'}`}>
-                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mb-4 block leading-none`}>"</span>}
-                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mb-8"></div>}
-                        <EditableElement key={`mood-${pointTheme}`} value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'EMOTIONAL' ? 'font-normal' : 'font-medium', maxWidth: 'max-w-4xl' }} className={`leading-relaxed mx-auto ${pageDesign === 'EMOTIONAL' ? 'italic' : ''}`} toolbarPosition="right" />
-                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mt-4 block leading-none`}>"</span>}
-                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mt-8"></div>}
+            <div className={`w-full text-center relative ${getSectionBg('STORY', pageDesign)} ${themeStyles.isCream ? 'py-20 px-12' : themeStyles.isDark ? 'py-16 px-12' : 'py-14 px-12'}`}>
+                        {!themeStyles.isDark && <span className={`text-6xl ${themeStyles.accentText || 'text-gray-300'} font-serif mb-4 block leading-none opacity-60`}>"</span>}
+                        {themeStyles.isDark && <div className={`w-12 h-1 ${themeStyles.accentBg} mx-auto mb-8`}></div>}
+                        <EditableElement key={`mood-${pointTheme}`} value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: themeStyles.text, align: 'text-center', fontWeight: themeStyles.isCream ? 'font-normal' : 'font-medium', maxWidth: 'max-w-4xl' }} className={`leading-relaxed mx-auto ${themeStyles.isCream ? 'italic' : ''}`} toolbarPosition="right" />
+                        {!themeStyles.isDark && <span className={`text-6xl ${themeStyles.accentText || 'text-gray-300'} font-serif mt-4 block leading-none opacity-60`}>"</span>}
+                        {themeStyles.isDark && <div className={`w-12 h-1 ${themeStyles.accentBg} mx-auto mt-8`}></div>}
                         {visibleHeaders.moodStory && (
                             <div className="mt-10 flex justify-center items-center gap-6">
-                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
-                                <EditableElement value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
-                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
+                                <span className={`h-[1px] w-24 ${themeStyles.sectionDivider}`}></span>
+                                <EditableElement value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.mutedText || 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
+                                <span className={`h-[1px] w-24 ${themeStyles.sectionDivider}`}></span>
                             </div>
                         )}
                 </div>
@@ -1971,8 +2026,8 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         );
         case 'DETAILS': return (
                      <div className={`w-full pb-10 ${getSectionBg('DETAILS', pageDesign)}`}>
-                        <div className={`w-full py-10 text-center ${pageDesign === 'IMPACT' ? 'bg-black' : ''}`}>
-                            <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-black' : 'font-bold' }} className={`inline-block px-8 py-3 tracking-[0.2em] uppercase ${pageDesign === 'IMPACT' ? 'border-b-2 border-red-600' : pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' : `border-2 ${themeStyles.tableBorder} bg-white w-72`}`} toolbarPosition="right" />
+                        <div className={`w-full py-10 text-center ${themeStyles.isDark ? themeStyles.bg : ''}`}>
+                            <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: themeStyles.isDark ? 'font-black' : 'font-bold' }} className={`inline-block px-8 py-3 tracking-[0.2em] uppercase ${themeStyles.isDark ? `border-b-2 ${themeStyles.accentBorder}` : themeStyles.isCream ? `border-b ${themeStyles.cardBorder}` : `border-2 ${themeStyles.tableBorder} bg-white w-72`}`} toolbarPosition="right" />
                         </div>
                         <div className="w-full flex flex-wrap">
                             {detailBlocks.map((block, bIdx) => {
@@ -2026,7 +2081,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         </div>
                                     )}
                                     {block.type === 'TEXT' && (
-                                        <div className={`w-full ${block.style?.backgroundColor || (pageDesign === 'EMOTIONAL' ? 'bg-[#f4f1ea]' : 'bg-gray-100')} p-10 relative group/textblock h-full flex items-center justify-center`}>
+                                        <div className={`w-full ${block.style?.backgroundColor || themeStyles.bgSecondary || 'bg-gray-100'} p-10 relative group/textblock h-full flex items-center justify-center`}>
                                             <EditableElement value={block.content} onChange={(v) => updateBlockContent(block.id, v)} onStyleChange={(s) => setDetailBlocks(prev => prev.map(b => b.id === block.id ? { ...b, style: s } : b))} isEditMode={isEditMode} aiLabel="Detail Text" defaultStyle={block.style || { fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-800', align: 'text-center', fontWeight: 'font-medium', maxWidth: 'max-w-4xl' }} className="leading-relaxed" toolbarPosition="right" />
                                         </div>
                                     )}
@@ -2072,24 +2127,24 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         </div>
                                     )}
                                     {block.type === 'REVIEW_EMBED' && reviewData.content && (
-                                        <div className={`w-full py-12 px-8 ${pageDesign === 'IMPACT' ? 'bg-gray-900' : pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : 'bg-gray-50'}`}>
+                                        <div className={`w-full py-12 px-8 ${themeStyles.isDark ? themeStyles.bgSecondary : themeStyles.isCream ? themeStyles.bg : 'bg-gray-50'}`}>
                                             <div className="max-w-4xl mx-auto">
                                                 <div className="text-center mb-8">
                                                     <span className="text-2xl">⭐⭐⭐⭐⭐</span>
-                                                    <p className={`text-2xl font-black mt-2 ${pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text}`}>{reviewData.title}</p>
-                                                    <p className={`text-xs mt-1 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>만족도 4.9 / 5.0</p>
+                                                    <p className={`text-2xl font-black mt-2 ${themeStyles.text}`}>{reviewData.title}</p>
+                                                    <p className={`text-xs mt-1 ${themeStyles.mutedText || 'text-gray-500'}`}>만족도 4.9 / 5.0</p>
                                                 </div>
                                                 <div className="space-y-3">
                                                     {reviewData.content.split('\n').filter((l: string) => l.trim()).slice(0, 3).map((review: string, ri: number) => (
-                                                        <div key={ri} className={`p-5 rounded-xl ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0]' : 'bg-white border border-gray-200'} shadow-sm`}>
+                                                        <div key={ri} className={`p-5 rounded-xl ${themeStyles.cardBg} border ${themeStyles.cardBorder} shadow-sm`}>
                                                             <div className="flex items-center gap-3 mb-2">
-                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : 'bg-indigo-100 text-indigo-600'}`}>{['👩','👨','👩‍💼'][ri%3]}</div>
+                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${themeStyles.isDark ? `${themeStyles.accentBg} text-white` : 'bg-indigo-100 text-indigo-600'}`}>{['👩','👨','👩‍💼'][ri%3]}</div>
                                                                 <div>
-                                                                    <p className={`text-xs font-bold ${pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-800'}`}>{['kh**','김0진','sun****'][ri%3]}</p>
+                                                                    <p className={`text-xs font-bold ${themeStyles.text}`}>{['kh**','김0진','sun****'][ri%3]}</p>
                                                                     <p className="text-xs text-yellow-500">★★★★★</p>
                                                                 </div>
                                                             </div>
-                                                            <p className={`text-lg leading-relaxed ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>{review.replace(/^\d+[\.\)]\s*/, '').trim()}</p>
+                                                            <p className={`text-lg leading-relaxed ${themeStyles.mutedText || 'text-gray-600'}`}>{review.replace(/^\d+[\.\)]\s*/, '').trim()}</p>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2097,17 +2152,17 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         </div>
                                     )}
                                     {block.type === 'RECOMMEND_EMBED' && recommendData.items.length > 0 && (
-                                        <div className={`w-full py-12 px-8 ${pageDesign === 'IMPACT' ? 'bg-black' : pageDesign === 'EMOTIONAL' ? 'bg-[#f4f1ea]' : 'bg-gradient-to-b from-indigo-50 to-white'}`}>
+                                        <div className={`w-full py-12 px-8 ${themeStyles.isDark ? themeStyles.bg : themeStyles.isCream ? themeStyles.bgSecondary : 'bg-gradient-to-b from-indigo-50 to-white'}`}>
                                             <div className="max-w-4xl mx-auto">
                                                 <div className="text-center mb-8">
                                                     <span className="text-3xl">💡</span>
-                                                    <p className={`text-xl font-black mt-2 ${pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text}`}>{recommendData.title}</p>
+                                                    <p className={`text-xl font-black mt-2 ${themeStyles.text}`}>{recommendData.title}</p>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3">
                                                     {recommendData.items.slice(0, 4).map((item, ri) => (
-                                                        <div key={ri} className={`flex items-start gap-3 p-5 rounded-xl ${pageDesign === 'IMPACT' ? 'bg-gray-900 border border-gray-800' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0]' : 'bg-white border border-gray-200'} shadow-sm`}>
-                                                            <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ${pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9] text-white' : 'bg-indigo-600 text-white'}`}>{ri+1}</div>
-                                                            <p className={`text-lg font-medium leading-relaxed ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700'}`}>{item}</p>
+                                                        <div key={ri} className={`flex items-start gap-3 p-5 rounded-xl ${themeStyles.cardBg} border ${themeStyles.cardBorder} shadow-sm`}>
+                                                            <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-black ${themeStyles.isDark || themeStyles.isCream ? `${themeStyles.accentBg} text-white` : 'bg-indigo-600 text-white'}`}>{ri+1}</div>
+                                                            <p className={`text-lg font-medium leading-relaxed ${themeStyles.mutedText || 'text-gray-700'}`}>{item}</p>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2130,66 +2185,66 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         case 'INFO': return (
                     <div className={`w-full pt-14 pb-20 px-10 ${getSectionBg('INFO', pageDesign)}`}>
                         <div className="mb-6 text-center">
-                             <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                             <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: themeStyles.mutedText || 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                         </div>
                         {/* ── CHECK POINT: 친절한 안내 박스 (가운데 정렬) ── */}
-                        <div className={`p-8 rounded-2xl mb-14 max-w-4xl mx-auto text-center ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#d4d1c9]' : 'bg-amber-50 border border-amber-200'}`}>
+                        <div className={`p-8 rounded-2xl mb-14 max-w-4xl mx-auto text-center ${themeStyles.isDark || themeStyles.isCream ? `${themeStyles.cardBg} border ${themeStyles.cardBorder}` : 'bg-amber-50 border border-amber-200'}`}>
                             <div className="flex items-center justify-center gap-3 mb-4">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${pageDesign === 'IMPACT' ? 'bg-red-600' : pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9]' : 'bg-amber-400'}`}>
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${themeStyles.isDark || themeStyles.isCream ? themeStyles.accentBg : 'bg-amber-400'}`}>
                                     <span className="text-white text-lg">📋</span>
                                 </div>
-                                <h4 className={`font-black text-xl ${pageDesign === 'IMPACT' ? 'text-white' : pageDesign === 'EMOTIONAL' ? 'text-gray-800' : 'text-amber-800'}`}>구매 전 꼭 확인하세요</h4>
+                                <h4 className={`font-black text-xl ${themeStyles.isDark || themeStyles.isCream ? themeStyles.text : 'text-amber-800'}`}>구매 전 꼭 확인하세요</h4>
                             </div>
-                            <EditableElement value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700', align: 'text-center', fontWeight: 'font-medium' }} toolbarPosition="right" />
+                            <EditableElement value={editableCopy.sizeTip} onChange={(v) => handleCopyChange('sizeTip', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: themeStyles.isDark ? (themeStyles.mutedText || 'text-gray-300') : 'text-gray-700', align: 'text-center', fontWeight: 'font-medium' }} toolbarPosition="right" />
                         </div>
                         {/* ── Product Info 테이블 (단일 컬럼 라벨:값) ── */}
                         <div className="max-w-4xl mx-auto">
                             <div className="flex justify-center mb-8">
-                                <EditableElement value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-black' : 'font-bold' }} className={`pb-2 px-8 ${pageDesign === 'IMPACT' ? 'border-b-4 border-red-600 uppercase tracking-widest' : pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' : `border-b-4 ${themeStyles.tableBorder}`}`} toolbarPosition="right" />
+                                <EditableElement value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: themeStyles.isDark ? 'font-black' : 'font-bold' }} className={`pb-2 px-8 ${themeStyles.isDark ? `border-b-4 ${themeStyles.accentBorder} uppercase tracking-widest` : themeStyles.isCream ? `border-b ${themeStyles.cardBorder}` : `border-b-4 ${themeStyles.tableBorder}`}`} toolbarPosition="right" />
                             </div>
                             <div className={`border-t-[3px] ${themeStyles.tableBorder} divide-y ${themeStyles.tableBorder}`}>
                                 {/* 제품명 */}
                                 <div className="flex">
-                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
-                                        <EditableElement value={infoLabels.product} onChange={(v) => handleInfoLabelChange('product', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${themeStyles.bgSecondary || 'bg-gray-50'} ${themeStyles.isDark ? themeStyles.text : 'text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.product} onChange={(v) => handleInfoLabelChange('product', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: themeStyles.isDark ? themeStyles.text : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
-                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
-                                        <EditableElement value={editableProductName} onChange={setEditableProductName} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    <div className={`flex-1 py-5 px-5 text-lg ${themeStyles.isDark ? (themeStyles.mutedText || 'text-gray-300') : 'text-gray-600'}`}>
+                                        <EditableElement value={editableProductName} onChange={setEditableProductName} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: themeStyles.isDark ? (themeStyles.mutedText || 'text-gray-300') : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 소재 */}
                                 <div className="flex">
-                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
-                                        <EditableElement value={infoLabels.material} onChange={(v) => handleInfoLabelChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${themeStyles.bgSecondary || 'bg-gray-50'} ${themeStyles.isDark ? themeStyles.text : 'text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.material} onChange={(v) => handleInfoLabelChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: themeStyles.isDark ? themeStyles.text : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
-                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${themeStyles.isDark ? (themeStyles.mutedText || 'text-gray-300') : 'text-gray-600'}`}>
                                         <EditableElement value={editableCopy.productInfo.material} onChange={(v) => handleProductInfoChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 색상 */}
                                 <div className="flex">
-                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
-                                        <EditableElement value={infoLabels.color} onChange={(v) => handleInfoLabelChange('color', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${themeStyles.bgSecondary || 'bg-gray-50'} ${themeStyles.isDark ? themeStyles.text : 'text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.color} onChange={(v) => handleInfoLabelChange('color', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: themeStyles.isDark ? themeStyles.text : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
-                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${themeStyles.isDark ? (themeStyles.mutedText || 'text-gray-300') : 'text-gray-600'}`}>
                                         <EditableElement value={infoLabels.imgRef} onChange={(v) => handleInfoLabelChange('imgRef', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 제조국 */}
                                 <div className="flex">
-                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
-                                        <EditableElement value={infoLabels.origin} onChange={(v) => handleInfoLabelChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${themeStyles.bgSecondary || 'bg-gray-50'} ${themeStyles.isDark ? themeStyles.text : 'text-gray-700'}`}>
+                                        <EditableElement value={infoLabels.origin} onChange={(v) => handleInfoLabelChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: themeStyles.isDark ? themeStyles.text : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
-                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${themeStyles.isDark ? (themeStyles.mutedText || 'text-gray-300') : 'text-gray-600'}`}>
                                         <EditableElement value={editableCopy.productInfo.origin} onChange={(v) => handleProductInfoChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 세탁/주의사항 */}
                                 <div className="flex">
-                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
-                                        <EditableElement value={category === 'FASHION' ? infoLabels.wash : infoLabels.caution} onChange={(v) => handleInfoLabelChange(category === 'FASHION' ? 'wash' : 'caution', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${themeStyles.bgSecondary || 'bg-gray-50'} ${themeStyles.isDark ? themeStyles.text : 'text-gray-700'}`}>
+                                        <EditableElement value={category === 'FASHION' ? infoLabels.wash : infoLabels.caution} onChange={(v) => handleInfoLabelChange(category === 'FASHION' ? 'wash' : 'caution', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: themeStyles.isDark ? themeStyles.text : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
-                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    <div className={`flex-1 py-5 px-5 text-lg ${themeStyles.isDark ? (themeStyles.mutedText || 'text-gray-300') : 'text-gray-600'}`}>
                                         <EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
@@ -2204,12 +2259,12 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                     { label: '고객센터', value: infoDisclosure.customerService },
                                 ].filter(r => r.value).map((row, i) => (
                                     <div key={`info-${i}`} className="flex">
-                                        <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>{row.label}</div>
-                                        <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>{row.value}</div>
+                                        <div className={`w-[30%] py-5 px-5 font-bold text-lg ${themeStyles.bgSecondary || 'bg-gray-50'} ${themeStyles.isDark ? themeStyles.text : 'text-gray-700'}`}>{row.label}</div>
+                                        <div className={`flex-1 py-5 px-5 text-lg ${themeStyles.isDark ? (themeStyles.mutedText || 'text-gray-300') : 'text-gray-600'}`}>{row.value}</div>
                                     </div>
                                 ))}
                             </div>
-                            <div className="mt-8 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
+                            <div className="mt-8 text-center"><EditableElement value={copyright} onChange={setCopyright} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: themeStyles.mutedText || 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" /></div>
                         </div>
                     </div>
             );
@@ -2221,28 +2276,28 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         <div className="flex items-center justify-center gap-2 mb-3">
                             <span className="text-3xl">⭐⭐⭐⭐⭐</span>
                         </div>
-                        <EditableElement value={reviewData.title} onChange={(v) => setReviewData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
-                        <p className={`text-lg mt-2 ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>만족도 4.9 / 5.0</p>
+                        <EditableElement value={reviewData.title} onChange={(v) => setReviewData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                        <p className={`text-lg mt-2 ${themeStyles.mutedText || 'text-gray-500'}`}>만족도 4.9 / 5.0</p>
                     </div>
                     {reviewData.content ? (
                         <div className="space-y-5">
                             {reviewData.content.split('\n').filter((l: string) => l.trim()).slice(0, 3).map((review: string, i: number) => {
                                 const purchaseDates = ['2025.12.15', '2025.12.22', '2026.01.03'];
                                 return (
-                                <div key={i} className={`p-7 rounded-2xl ${pageDesign === 'IMPACT' ? 'bg-gray-800 border border-gray-700' : pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0]' : 'bg-white border border-gray-200'} shadow-sm`}>
+                                <div key={i} className={`p-7 rounded-2xl ${themeStyles.cardBg} border ${themeStyles.cardBorder} shadow-sm`}>
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${pageDesign === 'IMPACT' ? 'bg-red-600 text-white' : theme.bg + ' text-white'}`}>
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${themeStyles.isDark ? `${themeStyles.accentBg} text-white` : theme.bg + ' text-white'}`}>
                                                 {['👩', '👨', '👩‍💼'][i % 3]}
                                             </div>
                                             <div>
                                                 <div className="flex items-center gap-2">
-                                                    <p className={`text-lg font-bold ${pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-800'}`}>{['kh**', '김0진', 'sun****'][i % 3]}</p>
-                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${pageDesign === 'IMPACT' ? 'bg-red-600/20 text-red-400' : theme.lightBg + ' ' + theme.text}`}>구매 인증</span>
+                                                    <p className={`text-lg font-bold ${themeStyles.text}`}>{['kh**', '김0진', 'sun****'][i % 3]}</p>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${themeStyles.isDark ? `${themeStyles.accentBg}/20 ${themeStyles.accentText}` : theme.lightBg + ' ' + theme.text}`}>구매 인증</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-0.5">
                                                     <p className="text-xs text-yellow-500">★★★★★</p>
-                                                    <p className={`text-xs ${pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400'}`}>{purchaseDates[i % 3]} 구매</p>
+                                                    <p className={`text-xs ${themeStyles.mutedText || 'text-gray-400'}`}>{purchaseDates[i % 3]} 구매</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -2251,7 +2306,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         const lines = reviewData.content.split('\n');
                                         lines[i] = v;
                                         setReviewData(prev => ({...prev, content: lines.join('\n')}));
-                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
+                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: themeStyles.isDark ? (themeStyles.mutedText || 'text-gray-300') : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                 </div>
                                 );
                             })}
@@ -2269,22 +2324,14 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 <div className="max-w-4xl mx-auto">
                     <div className="text-center mb-10">
                         <span className={`text-4xl mb-4 block`}>💡</span>
-                        <EditableElement value={recommendData.title} onChange={(v) => setRecommendData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
+                        <EditableElement value={recommendData.title} onChange={(v) => setRecommendData(prev => ({...prev, title: v}))} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} toolbarPosition="right" />
                     </div>
                     {recommendData.items.length > 0 ? (
                         <div className="space-y-4">
                             {recommendData.items.slice(0, 5).map((item, i) => (
-                                <div key={i} className={`flex items-center gap-5 p-6 rounded-2xl transition-all ${
-                                    pageDesign === 'IMPACT' ? 'bg-gray-900 border border-gray-800 hover:border-red-600' : 
-                                    pageDesign === 'EMOTIONAL' ? 'bg-white border border-[#e0dcd0] hover:shadow-md' :
-                                    'bg-white border border-gray-200 hover:shadow-md hover:border-indigo-200'
-                                }`}>
+                                <div key={i} className={`flex items-center gap-5 p-6 rounded-2xl transition-all ${themeStyles.cardBg} border ${themeStyles.cardBorder} ${themeStyles.isDark ? `hover:${themeStyles.accentBorder}` : 'hover:shadow-md'}`}>
                                     {/* SVG 체크 원형 (디자인 요소) */}
-                                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                        pageDesign === 'IMPACT' ? 'bg-red-600' :
-                                        pageDesign === 'EMOTIONAL' ? 'bg-[#d4d1c9]' :
-                                        theme.bg
-                                    }`}>
+                                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${themeStyles.isDark || themeStyles.isCream ? themeStyles.accentBg : theme.bg}`}>
                                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                         </svg>
@@ -2293,7 +2340,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         const newItems = [...recommendData.items];
                                         newItems[i] = v;
                                         setRecommendData(prev => ({...prev, items: newItems}));
-                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-700', align: 'text-left', fontWeight: 'font-medium' }} toolbarPosition="right" />
+                                    }} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: themeStyles.isDark ? (themeStyles.mutedText || 'text-gray-300') : 'text-gray-700', align: 'text-left', fontWeight: 'font-medium' }} toolbarPosition="right" />
                                 </div>
                             ))}
                         </div>
@@ -2329,6 +2376,14 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
              <button onClick={() => { setPageDesign('IMPACT'); setPointLayout('CARDS'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                  <div className="w-8 h-8 rounded bg-black text-white flex items-center justify-center font-sans text-xs font-black">B</div>
                  <div className="text-left"><div className="font-bold">임팩트 (강조)</div><div className="text-xs opacity-70">강한 대비, 카드형</div></div>
+             </button>
+             <button onClick={() => { setPageDesign('ATELIER'); setPointLayout('SIMPLE'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'ATELIER' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+                 <div className="w-8 h-8 rounded bg-[#faf6ee] border border-[#c8b89e] flex items-center justify-center font-serif-kr text-xs text-[#a8825c] font-bold">A</div>
+                 <div className="text-left"><div className="font-bold">아틀리에 (에디토리얼)</div><div className="text-xs opacity-70">토프·아이보리 매거진</div></div>
+             </button>
+             <button onClick={() => { setPageDesign('PREMIUM'); setPointLayout('ZIGZAG'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'PREMIUM' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+                 <div className="w-8 h-8 rounded bg-[#0a0a0a] flex items-center justify-center font-serif-kr text-xs text-[#c8a467] font-bold">P</div>
+                 <div className="text-left"><div className="font-bold">프리미엄 (블랙·골드)</div><div className="text-xs opacity-70">차분한 럭셔리 톤</div></div>
              </button>
         </div>
 
