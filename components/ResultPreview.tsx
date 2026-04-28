@@ -25,6 +25,7 @@ type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE' | 'GRID_2COL' | 'NUMBERED_L
 type HeroLayoutType = 'IMAGE_BANNER' | 'SPLIT_LEFT' | 'SPLIT_RIGHT' | 'FULL_BLEED' | 'CARD_STACK';
 type StoryLayoutType = 'QUOTE_LARGE' | 'MAGAZINE_SPLIT' | 'FULL_TEXT' | 'TIMELINE';
 type DetailsLayoutType = 'IMAGE_BANNER_ALT' | 'IMAGE_ONLY' | 'GRID_2COL' | 'STORYBOARD' | 'MAGAZINE' | 'BEFORE_AFTER';
+type OptionsLayoutType = 'GRID' | 'LIST' | 'SWATCH' | 'COMPARISON';
 type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
 type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
 type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
@@ -947,6 +948,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [heroLayout, setHeroLayout] = useState<HeroLayoutType>('IMAGE_BANNER');
   const [storyLayout, setStoryLayout] = useState<StoryLayoutType>('QUOTE_LARGE');
   const [detailsLayout, setDetailsLayout] = useState<DetailsLayoutType>('IMAGE_BANNER_ALT');
+  const [optionsLayout, setOptionsLayout] = useState<OptionsLayoutType>('GRID');
   const [pageDesign, setPageDesign] = useState<PageDesignType>('MODERN');
   const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>('EMOJI');
   const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
@@ -1129,6 +1131,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     const allowedDetailsLayouts: DetailsLayoutType[] = ['IMAGE_BANNER_ALT', 'IMAGE_ONLY', 'GRID_2COL', 'STORYBOARD', 'MAGAZINE', 'BEFORE_AFTER'];
     if (llmDetails && allowedDetailsLayouts.includes(llmDetails as DetailsLayoutType)) {
         setDetailsLayout(llmDetails as DetailsLayoutType);
+    }
+    const llmOptions = copy.sectionVariants?.options;
+    const allowedOptionsLayouts: OptionsLayoutType[] = ['GRID', 'LIST', 'SWATCH', 'COMPARISON'];
+    if (llmOptions && allowedOptionsLayouts.includes(llmOptions as OptionsLayoutType)) {
+        setOptionsLayout(llmOptions as OptionsLayoutType);
     }
 
   }, [copy, images, productName, category]);
@@ -2164,20 +2171,37 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         )}
                 </div>
         );
-        case 'OPTIONS': return (
+        case 'OPTIONS': {
+            // variant별 클래스 매핑
+            const containerCls =
+                optionsLayout === 'LIST' ? 'flex flex-col gap-3 px-6 max-w-3xl mx-auto' :
+                optionsLayout === 'COMPARISON' ? `grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-0 px-6 max-w-6xl mx-auto border-y-2 ${themeStyles.tableBorder}` :
+                'flex flex-wrap justify-center gap-4 px-6';
+            const blockOuterCls =
+                optionsLayout === 'LIST' ? `flex flex-row items-center gap-5 w-full p-3 ${themeStyles.cardBg} rounded-xl border border-gray-200 group relative` :
+                optionsLayout === 'SWATCH' ? 'flex flex-col items-center w-[140px] group relative' :
+                optionsLayout === 'COMPARISON' ? `flex flex-col items-center w-full p-4 group relative border-x ${themeStyles.tableBorder}` :
+                'flex flex-col items-center w-[260px] group relative';
+            const imageBoxCls =
+                optionsLayout === 'LIST' ? 'w-28 h-28 flex-shrink-0 bg-white rounded-lg shadow-sm overflow-hidden relative' :
+                optionsLayout === 'SWATCH' ? 'w-24 h-24 bg-white rounded-full shadow-sm overflow-hidden relative mb-2 border-2 border-white ring-1 ring-gray-200' :
+                optionsLayout === 'COMPARISON' ? 'w-full aspect-square bg-white rounded-lg shadow-sm overflow-hidden relative mb-3' :
+                'w-full aspect-[3/4] bg-white rounded-lg shadow-sm overflow-hidden relative mb-4';
+
+            return (
             <div className={`w-full py-20 ${getSectionBg('OPTIONS', pageDesign)}`}>
                     <div className="text-center mb-10">
                         <EditableElement value="COLORS & OPTIONS" onChange={() => {}} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="uppercase tracking-widest leading-normal" toolbarPosition="right" />
                     </div>
-                    <div className="flex flex-wrap justify-center gap-4 px-6">
-                        {optionBlocks.length === 0 && <div className="text-gray-400">옵션 이미지가 없습니다. 상단에서 추가하거나 아래 버튼을 눌러주세요.</div>}
-                        {optionBlocks.map((block) => (
-                            <div key={block.id} className="flex flex-col items-center w-[260px] group relative">
+                    <div className={containerCls}>
+                        {optionBlocks.length === 0 && <div className="text-gray-400 col-span-full text-center w-full">옵션 이미지가 없습니다. 상단에서 추가하거나 아래 버튼을 눌러주세요.</div>}
+                        {optionBlocks.map((block, optIdx) => (
+                            <div key={block.id} className={blockOuterCls}>
                                 {isEditMode && (
                                     <button onClick={() => removeOptionBlock(block.id)} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow hover:bg-red-600 z-30 opacity-0 group-hover:opacity-100 transition-opacity"><XMarkIcon className="w-4 h-4"/></button>
                                 )}
-                                <div 
-                                    className={`w-full aspect-[3/4] bg-white rounded-lg shadow-sm overflow-hidden relative mb-4 ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
+                                <div
+                                    className={`${imageBoxCls} ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
                                     onDragEnter={(e) => handleDragEnter(e, block.id)}
                                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                     onDragLeave={handleDragLeave}
@@ -2202,7 +2226,13 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                         <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-gray-50 text-gray-300 hover:text-gray-500"><PhotoIcon className="w-10 h-10 mb-2"/><span className="text-xs">이미지 추가</span><input type="file" className="hidden" accept="image/*" onChange={(e) => handleOptionImageUpload(block.id, e)} /></label>
                                     )}
                                 </div>
-                                <EditableElement value={block.text} onChange={(v) => updateOptionBlock(block.id, 'text', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                {/* COMPARISON: 옵션 번호 배지 */}
+                                {optionsLayout === 'COMPARISON' && (
+                                    <div className={`mb-2 px-3 py-1 rounded-full text-xs font-bold ${theme.lightBg} ${theme.text}`}>OPTION {optIdx + 1}</div>
+                                )}
+                                <div className={optionsLayout === 'LIST' ? 'flex-1 text-left' : ''}>
+                                    <EditableElement value={block.text} onChange={(v) => updateOptionBlock(block.id, 'text', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: optionsLayout === 'LIST' ? 'text-xl' : optionsLayout === 'SWATCH' ? 'text-sm' : 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-700', align: optionsLayout === 'LIST' ? 'text-left' : 'text-center', fontWeight: 'font-bold' }} toolbarPosition="right" />
+                                </div>
                             </div>
                         ))}
                         {isEditMode && (
@@ -2214,6 +2244,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                     </div>
                 </div>
         );
+        }
         case 'DETAILS': {
             // variant별 표시 블록 필터
             const displayedDetailBlocks =
@@ -2633,6 +2664,15 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 <button onClick={() => setDetailsLayout('STORYBOARD')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${detailsLayout === 'STORYBOARD' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ListBulletIcon className="w-5 h-5" /> 스토리보드</button>
                 <button onClick={() => setDetailsLayout('MAGAZINE')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${detailsLayout === 'MAGAZINE' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><Square2StackIcon className="w-5 h-5" /> 매거진 카드</button>
                 <button onClick={() => setDetailsLayout('BEFORE_AFTER')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${detailsLayout === 'BEFORE_AFTER' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ArrowsUpDownIcon className="w-5 h-5 rotate-90" /> 비포 / 애프터</button>
+            </div>
+        </div>
+        <div className="mb-8">
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">옵션 섹션 스타일</h4>
+            <div className="flex flex-col gap-2">
+                <button onClick={() => setOptionsLayout('GRID')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${optionsLayout === 'GRID' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><Square2StackIcon className="w-5 h-5" /> 그리드 (기본)</button>
+                <button onClick={() => setOptionsLayout('LIST')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${optionsLayout === 'LIST' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ListBulletIcon className="w-5 h-5" /> 세로 리스트</button>
+                <button onClick={() => setOptionsLayout('SWATCH')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${optionsLayout === 'SWATCH' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><SwatchIcon className="w-5 h-5" /> 스와치</button>
+                <button onClick={() => setOptionsLayout('COMPARISON')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${optionsLayout === 'COMPARISON' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><TableCellsIcon className="w-5 h-5" /> 비교 테이블</button>
             </div>
         </div>
         <div className="mb-8">
