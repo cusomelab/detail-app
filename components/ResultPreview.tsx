@@ -21,7 +21,7 @@ interface ResultPreviewProps {
   onReset: () => void;
 }
 
-type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE';
+type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE' | 'GRID_2COL' | 'NUMBERED_LIST' | 'STACKED_HERO';
 type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
 type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
 type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
@@ -1103,6 +1103,13 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         sideImage: styledImages[i] || undefined
     })));
 
+    // ── LLM이 고른 섹션 variant 자동 적용 (없으면 기존 default 유지) ──
+    const llmPoints = copy.sectionVariants?.points;
+    const allowedPointLayouts: PointLayoutType[] = ['ZIGZAG', 'CARDS', 'SIMPLE', 'GRID_2COL', 'NUMBERED_LIST', 'STACKED_HERO'];
+    if (llmPoints && allowedPointLayouts.includes(llmPoints as PointLayoutType)) {
+        setPointLayout(llmPoints as PointLayoutType);
+    }
+
   }, [copy, images, productName, category]);
 
   useEffect(() => {
@@ -1766,11 +1773,18 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 <EditableElement value={headers.whySub} onChange={(v) => handleHeaderChange('whySub', v)} onDelete={() => toggleHeaderVisibility('whySub')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-500', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
                             )}
                         </div>
-                        <div className={`px-10 ${pointLayout === 'CARDS' ? 'grid gap-10' : pointLayout === 'SIMPLE' ? 'space-y-12' : 'flex flex-wrap'}`}>
+                        <div className={`px-10 ${
+                            pointLayout === 'CARDS' ? 'grid gap-10' :
+                            pointLayout === 'SIMPLE' ? 'space-y-12' :
+                            pointLayout === 'GRID_2COL' ? 'grid grid-cols-2 gap-6' :
+                            pointLayout === 'NUMBERED_LIST' ? 'space-y-10' :
+                            pointLayout === 'STACKED_HERO' ? 'space-y-16' :
+                            'flex flex-wrap'
+                        }`}>
                             {pointBlocks.map((block, idx) => {
                                 if (block.type === 'POINT_ITEM') {
                                     return (
-                                        <div key={block.id} className={`relative group/point w-full ${pointLayout === 'ZIGZAG' ? `flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-stretch min-h-[400px] border-b ${themeStyles.tableBorder} last:border-0` : ''} ${pointLayout === 'CARDS' ? `${themeStyles.cardBg} rounded-3xl p-12 border border-gray-200` : ''} ${pointLayout === 'SIMPLE' ? `flex flex-col items-start border-l-8 ${theme.border} pl-10 py-4` : ''}`}>   
+                                        <div key={block.id} className={`relative group/point w-full ${pointLayout === 'ZIGZAG' ? `flex ${idx % 2 === 0 ? 'flex-row' : 'flex-row-reverse'} items-stretch min-h-[400px] border-b ${themeStyles.tableBorder} last:border-0` : ''} ${pointLayout === 'CARDS' ? `${themeStyles.cardBg} rounded-3xl p-12 border border-gray-200` : ''} ${pointLayout === 'SIMPLE' ? `flex flex-col items-start border-l-8 ${theme.border} pl-10 py-4` : ''} ${pointLayout === 'GRID_2COL' ? `${themeStyles.cardBg} rounded-2xl p-8 border border-gray-200` : ''} ${pointLayout === 'NUMBERED_LIST' ? `flex flex-row items-center gap-8 py-6 border-b ${themeStyles.tableBorder} last:border-0` : ''} ${pointLayout === 'STACKED_HERO' ? `relative overflow-hidden rounded-2xl min-h-[480px]` : ''}`}>
                                             {isEditMode && (
                                                 <div className="absolute top-2 left-2 z-30 flex gap-1 opacity-0 group-hover/point:opacity-100 transition-opacity">
                                                     <button onClick={() => movePointBlock(idx, -1)} className="p-2 bg-white text-gray-500 rounded-full shadow border border-gray-200 hover:text-indigo-600"><ChevronUpIcon className="w-3 h-3"/></button>
@@ -1840,6 +1854,72 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                                     {pointIconStyle !== 'NONE' && <div className="text-3xl mb-3">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
                                                     <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2 leading-snug" toolbarPosition="right" />
                                                     <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
+                                                </>
+                                            )}
+                                            {/* ═══ GRID_2COL: 2열 컴팩트 ═══ */}
+                                            {pointLayout === 'GRID_2COL' && (
+                                                <div className="text-center">
+                                                    {pointIconStyle !== 'NONE' && <div className="text-3xl mb-3">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
+                                                    <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className="mb-3 leading-snug" toolbarPosition="right" />
+                                                    <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-base', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-center', fontWeight: 'font-normal' }} className="leading-relaxed" toolbarPosition="right" />
+                                                </div>
+                                            )}
+                                            {/* ═══ NUMBERED_LIST: 큰 숫자 강조 ═══ */}
+                                            {pointLayout === 'NUMBERED_LIST' && (
+                                                <>
+                                                    <div className={`text-7xl font-black ${theme.text} font-serif-kr w-24 flex-shrink-0 leading-none`}>
+                                                        {String(idx + 1).padStart(2, '0')}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-left', fontWeight: 'font-bold' }} className="mb-2 leading-snug" toolbarPosition="right" />
+                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed" toolbarPosition="right" />
+                                                    </div>
+                                                </>
+                                            )}
+                                            {/* ═══ STACKED_HERO: 풀폭 이미지 + 오버레이 ═══ */}
+                                            {pointLayout === 'STACKED_HERO' && (
+                                                <>
+                                                    <div
+                                                        className={`absolute inset-0 ${theme.lightBg} ${dragOverId === block.id ? 'ring-4 ring-dashed ring-indigo-500' : ''}`}
+                                                        onDragEnter={(e) => handleDragEnter(e, block.id)}
+                                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                        onDragLeave={handleDragLeave}
+                                                        onDrop={(e) => handleImageDrop(e, block.id, (file) => {
+                                                            const url = URL.createObjectURL(file);
+                                                            updatePointBlock(block.id, 'sideImage', url);
+                                                            openCropper(block.id, url, 'POINT_SIDE');
+                                                        })}
+                                                    >
+                                                        {block.sideImage ? (
+                                                            <>
+                                                                <img src={block.sideImage} alt="Point Hero" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                                                            </>
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                <span className="text-gray-900 font-bold border-4 border-gray-900 p-4 text-2xl opacity-10">POINT {idx+1}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="relative z-10 p-12 flex flex-col justify-end h-full min-h-[480px]">
+                                                        {pointIconStyle !== 'NONE' && <div className="text-5xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${block.sideImage ? 'text-white' : theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
+                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: block.sideImage ? 'text-white' : (pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text), align: 'text-left', fontWeight: 'font-bold' }} className="mb-4 leading-tight" toolbarPosition="right" />
+                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: block.sideImage ? 'text-white/90' : 'text-gray-600', align: 'text-left', fontWeight: 'font-medium' }} className="leading-relaxed max-w-2xl" toolbarPosition="right" />
+                                                        {isEditMode && (
+                                                            <div className="absolute top-4 right-4 z-40 flex gap-2">
+                                                                <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer shadow border border-gray-200">
+                                                                    <ArrowPathIcon className="w-4 h-4" />
+                                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handlePointSideImageUpload(block.id, e)} />
+                                                                </label>
+                                                                {block.sideImage && (
+                                                                    <>
+                                                                        <button onClick={() => openCropper(block.id, block.sideImage!, 'POINT_SIDE')} className="bg-white/90 text-gray-800 p-2 rounded-lg cursor-pointer shadow border border-gray-200 hover:bg-white"><ScissorsIcon className="w-4 h-4" /></button>
+                                                                        <button onClick={() => updatePointBlock(block.id, 'sideImage', undefined)} className="bg-white/90 text-red-500 p-2 rounded-lg cursor-pointer shadow border border-gray-200 hover:bg-white"><TrashIcon className="w-4 h-4" /></button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </>
                                             )}
                                         </div>
@@ -2339,6 +2419,9 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 <button onClick={() => setPointLayout('ZIGZAG')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pointLayout === 'ZIGZAG' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ListBulletIcon className="w-5 h-5" /> 매거진 (지그재그)</button>
                 <button onClick={() => setPointLayout('CARDS')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pointLayout === 'CARDS' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><Square2StackIcon className="w-5 h-5" /> 박스형 카드</button>
                 <button onClick={() => setPointLayout('SIMPLE')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pointLayout === 'SIMPLE' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ViewColumnsIcon className="w-5 h-5" /> 심플 리스트</button>
+                <button onClick={() => setPointLayout('GRID_2COL')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pointLayout === 'GRID_2COL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><TableCellsIcon className="w-5 h-5" /> 2열 그리드</button>
+                <button onClick={() => setPointLayout('NUMBERED_LIST')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pointLayout === 'NUMBERED_LIST' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><BoltIcon className="w-5 h-5" /> 번호 강조</button>
+                <button onClick={() => setPointLayout('STACKED_HERO')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pointLayout === 'STACKED_HERO' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><PhotoIcon className="w-5 h-5" /> 풀이미지 히어로</button>
             </div>
         </div>
         <div className="border-t border-gray-100 pt-6">
