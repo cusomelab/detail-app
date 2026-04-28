@@ -23,6 +23,7 @@ interface ResultPreviewProps {
 
 type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE' | 'GRID_2COL' | 'NUMBERED_LIST' | 'STACKED_HERO';
 type HeroLayoutType = 'IMAGE_BANNER' | 'SPLIT_LEFT' | 'SPLIT_RIGHT' | 'FULL_BLEED' | 'CARD_STACK';
+type StoryLayoutType = 'QUOTE_LARGE' | 'MAGAZINE_SPLIT' | 'FULL_TEXT' | 'TIMELINE';
 type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
 type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
 type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
@@ -943,6 +944,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   
   const [pointLayout, setPointLayout] = useState<PointLayoutType>('ZIGZAG');
   const [heroLayout, setHeroLayout] = useState<HeroLayoutType>('IMAGE_BANNER');
+  const [storyLayout, setStoryLayout] = useState<StoryLayoutType>('QUOTE_LARGE');
   const [pageDesign, setPageDesign] = useState<PageDesignType>('MODERN');
   const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>('EMOJI');
   const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
@@ -1115,6 +1117,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     const allowedHeroLayouts: HeroLayoutType[] = ['IMAGE_BANNER', 'SPLIT_LEFT', 'SPLIT_RIGHT', 'FULL_BLEED', 'CARD_STACK'];
     if (llmHero && allowedHeroLayouts.includes(llmHero as HeroLayoutType)) {
         setHeroLayout(llmHero as HeroLayoutType);
+    }
+    const llmStory = copy.sectionVariants?.story;
+    const allowedStoryLayouts: StoryLayoutType[] = ['QUOTE_LARGE', 'MAGAZINE_SPLIT', 'FULL_TEXT', 'TIMELINE'];
+    if (llmStory && allowedStoryLayouts.includes(llmStory as StoryLayoutType)) {
+        setStoryLayout(llmStory as StoryLayoutType);
     }
 
   }, [copy, images, productName, category]);
@@ -1814,22 +1821,93 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 </div>
             );
         }
-        case 'STORY': return (
-            <div className={`w-full text-center relative ${getSectionBg('STORY', pageDesign)} ${pageDesign === 'EMOTIONAL' ? 'py-20 px-12' : pageDesign === 'IMPACT' ? 'py-16 px-12' : 'py-14 px-12'}`}>
-                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mb-4 block leading-none`}>"</span>}
-                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mb-8"></div>}
-                        <EditableElement key={`mood-${pointTheme}`} value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'EMOTIONAL' ? 'font-normal' : 'font-medium', maxWidth: 'max-w-4xl' }} className={`leading-relaxed mx-auto ${pageDesign === 'EMOTIONAL' ? 'italic' : ''}`} toolbarPosition="right" />
-                        {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mt-4 block leading-none`}>"</span>}
-                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mt-8"></div>}
-                        {visibleHeaders.moodStory && (
-                            <div className="mt-10 flex justify-center items-center gap-6">
-                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
-                                <EditableElement value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
-                                <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
-                            </div>
-                        )}
+        case 'STORY': {
+            const storyText = (extraCls = '', sizeOverride?: string, alignOverride?: string) => (
+                <EditableElement
+                    key={`mood-${pointTheme}`}
+                    value={editableCopy.story}
+                    onChange={(v) => handleCopyChange('story', v)}
+                    isEditMode={isEditMode}
+                    aiLabel="Story"
+                    defaultStyle={{
+                        fontSize: (sizeOverride || 'text-2xl') as any,
+                        fontFamily: themeStyles.fontBody as any,
+                        color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text,
+                        align: (alignOverride || 'text-center') as any,
+                        fontWeight: pageDesign === 'EMOTIONAL' ? 'font-normal' : 'font-medium',
+                        maxWidth: 'max-w-4xl'
+                    }}
+                    className={`leading-relaxed ${alignOverride ? '' : 'mx-auto'} ${pageDesign === 'EMOTIONAL' ? 'italic' : ''} ${extraCls}`}
+                    toolbarPosition="right"
+                />
+            );
+            const storyHeader = visibleHeaders.moodStory ? (
+                <div className="mt-10 flex justify-center items-center gap-6">
+                    <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
+                    <EditableElement value={headers.moodStory} onChange={(v) => handleHeaderChange('moodStory', v)} onDelete={() => toggleHeaderVisibility('moodStory')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} className="tracking-[0.2em] uppercase" toolbarPosition="right" />
+                    <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
                 </div>
-        );
+            ) : null;
+            const sectionWrapperCls = `w-full relative ${getSectionBg('STORY', pageDesign)} ${pageDesign === 'EMOTIONAL' ? 'py-20 px-12' : pageDesign === 'IMPACT' ? 'py-16 px-12' : 'py-14 px-12'}`;
+
+            return (
+                <div className={sectionWrapperCls + ' text-center'}>
+                    {/* ═══ QUOTE_LARGE: 큰 인용부호 강조 (현재 기본) ═══ */}
+                    {storyLayout === 'QUOTE_LARGE' && (
+                        <>
+                            {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-7xl text-[#d4d1c9] font-serif' : 'text-6xl text-gray-200 font-serif'} mb-4 block leading-none`}>"</span>}
+                            {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mb-8"></div>}
+                            {storyText('', 'text-3xl')}
+                            {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-7xl text-[#d4d1c9] font-serif' : 'text-6xl text-gray-200 font-serif'} mt-4 block leading-none`}>"</span>}
+                            {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mt-8"></div>}
+                            {storyHeader}
+                        </>
+                    )}
+
+                    {/* ═══ MAGAZINE_SPLIT: 좌측 이미지 / 우측 텍스트 ═══ */}
+                    {storyLayout === 'MAGAZINE_SPLIT' && (
+                        <div className="flex flex-col md:flex-row items-center gap-10 max-w-6xl mx-auto">
+                            <div className={`md:w-1/2 w-full min-h-[360px] ${themeStyles.cardBg} rounded-2xl overflow-hidden flex items-center justify-center`}>
+                                {mainImage ? (
+                                    <img src={mainImage} alt="Story" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                ) : (
+                                    <div className="text-gray-300 text-sm">대표 이미지를 업로드하면 여기 표시됩니다</div>
+                                )}
+                            </div>
+                            <div className="md:w-1/2 w-full text-left">
+                                {storyText('', 'text-2xl', 'text-left')}
+                                {storyHeader && <div className="mt-8">{storyHeader}</div>}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ═══ FULL_TEXT: 텍스트 중심, 데코 최소 ═══ */}
+                    {storyLayout === 'FULL_TEXT' && (
+                        <>
+                            {storyText('', 'text-3xl')}
+                            {storyHeader}
+                        </>
+                    )}
+
+                    {/* ═══ TIMELINE: 줄바꿈 단위로 단계 표시 ═══ */}
+                    {storyLayout === 'TIMELINE' && (
+                        <div className="max-w-3xl mx-auto text-left">
+                            {(editableCopy.story || '').split('\n').filter(Boolean).map((line, idx, arr) => (
+                                <div key={idx} className="flex gap-6 items-start pb-8 last:pb-0 relative">
+                                    <div className="flex flex-col items-center flex-shrink-0">
+                                        <div className={`w-10 h-10 rounded-full ${theme.bg} text-white font-bold flex items-center justify-center text-sm`}>{idx + 1}</div>
+                                        {idx < arr.length - 1 && <div className={`w-[2px] flex-1 ${theme.bg} opacity-30 mt-2 min-h-[40px]`} />}
+                                    </div>
+                                    <p className={`pt-1 text-xl leading-relaxed ${pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text} ${pageDesign === 'EMOTIONAL' ? 'italic' : ''}`}>{line}</p>
+                                </div>
+                            ))}
+                            {(editableCopy.story || '').split('\n').filter(Boolean).length === 0 && storyText('', 'text-2xl')}
+                            {storyHeader}
+                        </div>
+                    )}
+                </div>
+            );
+        }
         case 'POINTS': return (
             <div className={`w-full relative ${getSectionBg('POINTS', pageDesign)} py-14`}>
                         {isEditMode && (
@@ -2501,6 +2579,15 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 <button onClick={() => setHeroLayout('SPLIT_RIGHT')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${heroLayout === 'SPLIT_RIGHT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ViewColumnsIcon className="w-5 h-5 rotate-180" /> 좌측 카피 / 우측 이미지</button>
                 <button onClick={() => setHeroLayout('FULL_BLEED')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${heroLayout === 'FULL_BLEED' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ArrowsPointingOutIcon className="w-5 h-5" /> 풀블리드 오버레이</button>
                 <button onClick={() => setHeroLayout('CARD_STACK')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${heroLayout === 'CARD_STACK' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><Square2StackIcon className="w-5 h-5" /> 카드 스택</button>
+            </div>
+        </div>
+        <div className="mb-8">
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">스토리 섹션 스타일</h4>
+            <div className="flex flex-col gap-2">
+                <button onClick={() => setStoryLayout('QUOTE_LARGE')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${storyLayout === 'QUOTE_LARGE' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ChatBubbleBottomCenterTextIcon className="w-5 h-5" /> 큰 인용 (기본)</button>
+                <button onClick={() => setStoryLayout('MAGAZINE_SPLIT')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${storyLayout === 'MAGAZINE_SPLIT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ViewColumnsIcon className="w-5 h-5" /> 매거진 분할</button>
+                <button onClick={() => setStoryLayout('FULL_TEXT')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${storyLayout === 'FULL_TEXT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><DocumentTextIcon className="w-5 h-5" /> 텍스트 중심</button>
+                <button onClick={() => setStoryLayout('TIMELINE')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${storyLayout === 'TIMELINE' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ListBulletIcon className="w-5 h-5" /> 타임라인</button>
             </div>
         </div>
         <div className="mb-8">
