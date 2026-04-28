@@ -161,7 +161,7 @@ export const OutfitTab: React.FC = () => {
     };
   }, [sourceImageUrls, referenceImageUrl]);
 
-  const handleImagesUpload = (files: File[], directoryHandle: FileSystemDirectoryHandle | null) => {
+  const handleImagesUpload = (files: File[]) => {
     setSourceImages(files);
     sourceImageUrls.forEach(URL.revokeObjectURL); // Clean up old URLs
     setSourceImageUrls(files.map(file => URL.createObjectURL(file)));

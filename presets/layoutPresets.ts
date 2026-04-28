@@ -283,3 +283,93 @@ export function getBannerPositionClass(position: BannerStyle['position']): strin
         case 'bottom': return 'bottom-0 left-0 right-0';
     }
 }
+
+// ══════════════════════════════════════════════
+// 섹션 Variant 카탈로그 (Step 1: 데이터만, 렌더링 미적용)
+// ──────────────────────────────────────────────
+// 향후 Step 2에서 LLM이 섹션별 variant를 직접 선택하도록 확장하고,
+// Step 3에서 ResultPreview가 variant에 따라 다른 컴포넌트를 렌더한다.
+// ══════════════════════════════════════════════
+
+export type HeroVariant =
+    | 'IMAGE_BANNER'      // 이미지 + 오버레이 텍스트(현재 기본)
+    | 'SPLIT_LEFT'        // 좌측 이미지 / 우측 카피
+    | 'SPLIT_RIGHT'       // 좌측 카피 / 우측 이미지
+    | 'FULL_BLEED'        // 풀폭 이미지, 텍스트는 아래
+    | 'CARD_STACK';       // 카드형(이미지+카피 한 카드)
+
+export type PointsVariant =
+    | 'ZIGZAG'            // 번갈아 배치(현 PointLayoutType과 동일)
+    | 'CARDS'             // 카드 그리드
+    | 'SIMPLE'            // 단순 리스트
+    | 'GRID_2COL'         // 2열 그리드(컴팩트)
+    | 'NUMBERED_LIST'     // 번호 강조 리스트
+    | 'STACKED_HERO';     // 포인트마다 풀폭 이미지
+
+export type DetailVariant =
+    | 'IMAGE_BANNER_ALT'  // 현재 기본
+    | 'IMAGE_ONLY'        // 텍스트 없이 이미지만
+    | 'GRID_2COL'         // 2열 이미지 그리드
+    | 'STORYBOARD'        // 시퀀스 + 캡션
+    | 'MAGAZINE'          // 잡지형 혼합 블록
+    | 'BEFORE_AFTER';     // 비교(전/후)
+
+export type StoryVariant =
+    | 'QUOTE_LARGE'       // 큰 인용문 강조
+    | 'MAGAZINE_SPLIT'    // 이미지+텍스트 분할
+    | 'FULL_TEXT'         // 텍스트 중심
+    | 'TIMELINE';         // 시간순/단계 진행
+
+export type OptionsVariant =
+    | 'GRID'              // 격자(현재 기본)
+    | 'LIST'              // 세로 리스트 + 설명
+    | 'SWATCH'            // 색상/패턴 스와치
+    | 'COMPARISON';       // 비교 테이블
+
+export type InfoVariant =
+    | 'TABLE'             // 표 형식(현재 기본)
+    | 'CARD_LIST'         // 카드 목록
+    | 'INLINE';           // 인라인 텍스트
+
+// ── 섹션 variant 묶음 ──
+export interface SectionVariantSet {
+    hero: HeroVariant;
+    points: PointsVariant;
+    details: DetailVariant;
+    story: StoryVariant;
+    options: OptionsVariant;
+    info: InfoVariant;
+}
+
+// ── 카테고리×디자인별 권장 variant 카탈로그 ──
+// 키 형식: `${ProductCategory}_${PageDesignType}`
+export const SECTION_VARIANT_CATALOG: Record<string, SectionVariantSet> = {
+    FASHION_MODERN:    { hero: 'SPLIT_RIGHT',   points: 'ZIGZAG',         details: 'MAGAZINE',         story: 'MAGAZINE_SPLIT', options: 'SWATCH',     info: 'TABLE' },
+    FASHION_EMOTIONAL: { hero: 'FULL_BLEED',    points: 'SIMPLE',         details: 'STORYBOARD',       story: 'QUOTE_LARGE',    options: 'GRID',       info: 'CARD_LIST' },
+    FASHION_IMPACT:    { hero: 'IMAGE_BANNER',  points: 'NUMBERED_LIST',  details: 'GRID_2COL',        story: 'FULL_TEXT',      options: 'COMPARISON', info: 'TABLE' },
+
+    LIVING_MODERN:     { hero: 'SPLIT_LEFT',    points: 'CARDS',          details: 'GRID_2COL',        story: 'MAGAZINE_SPLIT', options: 'GRID',       info: 'TABLE' },
+    LIVING_EMOTIONAL:  { hero: 'FULL_BLEED',    points: 'STACKED_HERO',   details: 'STORYBOARD',       story: 'QUOTE_LARGE',    options: 'LIST',       info: 'CARD_LIST' },
+    LIVING_IMPACT:     { hero: 'IMAGE_BANNER',  points: 'CARDS',          details: 'BEFORE_AFTER',     story: 'TIMELINE',       options: 'COMPARISON', info: 'TABLE' },
+
+    KITCHEN_MODERN:    { hero: 'SPLIT_RIGHT',   points: 'NUMBERED_LIST',  details: 'STORYBOARD',       story: 'TIMELINE',       options: 'COMPARISON', info: 'TABLE' },
+    KITCHEN_EMOTIONAL: { hero: 'CARD_STACK',    points: 'SIMPLE',         details: 'MAGAZINE',         story: 'MAGAZINE_SPLIT', options: 'GRID',       info: 'CARD_LIST' },
+    KITCHEN_IMPACT:    { hero: 'IMAGE_BANNER',  points: 'NUMBERED_LIST',  details: 'BEFORE_AFTER',     story: 'FULL_TEXT',      options: 'COMPARISON', info: 'TABLE' },
+
+    FOOD_MODERN:       { hero: 'FULL_BLEED',    points: 'CARDS',          details: 'STORYBOARD',       story: 'TIMELINE',       options: 'GRID',       info: 'TABLE' },
+    FOOD_EMOTIONAL:    { hero: 'CARD_STACK',    points: 'SIMPLE',         details: 'MAGAZINE',         story: 'QUOTE_LARGE',    options: 'LIST',       info: 'CARD_LIST' },
+    FOOD_IMPACT:       { hero: 'IMAGE_BANNER',  points: 'NUMBERED_LIST',  details: 'GRID_2COL',        story: 'FULL_TEXT',      options: 'COMPARISON', info: 'TABLE' },
+};
+
+// ── 카탈로그 조회(없으면 안전한 기본값) ──
+export function getSectionVariants(category: ProductCategory, design: PageDesignType): SectionVariantSet {
+    const key = `${category}_${design}`;
+    return SECTION_VARIANT_CATALOG[key] ?? {
+        hero: 'IMAGE_BANNER',
+        points: 'ZIGZAG',
+        details: 'IMAGE_BANNER_ALT',
+        story: 'MAGAZINE_SPLIT',
+        options: 'GRID',
+        info: 'TABLE',
+    };
+}
