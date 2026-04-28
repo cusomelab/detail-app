@@ -26,6 +26,7 @@ type HeroLayoutType = 'IMAGE_BANNER' | 'SPLIT_LEFT' | 'SPLIT_RIGHT' | 'FULL_BLEE
 type StoryLayoutType = 'QUOTE_LARGE' | 'MAGAZINE_SPLIT' | 'FULL_TEXT' | 'TIMELINE';
 type DetailsLayoutType = 'IMAGE_BANNER_ALT' | 'IMAGE_ONLY' | 'GRID_2COL' | 'STORYBOARD' | 'MAGAZINE' | 'BEFORE_AFTER';
 type OptionsLayoutType = 'GRID' | 'LIST' | 'SWATCH' | 'COMPARISON';
+type InfoLayoutType = 'TABLE' | 'CARD_LIST' | 'INLINE';
 type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
 type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
 type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
@@ -949,6 +950,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [storyLayout, setStoryLayout] = useState<StoryLayoutType>('QUOTE_LARGE');
   const [detailsLayout, setDetailsLayout] = useState<DetailsLayoutType>('IMAGE_BANNER_ALT');
   const [optionsLayout, setOptionsLayout] = useState<OptionsLayoutType>('GRID');
+  const [infoLayout, setInfoLayout] = useState<InfoLayoutType>('TABLE');
   const [pageDesign, setPageDesign] = useState<PageDesignType>('MODERN');
   const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>('EMOJI');
   const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
@@ -1136,6 +1138,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     const allowedOptionsLayouts: OptionsLayoutType[] = ['GRID', 'LIST', 'SWATCH', 'COMPARISON'];
     if (llmOptions && allowedOptionsLayouts.includes(llmOptions as OptionsLayoutType)) {
         setOptionsLayout(llmOptions as OptionsLayoutType);
+    }
+    const llmInfo = copy.sectionVariants?.info;
+    const allowedInfoLayouts: InfoLayoutType[] = ['TABLE', 'CARD_LIST', 'INLINE'];
+    if (llmInfo && allowedInfoLayouts.includes(llmInfo as InfoLayoutType)) {
+        setInfoLayout(llmInfo as InfoLayoutType);
     }
 
   }, [copy, images, productName, category]);
@@ -2430,7 +2437,28 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                     </div>
             );
         }
-        case 'INFO': return (
+        case 'INFO': {
+            // variant별 행 컨테이너/라벨/값 클래스
+            const labelBgCls = pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700';
+            const valueColorCls = pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600';
+            const infoRowCls =
+                infoLayout === 'CARD_LIST' ? `flex flex-col ${pageDesign === 'IMPACT' ? 'bg-gray-900' : 'bg-white'} rounded-xl border ${pageDesign === 'IMPACT' ? 'border-gray-700' : 'border-gray-200'} overflow-hidden shadow-sm` :
+                infoLayout === 'INLINE' ? 'inline-flex items-baseline mr-5 mb-2 align-baseline' :
+                'flex';
+            const infoLabelCls =
+                infoLayout === 'CARD_LIST' ? `w-full py-3 px-5 font-bold text-base ${labelBgCls}` :
+                infoLayout === 'INLINE' ? `pr-2 font-bold text-sm ${pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700'}` :
+                `w-[30%] py-5 px-5 font-bold text-lg ${labelBgCls}`;
+            const infoValueCls =
+                infoLayout === 'CARD_LIST' ? `w-full py-4 px-5 text-base ${valueColorCls}` :
+                infoLayout === 'INLINE' ? `pr-4 text-sm ${valueColorCls} border-r border-gray-300 last:border-0` :
+                `flex-1 py-5 px-5 text-lg ${valueColorCls}`;
+            const infoContainerCls =
+                infoLayout === 'CARD_LIST' ? 'space-y-3' :
+                infoLayout === 'INLINE' ? `flex flex-wrap items-baseline border-t-2 border-b-2 ${themeStyles.tableBorder} py-6 px-4` :
+                `border-t-[3px] ${themeStyles.tableBorder} divide-y ${themeStyles.tableBorder}`;
+
+            return (
                     <div className={`w-full pt-14 pb-20 px-10 ${getSectionBg('INFO', pageDesign)}`}>
                         <div className="mb-6 text-center">
                              <EditableElement value={disclaimerText} onChange={setDisclaimerText} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-sm', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-500' : 'text-gray-400', align: 'text-center', fontWeight: 'font-normal' }} toolbarPosition="right" />
@@ -2450,49 +2478,49 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                             <div className="flex justify-center mb-8">
                                 <EditableElement value={headers.productInfo} onChange={(v) => handleHeaderChange('productInfo', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-black' : 'font-bold' }} className={`pb-2 px-8 ${pageDesign === 'IMPACT' ? 'border-b-4 border-red-600 uppercase tracking-widest' : pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' : `border-b-4 ${themeStyles.tableBorder}`}`} toolbarPosition="right" />
                             </div>
-                            <div className={`border-t-[3px] ${themeStyles.tableBorder} divide-y ${themeStyles.tableBorder}`}>
+                            <div className={infoContainerCls}>
                                 {/* 제품명 */}
-                                <div className="flex">
-                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                <div className={infoRowCls}>
+                                    <div className={infoLabelCls}>
                                         <EditableElement value={infoLabels.product} onChange={(v) => handleInfoLabelChange('product', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
-                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    <div className={infoValueCls}>
                                         <EditableElement value={editableProductName} onChange={setEditableProductName} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 소재 */}
-                                <div className="flex">
-                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                <div className={infoRowCls}>
+                                    <div className={infoLabelCls}>
                                         <EditableElement value={infoLabels.material} onChange={(v) => handleInfoLabelChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
-                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    <div className={infoValueCls}>
                                         <EditableElement value={editableCopy.productInfo.material} onChange={(v) => handleProductInfoChange('material', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 색상 */}
-                                <div className="flex">
-                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                <div className={infoRowCls}>
+                                    <div className={infoLabelCls}>
                                         <EditableElement value={infoLabels.color} onChange={(v) => handleInfoLabelChange('color', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
-                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    <div className={infoValueCls}>
                                         <EditableElement value={infoLabels.imgRef} onChange={(v) => handleInfoLabelChange('imgRef', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 제조국 */}
-                                <div className="flex">
-                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                <div className={infoRowCls}>
+                                    <div className={infoLabelCls}>
                                         <EditableElement value={infoLabels.origin} onChange={(v) => handleInfoLabelChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
-                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    <div className={infoValueCls}>
                                         <EditableElement value={editableCopy.productInfo.origin} onChange={(v) => handleProductInfoChange('origin', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
                                 {/* 세탁/주의사항 */}
-                                <div className="flex">
-                                    <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>
+                                <div className={infoRowCls}>
+                                    <div className={infoLabelCls}>
                                         <EditableElement value={category === 'FASHION' ? infoLabels.wash : infoLabels.caution} onChange={(v) => handleInfoLabelChange(category === 'FASHION' ? 'wash' : 'caution', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : 'text-gray-700', align: 'text-left', fontWeight: 'font-bold' }} toolbarPosition="right" />
                                     </div>
-                                    <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    <div className={infoValueCls}>
                                         <EditableElement value={infoLabels.washGuide} onChange={(v) => handleInfoLabelChange('washGuide', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-lg', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-normal' }} toolbarPosition="right" />
                                     </div>
                                 </div>
@@ -2506,9 +2534,9 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                     { label: '주의사항', value: infoDisclosure.caution },
                                     { label: '고객센터', value: infoDisclosure.customerService },
                                 ].filter(r => r.value).map((row, i) => (
-                                    <div key={`info-${i}`} className="flex">
-                                        <div className={`w-[30%] py-5 px-5 font-bold text-lg ${pageDesign === 'IMPACT' ? 'bg-gray-800 text-white' : pageDesign === 'EMOTIONAL' ? 'bg-[#f7f5f0] text-gray-700' : 'bg-gray-50 text-gray-700'}`}>{row.label}</div>
-                                        <div className={`flex-1 py-5 px-5 text-lg ${pageDesign === 'IMPACT' ? 'text-gray-300' : 'text-gray-600'}`}>{row.value}</div>
+                                    <div key={`info-${i}`} className={infoRowCls}>
+                                        <div className={infoLabelCls}>{row.label}</div>
+                                        <div className={infoValueCls}>{row.value}</div>
                                     </div>
                                 ))}
                             </div>
@@ -2516,6 +2544,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         </div>
                     </div>
             );
+        }
         case 'REVIEW': return (
             <div className={`w-full ${getSectionBg('REVIEW', pageDesign)}`}>
                 <div className="py-16 px-10">
@@ -2673,6 +2702,14 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 <button onClick={() => setOptionsLayout('LIST')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${optionsLayout === 'LIST' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ListBulletIcon className="w-5 h-5" /> 세로 리스트</button>
                 <button onClick={() => setOptionsLayout('SWATCH')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${optionsLayout === 'SWATCH' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><SwatchIcon className="w-5 h-5" /> 스와치</button>
                 <button onClick={() => setOptionsLayout('COMPARISON')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${optionsLayout === 'COMPARISON' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><TableCellsIcon className="w-5 h-5" /> 비교 테이블</button>
+            </div>
+        </div>
+        <div className="mb-8">
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">정보고시 스타일</h4>
+            <div className="flex flex-col gap-2">
+                <button onClick={() => setInfoLayout('TABLE')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${infoLayout === 'TABLE' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><TableCellsIcon className="w-5 h-5" /> 테이블 (기본)</button>
+                <button onClick={() => setInfoLayout('CARD_LIST')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${infoLayout === 'CARD_LIST' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><Square2StackIcon className="w-5 h-5" /> 카드 목록</button>
+                <button onClick={() => setInfoLayout('INLINE')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${infoLayout === 'INLINE' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><EllipsisHorizontalIcon className="w-5 h-5" /> 인라인</button>
             </div>
         </div>
         <div className="mb-8">
