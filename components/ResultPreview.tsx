@@ -24,6 +24,7 @@ interface ResultPreviewProps {
 type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE' | 'GRID_2COL' | 'NUMBERED_LIST' | 'STACKED_HERO';
 type HeroLayoutType = 'IMAGE_BANNER' | 'SPLIT_LEFT' | 'SPLIT_RIGHT' | 'FULL_BLEED' | 'CARD_STACK';
 type StoryLayoutType = 'QUOTE_LARGE' | 'MAGAZINE_SPLIT' | 'FULL_TEXT' | 'TIMELINE';
+type DetailsLayoutType = 'IMAGE_BANNER_ALT' | 'IMAGE_ONLY' | 'GRID_2COL' | 'STORYBOARD' | 'MAGAZINE' | 'BEFORE_AFTER';
 type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
 type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
 type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
@@ -945,6 +946,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [pointLayout, setPointLayout] = useState<PointLayoutType>('ZIGZAG');
   const [heroLayout, setHeroLayout] = useState<HeroLayoutType>('IMAGE_BANNER');
   const [storyLayout, setStoryLayout] = useState<StoryLayoutType>('QUOTE_LARGE');
+  const [detailsLayout, setDetailsLayout] = useState<DetailsLayoutType>('IMAGE_BANNER_ALT');
   const [pageDesign, setPageDesign] = useState<PageDesignType>('MODERN');
   const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>('EMOJI');
   const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
@@ -1122,6 +1124,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     const allowedStoryLayouts: StoryLayoutType[] = ['QUOTE_LARGE', 'MAGAZINE_SPLIT', 'FULL_TEXT', 'TIMELINE'];
     if (llmStory && allowedStoryLayouts.includes(llmStory as StoryLayoutType)) {
         setStoryLayout(llmStory as StoryLayoutType);
+    }
+    const llmDetails = copy.sectionVariants?.details;
+    const allowedDetailsLayouts: DetailsLayoutType[] = ['IMAGE_BANNER_ALT', 'IMAGE_ONLY', 'GRID_2COL', 'STORYBOARD', 'MAGAZINE', 'BEFORE_AFTER'];
+    if (llmDetails && allowedDetailsLayouts.includes(llmDetails as DetailsLayoutType)) {
+        setDetailsLayout(llmDetails as DetailsLayoutType);
     }
 
   }, [copy, images, productName, category]);
@@ -2207,17 +2214,43 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                     </div>
                 </div>
         );
-        case 'DETAILS': return (
+        case 'DETAILS': {
+            // variant별 표시 블록 필터
+            const displayedDetailBlocks =
+                detailsLayout === 'IMAGE_ONLY' ? detailBlocks.filter(b => b.type === 'IMAGE') :
+                detailsLayout === 'BEFORE_AFTER' ? detailBlocks.filter(b => b.type === 'IMAGE').slice(0, 2) :
+                detailBlocks;
+
+            return (
                      <div className={`w-full pb-10 ${getSectionBg('DETAILS', pageDesign)}`}>
                         <div className={`w-full py-10 text-center ${pageDesign === 'IMPACT' ? 'bg-black' : ''}`}>
                             <EditableElement value={headers.detailView} onChange={(v) => handleHeaderChange('detailView', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'IMPACT' ? 'font-black' : 'font-bold' }} className={`inline-block px-8 py-3 tracking-[0.2em] uppercase ${pageDesign === 'IMPACT' ? 'border-b-2 border-red-600' : pageDesign === 'EMOTIONAL' ? 'border-b border-[#d4d1c9]' : `border-2 ${themeStyles.tableBorder} bg-white w-72`}`} toolbarPosition="right" />
                         </div>
-                        <div className="w-full flex flex-wrap">
-                            {detailBlocks.map((block, bIdx) => {
-                                const widthClass = block.width === 'FULL' ? 'w-full' : block.width === 'HALF' ? 'w-1/2' : 'w-1/3';
+                        <div className={`w-full flex flex-wrap ${detailsLayout === 'MAGAZINE' ? 'gap-4 px-4' : ''}`}>
+                            {displayedDetailBlocks.map((block, bIdx) => {
+                                const baseWidth = block.width === 'FULL' ? 'w-full' : block.width === 'HALF' ? 'w-1/2' : 'w-1/3';
+                                const widthClass =
+                                    detailsLayout === 'GRID_2COL' ? (block.type === 'IMAGE' ? 'w-1/2' : 'w-full') :
+                                    detailsLayout === 'STORYBOARD' ? 'w-full' :
+                                    detailsLayout === 'BEFORE_AFTER' ? 'w-1/2' :
+                                    detailsLayout === 'MAGAZINE' ? (block.type === 'IMAGE' ? 'w-[calc(50%-0.5rem)]' : 'w-full') :
+                                    baseWidth;
                                 const toggleLabel = block.width === 'FULL' ? '◩ 2단' : block.width === 'HALF' ? '▦ 3단' : '⬛ 꽉참';
+                                const blockWrapperExtra = detailsLayout === 'MAGAZINE' ? 'rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-white' : '';
                                 return (
-                                <div key={block.id} className={`relative group border-b border-gray-100/50 ${widthClass}`}>
+                                <div key={block.id} className={`relative group border-b border-gray-100/50 ${widthClass} ${blockWrapperExtra}`}>
+                                    {/* ═══ STORYBOARD 단계 배지 ═══ */}
+                                    {detailsLayout === 'STORYBOARD' && block.type === 'IMAGE' && (
+                                        <div className="absolute top-4 left-4 z-30 bg-black/75 text-white px-4 py-1.5 rounded-full text-sm font-bold tracking-wider">
+                                            STEP {bIdx + 1}
+                                        </div>
+                                    )}
+                                    {/* ═══ BEFORE_AFTER 라벨 ═══ */}
+                                    {detailsLayout === 'BEFORE_AFTER' && block.type === 'IMAGE' && (
+                                        <div className={`absolute top-4 left-4 z-30 px-5 py-2 rounded text-lg font-black tracking-[0.2em] ${bIdx === 0 ? 'bg-gray-900 text-white' : `${theme.bg} text-white`}`}>
+                                            {bIdx === 0 ? 'BEFORE' : 'AFTER'}
+                                        </div>
+                                    )}
                                     {isEditMode && (
                                         <div className="absolute top-4 right-4 z-30 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => moveBlock(bIdx, -1)} className="bg-white text-gray-500 p-2 rounded shadow border border-gray-200 hover:text-indigo-600 hover:bg-indigo-50"><ChevronUpIcon className="w-4 h-4"/></button>
@@ -2365,6 +2398,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                         )}
                     </div>
             );
+        }
         case 'INFO': return (
                     <div className={`w-full pt-14 pb-20 px-10 ${getSectionBg('INFO', pageDesign)}`}>
                         <div className="mb-6 text-center">
@@ -2588,6 +2622,17 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                 <button onClick={() => setStoryLayout('MAGAZINE_SPLIT')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${storyLayout === 'MAGAZINE_SPLIT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ViewColumnsIcon className="w-5 h-5" /> 매거진 분할</button>
                 <button onClick={() => setStoryLayout('FULL_TEXT')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${storyLayout === 'FULL_TEXT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><DocumentTextIcon className="w-5 h-5" /> 텍스트 중심</button>
                 <button onClick={() => setStoryLayout('TIMELINE')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${storyLayout === 'TIMELINE' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ListBulletIcon className="w-5 h-5" /> 타임라인</button>
+            </div>
+        </div>
+        <div className="mb-8">
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">디테일 섹션 스타일</h4>
+            <div className="flex flex-col gap-2">
+                <button onClick={() => setDetailsLayout('IMAGE_BANNER_ALT')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${detailsLayout === 'IMAGE_BANNER_ALT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><PhotoIcon className="w-5 h-5" /> 자유 배치 (기본)</button>
+                <button onClick={() => setDetailsLayout('IMAGE_ONLY')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${detailsLayout === 'IMAGE_ONLY' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><PhotoIcon className="w-5 h-5" /> 이미지만</button>
+                <button onClick={() => setDetailsLayout('GRID_2COL')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${detailsLayout === 'GRID_2COL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><TableCellsIcon className="w-5 h-5" /> 2열 그리드</button>
+                <button onClick={() => setDetailsLayout('STORYBOARD')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${detailsLayout === 'STORYBOARD' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ListBulletIcon className="w-5 h-5" /> 스토리보드</button>
+                <button onClick={() => setDetailsLayout('MAGAZINE')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${detailsLayout === 'MAGAZINE' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><Square2StackIcon className="w-5 h-5" /> 매거진 카드</button>
+                <button onClick={() => setDetailsLayout('BEFORE_AFTER')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${detailsLayout === 'BEFORE_AFTER' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ArrowsUpDownIcon className="w-5 h-5 rotate-90" /> 비포 / 애프터</button>
             </div>
         </div>
         <div className="mb-8">
