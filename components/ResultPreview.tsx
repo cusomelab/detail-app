@@ -22,6 +22,7 @@ interface ResultPreviewProps {
 }
 
 type PointLayoutType = 'ZIGZAG' | 'CARDS' | 'SIMPLE' | 'GRID_2COL' | 'NUMBERED_LIST' | 'STACKED_HERO';
+type HeroLayoutType = 'IMAGE_BANNER' | 'SPLIT_LEFT' | 'SPLIT_RIGHT' | 'FULL_BLEED' | 'CARD_STACK';
 type PageDesignType = 'MODERN' | 'EMOTIONAL' | 'IMPACT';
 type PointIconStyle = 'EMOJI' | 'NUMBER' | 'NONE';
 type PointThemeColor = 'INDIGO' | 'BLACK' | 'PINK' | 'BLUE' | 'GREEN' | 'ORANGE';
@@ -941,6 +942,7 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [isDownloading, setIsDownloading] = useState(false);
   
   const [pointLayout, setPointLayout] = useState<PointLayoutType>('ZIGZAG');
+  const [heroLayout, setHeroLayout] = useState<HeroLayoutType>('IMAGE_BANNER');
   const [pageDesign, setPageDesign] = useState<PageDesignType>('MODERN');
   const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>('EMOJI');
   const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
@@ -1108,6 +1110,11 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     const allowedPointLayouts: PointLayoutType[] = ['ZIGZAG', 'CARDS', 'SIMPLE', 'GRID_2COL', 'NUMBERED_LIST', 'STACKED_HERO'];
     if (llmPoints && allowedPointLayouts.includes(llmPoints as PointLayoutType)) {
         setPointLayout(llmPoints as PointLayoutType);
+    }
+    const llmHero = copy.sectionVariants?.hero;
+    const allowedHeroLayouts: HeroLayoutType[] = ['IMAGE_BANNER', 'SPLIT_LEFT', 'SPLIT_RIGHT', 'FULL_BLEED', 'CARD_STACK'];
+    if (llmHero && allowedHeroLayouts.includes(llmHero as HeroLayoutType)) {
+        setHeroLayout(llmHero as HeroLayoutType);
     }
 
   }, [copy, images, productName, category]);
@@ -1678,62 +1685,135 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const renderSectionContent = (type: SectionType) => {
     const theme = THEME_COLORS[pointTheme];
     switch (type) {
-        case 'HERO': return (
-            <div className={`w-full flex flex-col ${themeStyles.bg}`}>
-                        <div 
-                            className={`relative w-full bg-gray-50 min-h-[500px] flex items-center justify-center overflow-hidden transition-all border-b-0 ${dragOverId === 'main' ? 'border-4 border-dashed border-indigo-500 bg-indigo-50' : ''}`}
-                            onDragEnter={(e) => handleDragEnter(e, 'main')}
-                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleImageDrop(e, 'main', (file) => {
-                                const url = URL.createObjectURL(file);
-                                setMainImage(url);
-                                openCropper('main', url, 'MAIN');
-                            })}
-                        >
-                            {mainImage ? (
-                                <>
-                                    <img src={mainImage} alt="Main" className="w-full h-auto block object-cover" crossOrigin="anonymous" />
-                                    {isEditMode && (
-                                        <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
-                                            <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all">
-                                                <ArrowPathIcon className="w-4 h-4" /> <span className="text-xs font-bold">교체</span>
-                                                <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
-                                            </label>
-                                            <button onClick={() => openCropper('main', mainImage, 'MAIN')} className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all text-xs font-bold">
-                                                <ScissorsIcon className="w-4 h-4" /> 자르기
-                                            </button>
-                                            <div className="relative">
-                                                <button onClick={() => setActiveAiMenuId(activeAiMenuId === 'MAIN' ? null : 'MAIN')} disabled={isProcessingMain} className="bg-indigo-600 text-white p-2 rounded-lg flex items-center gap-2 px-4 shadow-xl text-xs font-bold hover:bg-indigo-700 w-full justify-center">
-                                                    {isProcessingMain ? "..." : <SparklesIcon className="w-4 h-4" />} AI 편집 도구
-                                                </button>
-                                                {renderAiMenu('MAIN', (mode) => handleAiProcessMain(mode))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            ) : (
-                                <label className="w-full h-[500px] flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100">
-                                    <PhotoIcon className="w-20 h-20 mb-4" />
-                                    <span className="text-2xl font-bold">대표 이미지 업로드</span>
-                                    <span className="text-sm font-normal mt-2">또는 이미지를 드래그하세요</span>
-                                    <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
-                                </label>
-                            )}
-                        </div>
-                        <div className={`w-full px-10 text-center relative ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-16 border-b border-[#e0dcd0]' : pageDesign === 'IMPACT' ? 'bg-black py-12' : 'bg-white py-10 border-b border-gray-200'}`}>
-                            {visibleHeaders.newArrival && (
-                                <div className="mb-4 flex justify-center">
-                                     <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-sm' as any : 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`uppercase ${pageDesign === 'IMPACT' ? 'tracking-[0.5em]' : 'tracking-[0.3em]'}`} toolbarPosition="right" />
+        case 'HERO': {
+            // 이미지 패널: variant에 따라 컨테이너/이미지 클래스만 다름, 컨트롤은 공통
+            const renderHeroImage = (containerCls: string, imgCls: string, fallbackCls: string) => (
+                <div
+                    className={`relative ${containerCls} bg-gray-50 overflow-hidden transition-all ${dragOverId === 'main' ? 'border-4 border-dashed border-indigo-500 bg-indigo-50' : ''}`}
+                    onDragEnter={(e) => handleDragEnter(e, 'main')}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleImageDrop(e, 'main', (file) => {
+                        const url = URL.createObjectURL(file);
+                        setMainImage(url);
+                        openCropper('main', url, 'MAIN');
+                    })}
+                >
+                    {mainImage ? (
+                        <>
+                            <img src={mainImage} alt="Main" className={imgCls} crossOrigin="anonymous" />
+                            {isEditMode && (
+                                <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
+                                    <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all">
+                                        <ArrowPathIcon className="w-4 h-4" /> <span className="text-xs font-bold">교체</span>
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
+                                    </label>
+                                    <button onClick={() => openCropper('main', mainImage, 'MAIN')} className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all text-xs font-bold">
+                                        <ScissorsIcon className="w-4 h-4" /> 자르기
+                                    </button>
+                                    <div className="relative">
+                                        <button onClick={() => setActiveAiMenuId(activeAiMenuId === 'MAIN' ? null : 'MAIN')} disabled={isProcessingMain} className="bg-indigo-600 text-white p-2 rounded-lg flex items-center gap-2 px-4 shadow-xl text-xs font-bold hover:bg-indigo-700 w-full justify-center">
+                                            {isProcessingMain ? "..." : <SparklesIcon className="w-4 h-4" />} AI 편집 도구
+                                        </button>
+                                        {renderAiMenu('MAIN', (mode) => handleAiProcessMain(mode))}
+                                    </div>
                                 </div>
                             )}
-                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-6 leading-snug" toolbarPosition="right" />
-                            {pageDesign === 'MODERN' && <div className="w-16 h-1.5 bg-gray-900 mx-auto"></div>}
-                            {pageDesign === 'EMOTIONAL' && <div className="w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-4"></div>}
-                            {pageDesign === 'IMPACT' && <div className="w-full h-1 bg-red-600 mx-auto mt-2"></div>}
-                        </div>
+                        </>
+                    ) : (
+                        <label className={`${fallbackCls} flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-100`}>
+                            <PhotoIcon className="w-20 h-20 mb-4" />
+                            <span className="text-2xl font-bold">대표 이미지 업로드</span>
+                            <span className="text-sm font-normal mt-2">또는 이미지를 드래그하세요</span>
+                            <input type="file" className="hidden" accept="image/*" onChange={handleMainImageUpload} />
+                        </label>
+                    )}
                 </div>
-        );
+            );
+
+            // 헤더 블록: overlay variant는 흰색 텍스트, 그 외는 기존 배경/색
+            const renderHeroHeaders = (mode: 'banner' | 'split' | 'overlay' | 'card') => {
+                const isOverlay = mode === 'overlay';
+                const wrapperCls = isOverlay
+                    ? 'w-full px-10 text-center relative'
+                    : `w-full px-10 text-center relative ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-16 border-b border-[#e0dcd0]' : pageDesign === 'IMPACT' ? 'bg-black py-12' : `bg-white ${mode === 'card' ? 'py-10' : mode === 'split' ? 'py-12' : 'py-10 border-b border-gray-200'}`}`;
+                const badgeColor = isOverlay ? 'text-white/80' : (pageDesign === 'IMPACT' ? 'text-gray-400' : themeStyles.text);
+                const hookColor = isOverlay ? 'text-white' : (pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text);
+                return (
+                    <div className={wrapperCls}>
+                        {visibleHeaders.newArrival && (
+                            <div className="mb-4 flex justify-center">
+                                <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-sm' as any : 'text-xl', fontFamily: themeStyles.fontHead as any, color: badgeColor, align: 'text-center', fontWeight: 'font-bold' }} className={`uppercase ${pageDesign === 'IMPACT' ? 'tracking-[0.5em]' : 'tracking-[0.3em]'}`} toolbarPosition="right" />
+                            </div>
+                        )}
+                        <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: hookColor, align: 'text-center', fontWeight: 'font-black' }} className="mb-6 leading-snug" toolbarPosition="right" />
+                        {!isOverlay && pageDesign === 'MODERN' && <div className="w-16 h-1.5 bg-gray-900 mx-auto"></div>}
+                        {!isOverlay && pageDesign === 'EMOTIONAL' && <div className="w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-4"></div>}
+                        {!isOverlay && pageDesign === 'IMPACT' && <div className="w-full h-1 bg-red-600 mx-auto mt-2"></div>}
+                        {isOverlay && <div className="w-16 h-1.5 bg-white mx-auto"></div>}
+                    </div>
+                );
+            };
+
+            return (
+                <div className={`w-full flex flex-col ${themeStyles.bg}`}>
+                    {/* ═══ IMAGE_BANNER (기본): 이미지 위, 카피 아래 ═══ */}
+                    {heroLayout === 'IMAGE_BANNER' && (
+                        <>
+                            {renderHeroImage('w-full min-h-[500px] flex items-center justify-center', 'w-full h-auto block object-cover', 'w-full h-[500px]')}
+                            {renderHeroHeaders('banner')}
+                        </>
+                    )}
+
+                    {/* ═══ SPLIT_LEFT: 좌측 이미지 / 우측 카피 ═══ */}
+                    {heroLayout === 'SPLIT_LEFT' && (
+                        <div className="flex flex-col md:flex-row min-h-[500px]">
+                            <div className="md:w-1/2 min-h-[500px]">
+                                {renderHeroImage('w-full h-full min-h-[500px] flex items-center justify-center', 'w-full h-full object-cover', 'w-full h-full min-h-[500px]')}
+                            </div>
+                            <div className="md:w-1/2 flex items-center justify-center">
+                                {renderHeroHeaders('split')}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ═══ SPLIT_RIGHT: 좌측 카피 / 우측 이미지 ═══ */}
+                    {heroLayout === 'SPLIT_RIGHT' && (
+                        <div className="flex flex-col md:flex-row min-h-[500px]">
+                            <div className="md:w-1/2 flex items-center justify-center order-last md:order-first">
+                                {renderHeroHeaders('split')}
+                            </div>
+                            <div className="md:w-1/2 min-h-[500px]">
+                                {renderHeroImage('w-full h-full min-h-[500px] flex items-center justify-center', 'w-full h-full object-cover', 'w-full h-full min-h-[500px]')}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ═══ FULL_BLEED: 풀폭 이미지 + 그라디언트 오버레이 ═══ */}
+                    {heroLayout === 'FULL_BLEED' && (
+                        <div className="relative w-full min-h-[700px]">
+                            <div className="absolute inset-0">
+                                {renderHeroImage('absolute inset-0 w-full h-full', 'w-full h-full object-cover', 'w-full h-full')}
+                            </div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10 pointer-events-none" />
+                            <div className="relative z-10 flex flex-col items-center justify-end min-h-[700px] pt-32 pb-16">
+                                {renderHeroHeaders('overlay')}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ═══ CARD_STACK: 카드 안에 이미지+카피 ═══ */}
+                    {heroLayout === 'CARD_STACK' && (
+                        <div className={`w-full ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7]' : pageDesign === 'IMPACT' ? 'bg-black' : 'bg-gray-50'} py-12 px-6 md:px-12`}>
+                            <div className={`max-w-5xl mx-auto rounded-3xl overflow-hidden shadow-xl border ${pageDesign === 'IMPACT' ? 'border-gray-800' : 'border-gray-200'}`}>
+                                {renderHeroImage('w-full min-h-[420px] flex items-center justify-center', 'w-full h-auto block object-cover', 'w-full h-[420px]')}
+                                {renderHeroHeaders('card')}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
         case 'STORY': return (
             <div className={`w-full text-center relative ${getSectionBg('STORY', pageDesign)} ${pageDesign === 'EMOTIONAL' ? 'py-20 px-12' : pageDesign === 'IMPACT' ? 'py-16 px-12' : 'py-14 px-12'}`}>
                         {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mb-4 block leading-none`}>"</span>}
@@ -2413,6 +2493,16 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
         </div>
 
         <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><SwatchIcon className="w-5 h-5 text-indigo-600" /> 레이아웃 설정</h3>
+        <div className="mb-8">
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">히어로 섹션 스타일</h4>
+            <div className="flex flex-col gap-2">
+                <button onClick={() => setHeroLayout('IMAGE_BANNER')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${heroLayout === 'IMAGE_BANNER' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><PhotoIcon className="w-5 h-5" /> 이미지 배너 (기본)</button>
+                <button onClick={() => setHeroLayout('SPLIT_LEFT')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${heroLayout === 'SPLIT_LEFT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ViewColumnsIcon className="w-5 h-5" /> 좌측 이미지 / 우측 카피</button>
+                <button onClick={() => setHeroLayout('SPLIT_RIGHT')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${heroLayout === 'SPLIT_RIGHT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ViewColumnsIcon className="w-5 h-5 rotate-180" /> 좌측 카피 / 우측 이미지</button>
+                <button onClick={() => setHeroLayout('FULL_BLEED')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${heroLayout === 'FULL_BLEED' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><ArrowsPointingOutIcon className="w-5 h-5" /> 풀블리드 오버레이</button>
+                <button onClick={() => setHeroLayout('CARD_STACK')} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${heroLayout === 'CARD_STACK' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}><Square2StackIcon className="w-5 h-5" /> 카드 스택</button>
+            </div>
+        </div>
         <div className="mb-8">
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">포인트 섹션 스타일</h4>
             <div className="flex flex-col gap-2">
