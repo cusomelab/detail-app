@@ -1,3 +1,5 @@
+import type { SectionVariantSet } from './presets/layoutPresets';
+
 export type ProductCategory = 'FASHION' | 'LIVING' | 'KITCHEN' | 'FOOD';
 
 export interface ProductData {
@@ -60,6 +62,8 @@ export interface GeneratedCopy {
     caution?: string;
   };
   detailCopies?: string[];
+  // Step 2: LLM-selected layout variants per section (optional, not yet rendered)
+  sectionVariants?: SectionVariantSet;
 }
 
 export interface ProcessedImage {

@@ -1,5 +1,23 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GeneratedCopy, ProductCategory, PlanSection } from "../types";
+import { getSectionVariants } from "../presets/layoutPresets";
+
+// 섹션별 variant enum 값 (스키마 enum 제약 + 프롬프트 가이드용 단일 출처)
+const HERO_VARIANTS    = ['IMAGE_BANNER', 'SPLIT_LEFT', 'SPLIT_RIGHT', 'FULL_BLEED', 'CARD_STACK'] as const;
+const POINTS_VARIANTS  = ['ZIGZAG', 'CARDS', 'SIMPLE', 'GRID_2COL', 'NUMBERED_LIST', 'STACKED_HERO'] as const;
+const DETAILS_VARIANTS = ['IMAGE_BANNER_ALT', 'IMAGE_ONLY', 'GRID_2COL', 'STORYBOARD', 'MAGAZINE', 'BEFORE_AFTER'] as const;
+const STORY_VARIANTS   = ['QUOTE_LARGE', 'MAGAZINE_SPLIT', 'FULL_TEXT', 'TIMELINE'] as const;
+const OPTIONS_VARIANTS = ['GRID', 'LIST', 'SWATCH', 'COMPARISON'] as const;
+const INFO_VARIANTS    = ['TABLE', 'CARD_LIST', 'INLINE'] as const;
+
+// variant 의미 가이드: LLM이 무엇을 고르는지 이해하도록 짧은 한국어 설명
+const VARIANT_GUIDE = `
+[hero] IMAGE_BANNER=오버레이 텍스트, SPLIT_LEFT=좌측이미지+우측카피, SPLIT_RIGHT=좌측카피+우측이미지, FULL_BLEED=풀폭이미지, CARD_STACK=카드형
+[points] ZIGZAG=좌우교차, CARDS=카드그리드, SIMPLE=단순리스트, GRID_2COL=2열컴팩트, NUMBERED_LIST=번호강조, STACKED_HERO=각포인트풀폭이미지
+[details] IMAGE_BANNER_ALT=이미지+오버레이반복, IMAGE_ONLY=이미지만, GRID_2COL=2열그리드, STORYBOARD=시퀀스+캡션, MAGAZINE=잡지형혼합, BEFORE_AFTER=비교
+[story] QUOTE_LARGE=큰인용, MAGAZINE_SPLIT=이미지+텍스트분할, FULL_TEXT=텍스트중심, TIMELINE=시간순
+[options] GRID=격자, LIST=세로리스트+설명, SWATCH=색상스와치, COMPARISON=비교표
+[info] TABLE=표, CARD_LIST=카드목록, INLINE=인라인텍스트`.trim();
 
 // ── 모델 ───────────────────────────────────────────────
 const TEXT_MODEL  = 'gemini-3-flash-preview';
@@ -220,7 +238,18 @@ ${getCategoryInstruction(category)}
 7. 감성적이고 구매욕구를 높이는 자연스러운 문장
 8. story는 2~3줄, 총 120자 이내. 감성적이고 풍부한 표현으로. 줄바꿈은 의미 단위로
 9. sellingPoints의 icon은 반드시 이모지 한 글자만 (예: ✨, 👗, 💎, 🧵, 💫, 🎀). 절대로 영어 단어(sparkles, heart 등)나 URL을 넣지 마세요. 반드시 유니코드 이모지 1개만 출력
-10. detailCopies: 상세이미지 사이에 삽입할 짧은 카피 2개를 배열로 생성. 각 카피는 15자 이내의 감성적 한 줄 문구 (예: "손이 가는 부드러운 촉감", "일상을 채우는 감성 무드")`;
+10. detailCopies: 상세이미지 사이에 삽입할 짧은 카피 2개를 배열로 생성. 각 카피는 15자 이내의 감성적 한 줄 문구 (예: "손이 가는 부드러운 촉감", "일상을 채우는 감성 무드")
+11. sectionVariants: 이 상품의 성격/카테고리에 가장 어울리는 섹션 레이아웃을 직접 선택하세요.
+    - 카테고리 ${category}의 권장 기본값:
+      hero=${getSectionVariants(category, 'MODERN').hero},
+      points=${getSectionVariants(category, 'MODERN').points},
+      details=${getSectionVariants(category, 'MODERN').details},
+      story=${getSectionVariants(category, 'MODERN').story},
+      options=${getSectionVariants(category, 'MODERN').options},
+      info=${getSectionVariants(category, 'MODERN').info}
+    - 상품 특성이 감성적이면 EMOTIONAL 계열(QUOTE_LARGE, FULL_BLEED, STORYBOARD), 강력한 임팩트가 필요하면 IMPACT 계열(NUMBERED_LIST, BEFORE_AFTER, COMPARISON)을 활용하세요.
+    - 각 필드는 아래 유효값에서 정확히 하나를 고르세요:
+${VARIANT_GUIDE}`;
 
   const schema: Schema = {
     type: Type.OBJECT,
@@ -252,6 +281,19 @@ ${getCategoryInstruction(category)}
       detailCopies: {
         type: Type.ARRAY,
         items: { type: Type.STRING }
+      },
+      sectionVariants: {
+        type: Type.OBJECT,
+        description: '상품 성격에 맞춰 LLM이 선택한 섹션별 레이아웃 variant. 각 필드는 enum에서 정확히 하나만 선택.',
+        properties: {
+          hero:    { type: Type.STRING, format: 'enum', enum: [...HERO_VARIANTS] },
+          points:  { type: Type.STRING, format: 'enum', enum: [...POINTS_VARIANTS] },
+          details: { type: Type.STRING, format: 'enum', enum: [...DETAILS_VARIANTS] },
+          story:   { type: Type.STRING, format: 'enum', enum: [...STORY_VARIANTS] },
+          options: { type: Type.STRING, format: 'enum', enum: [...OPTIONS_VARIANTS] },
+          info:    { type: Type.STRING, format: 'enum', enum: [...INFO_VARIANTS] },
+        },
+        required: ['hero', 'points', 'details', 'story', 'options', 'info']
       }
     },
     required: ['mainHook', 'sellingPoints', 'story', 'sizeTip', 'mdComment', 'productInfo']
