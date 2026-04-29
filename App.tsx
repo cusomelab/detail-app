@@ -176,8 +176,11 @@ function App() {
       
       setTimeout(()=>setStep(AppStep.RESULT),800);
     } catch(err:any) {
+      console.error('[handleGenerateDetail] 실패:', err);
       if(err.message?.includes('401')){setHasApiKey(false);localStorage.removeItem('gemini_api_key');}
-      alert('오류 발생. 다시 시도해주세요.'); setStep(AppStep.PLAN);
+      const detail = err?.message || String(err);
+      alert(`오류 발생. 다시 시도해주세요.\n\n${detail}`);
+      setStep(AppStep.PLAN);
     }
   };
 
