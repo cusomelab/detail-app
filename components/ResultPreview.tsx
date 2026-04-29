@@ -127,9 +127,22 @@ const getThemeByCategory = (category: ProductCategory): PointThemeColor => {
     switch (category) {
         case 'FOOD': return 'ORANGE';
         case 'LIVING': return 'GREEN';
-        case 'KITCHEN': return 'BLACK';
+        case 'KITCHEN': return 'BLUE';
+        case 'FASHION': return 'BLACK';
         default: return 'INDIGO';
     }
+};
+
+// ── 카테고리별 디자인 프리셋 (FASHION/LIVING/KITCHEN/FOOD 마다 다른 무드) ──
+const CATEGORY_DESIGN: Record<ProductCategory, {
+    pageDesign: PageDesignType;
+    pointLayout: PointLayoutType;
+    pointIconStyle: PointIconStyle;
+}> = {
+    FASHION: { pageDesign: 'EMOTIONAL', pointLayout: 'ZIGZAG', pointIconStyle: 'NUMBER' }, // 매거진 에디토리얼
+    LIVING:  { pageDesign: 'MODERN',    pointLayout: 'CARDS',  pointIconStyle: 'EMOJI'  }, // 스칸디 카드
+    KITCHEN: { pageDesign: 'MODERN',    pointLayout: 'SIMPLE', pointIconStyle: 'NUMBER' }, // 미니멀 리스트
+    FOOD:    { pageDesign: 'IMPACT',    pointLayout: 'CARDS',  pointIconStyle: 'EMOJI'  }, // 푸드 임팩트
 };
 
 const getHeadersByCategory = (category: ProductCategory) => {
@@ -940,9 +953,9 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [isEditMode, setIsEditMode] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   
-  const [pointLayout, setPointLayout] = useState<PointLayoutType>('ZIGZAG');
-  const [pageDesign, setPageDesign] = useState<PageDesignType>('MODERN');
-  const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>('EMOJI');
+  const [pointLayout, setPointLayout] = useState<PointLayoutType>(CATEGORY_DESIGN[category].pointLayout);
+  const [pageDesign, setPageDesign] = useState<PageDesignType>(CATEGORY_DESIGN[category].pageDesign);
+  const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>(CATEGORY_DESIGN[category].pointIconStyle);
   const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
   // planSections를 기반으로 섹션 순서 결정
   const getInitialSectionOrder = (): SectionType[] => {
@@ -1721,19 +1734,19 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 </div>
                             )}
                             <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-6 leading-snug" toolbarPosition="right" />
-                            {pageDesign === 'MODERN' && <div className="w-16 h-1.5 bg-gray-900 mx-auto"></div>}
+                            {pageDesign === 'MODERN' && <div className={`w-16 h-1.5 ${theme.bg} mx-auto`}></div>}
                             {pageDesign === 'EMOTIONAL' && <div className="w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-4"></div>}
-                            {pageDesign === 'IMPACT' && <div className="w-full h-1 bg-red-600 mx-auto mt-2"></div>}
+                            {pageDesign === 'IMPACT' && <div className={`w-full h-1 ${theme.bg} mx-auto mt-2`}></div>}
                         </div>
                 </div>
         );
         case 'STORY': return (
             <div className={`w-full text-center relative ${getSectionBg('STORY', pageDesign)} ${pageDesign === 'EMOTIONAL' ? 'py-20 px-12' : pageDesign === 'IMPACT' ? 'py-16 px-12' : 'py-14 px-12'}`}>
                         {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mb-4 block leading-none`}>"</span>}
-                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mb-8"></div>}
+                        {pageDesign === 'IMPACT' && <div className={`w-12 h-1 ${theme.bg} mx-auto mb-8`}></div>}
                         <EditableElement key={`mood-${pointTheme}`} value={editableCopy.story} onChange={(v) => handleCopyChange('story', v)} isEditMode={isEditMode} aiLabel="Story" defaultStyle={{ fontSize: 'text-2xl', fontFamily: themeStyles.fontBody as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: pageDesign === 'EMOTIONAL' ? 'font-normal' : 'font-medium', maxWidth: 'max-w-4xl' }} className={`leading-relaxed mx-auto ${pageDesign === 'EMOTIONAL' ? 'italic' : ''}`} toolbarPosition="right" />
                         {pageDesign !== 'IMPACT' && <span className={`${pageDesign === 'EMOTIONAL' ? 'text-6xl text-[#d4d1c9] font-serif' : 'text-5xl text-gray-200 font-serif'} mt-4 block leading-none`}>"</span>}
-                        {pageDesign === 'IMPACT' && <div className="w-12 h-1 bg-red-600 mx-auto mt-8"></div>}
+                        {pageDesign === 'IMPACT' && <div className={`w-12 h-1 ${theme.bg} mx-auto mt-8`}></div>}
                         {visibleHeaders.moodStory && (
                             <div className="mt-10 flex justify-center items-center gap-6">
                                 <span className={`h-[1px] w-24 ${pageDesign === 'IMPACT' ? 'bg-gray-600' : themeStyles.sectionDivider}`}></span>
