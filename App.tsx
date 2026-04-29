@@ -122,7 +122,12 @@ function App() {
     try {
       const sections = await generatePlan(productData.productName, productData.category, productData.features, productData.mainImage);
       setPlanSections(sections); setStep(AppStep.PLAN);
-    } catch { alert('기획안 생성 실패'); setStep(AppStep.INPUT); }
+    } catch (err: any) {
+      console.error('[generatePlan] 실패:', err);
+      const detail = err?.message || String(err);
+      alert(`기획안 생성 실패\n\n${detail}`);
+      setStep(AppStep.INPUT);
+    }
   };
 
   const handleGenerateDetail = async (confirmed: PlanSection[]) => {
