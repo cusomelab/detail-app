@@ -156,6 +156,10 @@ interface TemplateConfig {
     fontHead: FontFamily;
     fontBody: FontFamily;
     decorStyle: DecorStyle;
+    // 매거진 모드: 히어로 오버레이 텍스트, 거대 배경 숫자, 마스트헤드 바 활성화
+    magazineMode?: boolean;
+    // 마스트헤드 라벨 (예: "ISSUE 01 · 2026 SPRING")
+    mastheadLabel?: string;
 }
 
 const TEMPLATES: TemplateConfig[] = [
@@ -246,6 +250,37 @@ const TEMPLATES: TemplateConfig[] = [
       swatchBg: 'bg-[#fdfbf7]', swatchFg: 'text-amber-800', swatchFont: 'font-serif-kr', swatchChar: '☕',
       pageDesign: 'EMOTIONAL', pointLayout: 'ZIGZAG', pointTheme: 'ORANGE', pointIconStyle: 'EMOJI',
       fontHead: 'font-serif-kr', fontBody: 'font-serif-kr', decorStyle: 'SERIF_QUOTE' },
+
+    // ═════════════════════════════════════════════════════
+    // ✦ 매거진 에디션 (A+C+E 묶음)
+    //   A: 히어로 텍스트 오버레이 (이미지 위에 텍스트)
+    //   C: 거대 배경 숫자 (포인트 섹션)
+    //   E: 마스트헤드 바 (페이지 최상단 잡지 식별자)
+    // ═════════════════════════════════════════════════════
+    { id: 'F_MAG', category: 'FASHION',
+      label: '✦ 매거진 에디션', desc: '오버레이 · 큰숫자 · 마스트헤드',
+      swatchBg: 'bg-gradient-to-br from-[#fdfbf7] to-gray-900', swatchFg: 'text-white', swatchFont: 'font-serif-kr', swatchChar: 'M',
+      pageDesign: 'EMOTIONAL', pointLayout: 'ZIGZAG', pointTheme: 'BLACK', pointIconStyle: 'NUMBER',
+      fontHead: 'font-serif-kr', fontBody: 'font-serif-kr', decorStyle: 'BIG_NUMBER',
+      magazineMode: true, mastheadLabel: 'ISSUE №01 · FASHION COLLECTION · 2026 SPRING' },
+    { id: 'L_MAG', category: 'LIVING',
+      label: '✦ 매거진 에디션', desc: '오버레이 · 큰숫자 · 마스트헤드',
+      swatchBg: 'bg-gradient-to-br from-white to-gray-900', swatchFg: 'text-white', swatchFont: 'font-sans', swatchChar: 'M',
+      pageDesign: 'MODERN', pointLayout: 'ZIGZAG', pointTheme: 'BLACK', pointIconStyle: 'NUMBER',
+      fontHead: 'font-sans', fontBody: 'font-sans', decorStyle: 'BIG_NUMBER',
+      magazineMode: true, mastheadLabel: 'ISSUE №01 · HOME & LIVING · 2026 SPRING' },
+    { id: 'K_MAG', category: 'KITCHEN',
+      label: '✦ 매거진 에디션', desc: '오버레이 · 큰숫자 · 마스트헤드',
+      swatchBg: 'bg-gradient-to-br from-white to-black', swatchFg: 'text-white', swatchFont: 'font-sans', swatchChar: 'M',
+      pageDesign: 'MODERN', pointLayout: 'ZIGZAG', pointTheme: 'BLACK', pointIconStyle: 'NUMBER',
+      fontHead: 'font-sans', fontBody: 'font-sans', decorStyle: 'BIG_NUMBER',
+      magazineMode: true, mastheadLabel: 'ISSUE №01 · KITCHEN PRO · 2026 SPRING' },
+    { id: 'O_MAG', category: 'FOOD',
+      label: '✦ 매거진 에디션', desc: '오버레이 · 큰숫자 · 마스트헤드',
+      swatchBg: 'bg-gradient-to-br from-[#fdfbf7] to-amber-900', swatchFg: 'text-white', swatchFont: 'font-serif-kr', swatchChar: 'M',
+      pageDesign: 'EMOTIONAL', pointLayout: 'ZIGZAG', pointTheme: 'ORANGE', pointIconStyle: 'NUMBER',
+      fontHead: 'font-serif-kr', fontBody: 'font-serif-kr', decorStyle: 'BIG_NUMBER',
+      magazineMode: true, mastheadLabel: 'ISSUE №01 · FOOD & TASTE · 2026 SPRING' },
 ];
 
 const getTemplatesByCategory = (category: ProductCategory): TemplateConfig[] =>
@@ -1824,7 +1859,17 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
     switch (type) {
         case 'HERO': return (
             <div className={`w-full flex flex-col ${themeStyles.bg}`}>
-                        <div 
+                        {/* ✦ 매거진 마스트헤드 (E) */}
+                        {currentTemplate.magazineMode && (
+                            <div className={`w-full ${pageDesign === 'IMPACT' ? 'bg-black border-b border-gray-800' : 'bg-white border-b border-gray-200'} py-3 px-10 flex items-center justify-between`}>
+                                <span className={`h-[1px] flex-1 ${pageDesign === 'IMPACT' ? 'bg-gray-700' : 'bg-gray-300'}`}></span>
+                                <span className={`mx-6 text-[10px] font-sans tracking-[0.4em] uppercase ${pageDesign === 'IMPACT' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    {currentTemplate.mastheadLabel}
+                                </span>
+                                <span className={`h-[1px] flex-1 ${pageDesign === 'IMPACT' ? 'bg-gray-700' : 'bg-gray-300'}`}></span>
+                            </div>
+                        )}
+                        <div
                             className={`relative w-full bg-gray-50 min-h-[500px] flex items-center justify-center overflow-hidden transition-all border-b-0 ${dragOverId === 'main' ? 'border-4 border-dashed border-indigo-500 bg-indigo-50' : ''}`}
                             onDragEnter={(e) => handleDragEnter(e, 'main')}
                             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -1838,6 +1883,23 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                             {mainImage ? (
                                 <>
                                     <img src={mainImage} alt="Main" className="w-full h-auto block object-cover" crossOrigin="anonymous" />
+                                    {/* ✦ 매거진 히어로 오버레이 (A) */}
+                                    {currentTemplate.magazineMode && (
+                                        <>
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/0 pointer-events-none"></div>
+                                            <div className="absolute left-0 right-0 bottom-0 px-12 pb-12 pt-24 z-10">
+                                                <div className="max-w-3xl">
+                                                    {visibleHeaders.newArrival && (
+                                                        <div className="mb-4">
+                                                            <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: 'font-sans', color: 'text-white/80', align: 'text-left', fontWeight: 'font-bold' }} className="uppercase tracking-[0.4em]" toolbarPosition="right" />
+                                                        </div>
+                                                    )}
+                                                    <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-5xl', fontFamily: themeStyles.fontHead as any, color: 'text-white', align: 'text-left', fontWeight: 'font-black' }} className="leading-tight drop-shadow-lg" toolbarPosition="right" />
+                                                    <div className={`w-20 h-[2px] ${theme.bg} mt-6`}></div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
                                     {isEditMode && (
                                         <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
                                             <label className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-lg cursor-pointer flex items-center gap-2 px-4 shadow-xl border border-gray-200 transition-all">
@@ -1865,17 +1927,20 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                 </label>
                             )}
                         </div>
-                        <div className={`w-full px-10 text-center relative ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-16 border-b border-[#e0dcd0]' : pageDesign === 'IMPACT' ? 'bg-black py-12' : 'bg-white py-10 border-b border-gray-200'}`}>
-                            {visibleHeaders.newArrival && (
-                                <div className="mb-4 flex justify-center">
-                                     <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-sm' as any : 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`uppercase ${pageDesign === 'IMPACT' ? 'tracking-[0.5em]' : 'tracking-[0.3em]'}`} toolbarPosition="right" />
-                                </div>
-                            )}
-                            <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-6 leading-snug" toolbarPosition="right" />
-                            {pageDesign === 'MODERN' && <div className={`w-16 h-1.5 ${theme.bg} mx-auto`}></div>}
-                            {pageDesign === 'EMOTIONAL' && <div className="w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-4"></div>}
-                            {pageDesign === 'IMPACT' && <div className={`w-full h-1 ${theme.bg} mx-auto mt-2`}></div>}
-                        </div>
+                        {/* 매거진 모드가 아닐 때만 이미지 아래 텍스트 블록 표시 */}
+                        {!currentTemplate.magazineMode && (
+                            <div className={`w-full px-10 text-center relative ${pageDesign === 'EMOTIONAL' ? 'bg-[#fdfbf7] py-16 border-b border-[#e0dcd0]' : pageDesign === 'IMPACT' ? 'bg-black py-12' : 'bg-white py-10 border-b border-gray-200'}`}>
+                                {visibleHeaders.newArrival && (
+                                    <div className="mb-4 flex justify-center">
+                                         <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: pageDesign === 'IMPACT' ? 'text-sm' as any : 'text-xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-400' : themeStyles.text, align: 'text-center', fontWeight: 'font-bold' }} className={`uppercase ${pageDesign === 'IMPACT' ? 'tracking-[0.5em]' : 'tracking-[0.3em]'}`} toolbarPosition="right" />
+                                    </div>
+                                )}
+                                <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-4xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-white' : themeStyles.text, align: 'text-center', fontWeight: 'font-black' }} className="mb-6 leading-snug" toolbarPosition="right" />
+                                {pageDesign === 'MODERN' && <div className={`w-16 h-1.5 ${theme.bg} mx-auto`}></div>}
+                                {pageDesign === 'EMOTIONAL' && <div className="w-24 h-[1px] bg-[#d4d1c9] mx-auto mt-4"></div>}
+                                {pageDesign === 'IMPACT' && <div className={`w-full h-1 ${theme.bg} mx-auto mt-2`}></div>}
+                            </div>
+                        )}
                 </div>
         );
         case 'STORY': return (
@@ -1932,10 +1997,25 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                                             {/* ═══ ZIGZAG: 텍스트 + sideImage 교차 ═══ */}
                                             {pointLayout === 'ZIGZAG' && (
                                                 <>
-                                                    <div className={`flex-1 p-10 flex flex-col justify-center relative`}>
-                                                        {pointIconStyle !== 'NONE' && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
-                                                        <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-4 leading-snug" toolbarPosition="right" />
-                                                        <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-relaxed" toolbarPosition="right" />
+                                                    <div className={`flex-1 p-10 flex flex-col justify-center relative overflow-hidden`}>
+                                                        {/* ✦ 매거진 모드: 거대 배경 숫자 (C) */}
+                                                        {currentTemplate.magazineMode && (
+                                                            <span
+                                                                aria-hidden="true"
+                                                                className={`pointer-events-none absolute select-none font-serif-kr font-black leading-none ${pageDesign === 'IMPACT' ? 'text-white/[0.06]' : 'text-gray-900/[0.07]'}`}
+                                                                style={{ fontSize: '20rem', top: '-2rem', left: idx % 2 === 0 ? '-1rem' : 'auto', right: idx % 2 === 0 ? 'auto' : '-1rem' }}
+                                                            >
+                                                                {`0${idx + 1}`}
+                                                            </span>
+                                                        )}
+                                                        <div className="relative z-10">
+                                                            {pointIconStyle !== 'NONE' && !currentTemplate.magazineMode && <div className="text-4xl mb-4">{pointIconStyle === 'NUMBER' ? <span className={`font-serif-kr font-bold ${theme.text}`}>{`0${idx + 1}`}</span> : safeIcon(block.icon)}</div>}
+                                                            {currentTemplate.magazineMode && (
+                                                                <div className={`mb-4 text-xs font-sans tracking-[0.4em] uppercase ${theme.text}`}>POINT №{`0${idx + 1}`}</div>
+                                                            )}
+                                                            <EditableElement value={block.title || ''} onChange={(v) => updatePointBlock(block.id, 'title', v)} isEditMode={isEditMode} defaultStyle={{ fontSize: currentTemplate.magazineMode ? 'text-4xl' : 'text-3xl', fontFamily: themeStyles.fontHead as any, color: pageDesign === 'IMPACT' ? 'text-gray-900' : themeStyles.text, align: 'text-left', fontWeight: 'font-bold', maxWidth: 'max-w-2xl' }} className="mb-4 leading-snug" toolbarPosition="right" />
+                                                            <EditableElement value={block.description || ''} onChange={(v) => updatePointBlock(block.id, 'description', v)} isEditMode={isEditMode} aiLabel="Point Desc" defaultStyle={{ fontSize: 'text-xl', fontFamily: themeStyles.fontBody as any, color: 'text-gray-600', align: 'text-left', fontWeight: 'font-medium', maxWidth: 'max-w-xl' }} className="leading-relaxed" toolbarPosition="right" />
+                                                        </div>
                                                     </div>
                                                     <div 
                                                         className={`w-1/3 ${theme.lightBg} flex items-center justify-center relative group/side overflow-hidden ${dragOverId === block.id ? 'border-4 border-dashed border-indigo-500' : ''}`}
