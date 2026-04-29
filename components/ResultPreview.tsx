@@ -133,17 +133,129 @@ const getThemeByCategory = (category: ProductCategory): PointThemeColor => {
     }
 };
 
-// ── 카테고리별 디자인 프리셋 (FASHION/LIVING/KITCHEN/FOOD 마다 다른 무드) ──
-const CATEGORY_DESIGN: Record<ProductCategory, {
+// ─────────────────────────────────────────────────────────
+// 디자이너 템플릿 시스템 — 카테고리별 4개씩, 총 16개
+// 각 템플릿은 페이지 디자인 · 포인트 레이아웃 · 테마 · 아이콘 + 시각 디테일을 한꺼번에 결정
+// ─────────────────────────────────────────────────────────
+type FontFamily = 'font-sans' | 'font-serif-kr' | 'font-dodum' | 'font-pen';
+type DecorStyle = 'SERIF_QUOTE' | 'BIG_NUMBER' | 'COLOR_BLOCK' | 'HAIRLINE' | 'SCRIPT' | 'BRACKET';
+
+interface TemplateConfig {
+    id: string;
+    category: ProductCategory;
+    label: string;
+    desc: string;
+    swatchBg: string;
+    swatchFg: string;
+    swatchFont: string;
+    swatchChar: string;
     pageDesign: PageDesignType;
     pointLayout: PointLayoutType;
+    pointTheme: PointThemeColor;
     pointIconStyle: PointIconStyle;
-}> = {
-    FASHION: { pageDesign: 'EMOTIONAL', pointLayout: 'ZIGZAG', pointIconStyle: 'NUMBER' }, // 매거진 에디토리얼
-    LIVING:  { pageDesign: 'MODERN',    pointLayout: 'CARDS',  pointIconStyle: 'EMOJI'  }, // 스칸디 카드
-    KITCHEN: { pageDesign: 'MODERN',    pointLayout: 'SIMPLE', pointIconStyle: 'NUMBER' }, // 미니멀 리스트
-    FOOD:    { pageDesign: 'IMPACT',    pointLayout: 'CARDS',  pointIconStyle: 'EMOJI'  }, // 푸드 임팩트
-};
+    fontHead: FontFamily;
+    fontBody: FontFamily;
+    decorStyle: DecorStyle;
+}
+
+const TEMPLATES: TemplateConfig[] = [
+    // ── FASHION (4) ──────────────────────────────────────
+    { id: 'F_EDITORIAL', category: 'FASHION',
+      label: '매거진 에디토리얼', desc: '명조체 · 지그재그 · 크림',
+      swatchBg: 'bg-[#fdfbf7]', swatchFg: 'text-gray-900', swatchFont: 'font-serif-kr', swatchChar: '가',
+      pageDesign: 'EMOTIONAL', pointLayout: 'ZIGZAG', pointTheme: 'BLACK', pointIconStyle: 'NUMBER',
+      fontHead: 'font-serif-kr', fontBody: 'font-serif-kr', decorStyle: 'SERIF_QUOTE' },
+    { id: 'F_ROMANTIC', category: 'FASHION',
+      label: '소프트 로맨틱', desc: '핑크 · 부드러움',
+      swatchBg: 'bg-pink-50', swatchFg: 'text-pink-500', swatchFont: 'font-pen', swatchChar: '♡',
+      pageDesign: 'EMOTIONAL', pointLayout: 'CARDS', pointTheme: 'PINK', pointIconStyle: 'EMOJI',
+      fontHead: 'font-serif-kr', fontBody: 'font-sans', decorStyle: 'SCRIPT' },
+    { id: 'F_GALLERY', category: 'FASHION',
+      label: '갤러리 룩북', desc: '이미지 중심 · 미니멀',
+      swatchBg: 'bg-gray-100', swatchFg: 'text-gray-900', swatchFont: 'font-sans', swatchChar: '◧',
+      pageDesign: 'MODERN', pointLayout: 'CARDS', pointTheme: 'BLACK', pointIconStyle: 'NONE',
+      fontHead: 'font-sans', fontBody: 'font-sans', decorStyle: 'BIG_NUMBER' },
+    { id: 'F_DARKLUX', category: 'FASHION',
+      label: '다크 럭셔리', desc: '블랙 · 로즈골드',
+      swatchBg: 'bg-black', swatchFg: 'text-pink-300', swatchFont: 'font-serif-kr', swatchChar: 'L',
+      pageDesign: 'IMPACT', pointLayout: 'ZIGZAG', pointTheme: 'PINK', pointIconStyle: 'NUMBER',
+      fontHead: 'font-serif-kr', fontBody: 'font-sans', decorStyle: 'BIG_NUMBER' },
+
+    // ── LIVING (4) ───────────────────────────────────────
+    { id: 'L_SCANDI', category: 'LIVING',
+      label: '스칸디 미니멀', desc: '화이트 · 그린 · 깔끔',
+      swatchBg: 'bg-white', swatchFg: 'text-emerald-700', swatchFont: 'font-sans', swatchChar: '○',
+      pageDesign: 'MODERN', pointLayout: 'CARDS', pointTheme: 'GREEN', pointIconStyle: 'EMOJI',
+      fontHead: 'font-sans', fontBody: 'font-sans', decorStyle: 'HAIRLINE' },
+    { id: 'L_INDUSTRIAL', category: 'LIVING',
+      label: '인더스트리얼', desc: '블랙 · 콘크리트 · 강렬',
+      swatchBg: 'bg-gray-900', swatchFg: 'text-white', swatchFont: 'font-sans', swatchChar: '▣',
+      pageDesign: 'IMPACT', pointLayout: 'CARDS', pointTheme: 'GREEN', pointIconStyle: 'NUMBER',
+      fontHead: 'font-sans', fontBody: 'font-sans', decorStyle: 'BIG_NUMBER' },
+    { id: 'L_COZY', category: 'LIVING',
+      label: '코지 홈', desc: '베이지 · 따뜻 · 명조',
+      swatchBg: 'bg-[#fdfbf7]', swatchFg: 'text-amber-800', swatchFont: 'font-serif-kr', swatchChar: '하',
+      pageDesign: 'EMOTIONAL', pointLayout: 'ZIGZAG', pointTheme: 'ORANGE', pointIconStyle: 'EMOJI',
+      fontHead: 'font-serif-kr', fontBody: 'font-serif-kr', decorStyle: 'SERIF_QUOTE' },
+    { id: 'L_LUXMINIMAL', category: 'LIVING',
+      label: '럭셔리 미니멀', desc: '여백 · 블랙 · 하어라인',
+      swatchBg: 'bg-white', swatchFg: 'text-gray-900', swatchFont: 'font-sans', swatchChar: 'M',
+      pageDesign: 'MODERN', pointLayout: 'SIMPLE', pointTheme: 'BLACK', pointIconStyle: 'NUMBER',
+      fontHead: 'font-sans', fontBody: 'font-sans', decorStyle: 'HAIRLINE' },
+
+    // ── KITCHEN (4) ──────────────────────────────────────
+    { id: 'K_HYGIENIC', category: 'KITCHEN',
+      label: '클린 위생', desc: '블루 · 깔끔 · 미니멀',
+      swatchBg: 'bg-white', swatchFg: 'text-blue-600', swatchFont: 'font-sans', swatchChar: 'K',
+      pageDesign: 'MODERN', pointLayout: 'SIMPLE', pointTheme: 'BLUE', pointIconStyle: 'NUMBER',
+      fontHead: 'font-sans', fontBody: 'font-sans', decorStyle: 'HAIRLINE' },
+    { id: 'K_CHEFPRO', category: 'KITCHEN',
+      label: '셰프 프로', desc: '블랙 · 강렬 · 프로',
+      swatchBg: 'bg-black', swatchFg: 'text-amber-400', swatchFont: 'font-sans', swatchChar: '★',
+      pageDesign: 'IMPACT', pointLayout: 'CARDS', pointTheme: 'ORANGE', pointIconStyle: 'NUMBER',
+      fontHead: 'font-sans', fontBody: 'font-sans', decorStyle: 'BIG_NUMBER' },
+    { id: 'K_FAMILY', category: 'KITCHEN',
+      label: '패밀리 따뜻', desc: '베이지 · 그린 · 친근',
+      swatchBg: 'bg-[#fdfbf7]', swatchFg: 'text-emerald-700', swatchFont: 'font-serif-kr', swatchChar: '🏡',
+      pageDesign: 'EMOTIONAL', pointLayout: 'CARDS', pointTheme: 'GREEN', pointIconStyle: 'EMOJI',
+      fontHead: 'font-serif-kr', fontBody: 'font-sans', decorStyle: 'SERIF_QUOTE' },
+    { id: 'K_LUXMINIMAL', category: 'KITCHEN',
+      label: '럭셔리 미니멀', desc: '여백 · 블랙 · 우아',
+      swatchBg: 'bg-white', swatchFg: 'text-gray-900', swatchFont: 'font-sans', swatchChar: 'M',
+      pageDesign: 'MODERN', pointLayout: 'ZIGZAG', pointTheme: 'BLACK', pointIconStyle: 'NUMBER',
+      fontHead: 'font-sans', fontBody: 'font-sans', decorStyle: 'HAIRLINE' },
+
+    // ── FOOD (4) ─────────────────────────────────────────
+    { id: 'O_VIVID', category: 'FOOD',
+      label: '비비드 식욕', desc: '오렌지 · 활기참',
+      swatchBg: 'bg-orange-500', swatchFg: 'text-white', swatchFont: 'font-sans', swatchChar: '!',
+      pageDesign: 'MODERN', pointLayout: 'CARDS', pointTheme: 'ORANGE', pointIconStyle: 'EMOJI',
+      fontHead: 'font-sans', fontBody: 'font-sans', decorStyle: 'COLOR_BLOCK' },
+    { id: 'O_DARKLUX', category: 'FOOD',
+      label: '다크 럭셔리', desc: '블랙 · 드라마틱',
+      swatchBg: 'bg-black', swatchFg: 'text-amber-400', swatchFont: 'font-serif-kr', swatchChar: '美',
+      pageDesign: 'IMPACT', pointLayout: 'ZIGZAG', pointTheme: 'ORANGE', pointIconStyle: 'NUMBER',
+      fontHead: 'font-serif-kr', fontBody: 'font-sans', decorStyle: 'BIG_NUMBER' },
+    { id: 'O_FRESH', category: 'FOOD',
+      label: '프레시 내추럴', desc: '그린 · 신선함',
+      swatchBg: 'bg-emerald-50', swatchFg: 'text-emerald-700', swatchFont: 'font-sans', swatchChar: '🌿',
+      pageDesign: 'MODERN', pointLayout: 'CARDS', pointTheme: 'GREEN', pointIconStyle: 'EMOJI',
+      fontHead: 'font-sans', fontBody: 'font-sans', decorStyle: 'HAIRLINE' },
+    { id: 'O_CAFE', category: 'FOOD',
+      label: '코지 카페', desc: '베이지 · 명조 · 따뜻',
+      swatchBg: 'bg-[#fdfbf7]', swatchFg: 'text-amber-800', swatchFont: 'font-serif-kr', swatchChar: '☕',
+      pageDesign: 'EMOTIONAL', pointLayout: 'ZIGZAG', pointTheme: 'ORANGE', pointIconStyle: 'EMOJI',
+      fontHead: 'font-serif-kr', fontBody: 'font-serif-kr', decorStyle: 'SERIF_QUOTE' },
+];
+
+const getTemplatesByCategory = (category: ProductCategory): TemplateConfig[] =>
+    TEMPLATES.filter(t => t.category === category);
+
+const getTemplateById = (id: string): TemplateConfig | undefined =>
+    TEMPLATES.find(t => t.id === id);
+
+const getDefaultTemplate = (category: ProductCategory): TemplateConfig =>
+    getTemplatesByCategory(category)[0] ?? TEMPLATES[0];
 
 const getHeadersByCategory = (category: ProductCategory) => {
     switch (category) {
@@ -953,10 +1065,24 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   const [isEditMode, setIsEditMode] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   
-  const [pointLayout, setPointLayout] = useState<PointLayoutType>(CATEGORY_DESIGN[category].pointLayout);
-  const [pageDesign, setPageDesign] = useState<PageDesignType>(CATEGORY_DESIGN[category].pageDesign);
-  const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>(CATEGORY_DESIGN[category].pointIconStyle);
-  const [pointTheme, setPointTheme] = useState<PointThemeColor>(getThemeByCategory(category));
+  const initialTemplate = getDefaultTemplate(category);
+  const [currentTemplateId, setCurrentTemplateId] = useState<string>(initialTemplate.id);
+  const [pointLayout, setPointLayout] = useState<PointLayoutType>(initialTemplate.pointLayout);
+  const [pageDesign, setPageDesign] = useState<PageDesignType>(initialTemplate.pageDesign);
+  const [pointIconStyle, setPointIconStyle] = useState<PointIconStyle>(initialTemplate.pointIconStyle);
+  const [pointTheme, setPointTheme] = useState<PointThemeColor>(initialTemplate.pointTheme);
+  const currentTemplate = getTemplateById(currentTemplateId) ?? initialTemplate;
+
+  // 템플릿 클릭 시 모든 설정을 한번에 적용
+  const applyTemplate = (templateId: string) => {
+    const t = getTemplateById(templateId);
+    if (!t) return;
+    setCurrentTemplateId(t.id);
+    setPageDesign(t.pageDesign);
+    setPointLayout(t.pointLayout);
+    setPointTheme(t.pointTheme);
+    setPointIconStyle(t.pointIconStyle);
+  };
   // planSections를 기반으로 섹션 순서 결정
   const getInitialSectionOrder = (): SectionType[] => {
     return ['HERO', 'STORY', 'DETAILS', 'POINTS', 'REVIEW', 'RECOMMEND', 'OPTIONS', 'INFO'];
@@ -1119,7 +1245,12 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   }, [copy, images, productName, category]);
 
   useEffect(() => {
-    setPointTheme(getThemeByCategory(category));
+    const t = getDefaultTemplate(category);
+    setCurrentTemplateId(t.id);
+    setPageDesign(t.pageDesign);
+    setPointLayout(t.pointLayout);
+    setPointTheme(t.pointTheme);
+    setPointIconStyle(t.pointIconStyle);
     setHeaders(prev => ({ ...prev, ...getHeadersByCategory(category) }));
   }, [category]);
 
@@ -1642,34 +1773,35 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
   };
 
   const getThemeStyles = () => {
+    let base;
     switch(pageDesign) {
-        case 'EMOTIONAL': return {
-            bg: 'bg-[#fdfbf7]', 
-            text: 'text-gray-800', 
-            fontHead: 'font-serif-kr', 
+        case 'EMOTIONAL': base = {
+            bg: 'bg-[#fdfbf7]',
+            text: 'text-gray-800',
+            fontHead: 'font-serif-kr',
             fontBody: 'font-serif-kr',
             storyQuote: 'text-gray-400 font-serif',
             sectionDivider: 'bg-[#e0dcd0]',
             cardBg: 'bg-white',
             tableHeader: 'bg-[#f7f5f0] text-gray-800',
             tableBorder: 'border-[#d4d1c9]'
-        };
-        case 'IMPACT': return {
-            bg: 'bg-black', 
-            text: 'text-white', 
-            fontHead: 'font-sans', 
+        }; break;
+        case 'IMPACT': base = {
+            bg: 'bg-black',
+            text: 'text-white',
+            fontHead: 'font-sans',
             fontBody: 'font-sans',
             storyQuote: 'text-red-600 font-sans',
             sectionDivider: 'bg-red-600',
             cardBg: 'bg-gray-900',
             tableHeader: 'bg-red-600 text-white',
             tableBorder: 'border-gray-700'
-        };
+        }; break;
         case 'MODERN':
-        default: return {
-            bg: 'bg-white', 
-            text: 'text-gray-900', 
-            fontHead: 'font-sans', 
+        default: base = {
+            bg: 'bg-white',
+            text: 'text-gray-900',
+            fontHead: 'font-sans',
             fontBody: 'font-sans',
             storyQuote: 'text-gray-300 font-serif',
             sectionDivider: 'bg-gray-100',
@@ -1678,6 +1810,12 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
             tableBorder: 'border-gray-200'
         };
     }
+    // 템플릿이 폰트를 지정하면 덮어쓰기
+    return {
+        ...base,
+        fontHead: currentTemplate.fontHead || base.fontHead,
+        fontBody: currentTemplate.fontBody || base.fontBody,
+    };
   };
   const themeStyles = getThemeStyles();
 
@@ -2328,21 +2466,28 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
       {customPromptTarget && ( <CustomPromptModal isOpen={!!customPromptTarget} onClose={() => setCustomPromptTarget(null)} onSubmit={handleCustomPromptSubmit} /> )}
       <div className={`fixed left-4 top-24 w-64 bg-white rounded-xl shadow-xl border border-gray-200 p-6 z-40 hidden xl:block transition-opacity duration-300 ${isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         
-        {/* Page Design Selector */}
-        <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><ComputerDesktopIcon className="w-5 h-5 text-indigo-600" /> 전체 디자인 무드</h3>
+        {/* Designer Templates by Category */}
+        <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><ComputerDesktopIcon className="w-5 h-5 text-indigo-600" /> 디자이너 템플릿</h3>
+        <p className="text-xs text-gray-400 mb-4">{category} 카테고리 추천 디자인 4종</p>
         <div className="flex flex-col gap-2 mb-8">
-             <button onClick={() => { setPageDesign('MODERN'); setPointLayout('ZIGZAG'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'MODERN' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
-                 <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center font-sans text-xs">Ab</div>
-                 <div className="text-left"><div className="font-bold">모던 (기본)</div><div className="text-xs opacity-70">깔끔한 고딕, 지그재그</div></div>
-             </button>
-             <button onClick={() => { setPageDesign('EMOTIONAL'); setPointLayout('SIMPLE'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'EMOTIONAL' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
-                 <div className="w-8 h-8 rounded bg-[#fdfbf7] border border-[#e0dcd0] flex items-center justify-center font-serif-kr text-xs">가</div>
-                 <div className="text-left"><div className="font-bold">감성 (무드)</div><div className="text-xs opacity-70">명조체, 심플 리스트</div></div>
-             </button>
-             <button onClick={() => { setPageDesign('IMPACT'); setPointLayout('CARDS'); setSectionOrder(['HERO','STORY','DETAILS','POINTS','REVIEW','RECOMMEND','OPTIONS','INFO']); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all ${pageDesign === 'IMPACT' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
-                 <div className="w-8 h-8 rounded bg-black text-white flex items-center justify-center font-sans text-xs font-black">B</div>
-                 <div className="text-left"><div className="font-bold">임팩트 (강조)</div><div className="text-xs opacity-70">강한 대비, 카드형</div></div>
-             </button>
+            {getTemplatesByCategory(category).map(t => {
+                const isActive = currentTemplateId === t.id;
+                return (
+                    <button
+                        key={t.id}
+                        onClick={() => applyTemplate(t.id)}
+                        className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-all border ${isActive ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border-transparent hover:border-gray-200'}`}
+                    >
+                        <div className={`shrink-0 w-9 h-9 rounded ${t.swatchBg} ${t.swatchFg} ${t.swatchFont} border border-gray-200 flex items-center justify-center text-sm font-bold`}>
+                            {t.swatchChar}
+                        </div>
+                        <div className="text-left min-w-0">
+                            <div className="font-bold truncate">{t.label}</div>
+                            <div className="text-xs opacity-70 truncate">{t.desc}</div>
+                        </div>
+                    </button>
+                );
+            })}
         </div>
 
         <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><SwatchIcon className="w-5 h-5 text-indigo-600" /> 레이아웃 설정</h3>
