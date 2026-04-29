@@ -1883,18 +1883,18 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({ copy, images, prod
                             {mainImage ? (
                                 <>
                                     <img src={mainImage} alt="Main" className="w-full h-auto block object-cover" crossOrigin="anonymous" />
-                                    {/* ✦ 매거진 히어로 오버레이 (A) */}
+                                    {/* ✦ 매거진 히어로 오버레이 (A) — 강한 그라디언트로 가독성 보장 */}
                                     {currentTemplate.magazineMode && (
                                         <>
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/0 pointer-events-none"></div>
-                                            <div className="absolute left-0 right-0 bottom-0 px-12 pb-12 pt-24 z-10">
+                                            <div className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-black via-black/70 to-transparent pointer-events-none"></div>
+                                            <div className="absolute left-0 right-0 bottom-0 px-12 pb-12 pt-24 z-10" style={{ textShadow: '0 2px 16px rgba(0,0,0,0.6)' }}>
                                                 <div className="max-w-3xl">
                                                     {visibleHeaders.newArrival && (
                                                         <div className="mb-4">
-                                                            <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: 'font-sans', color: 'text-white/80', align: 'text-left', fontWeight: 'font-bold' }} className="uppercase tracking-[0.4em]" toolbarPosition="right" />
+                                                            <EditableElement value={headers.newArrival} onChange={(v) => handleHeaderChange('newArrival', v)} onDelete={() => toggleHeaderVisibility('newArrival')} isEditMode={isEditMode} defaultStyle={{ fontSize: 'text-xs', fontFamily: 'font-sans', color: 'text-white/90', align: 'text-left', fontWeight: 'font-bold' }} className="uppercase tracking-[0.4em]" toolbarPosition="right" />
                                                         </div>
                                                     )}
-                                                    <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-5xl', fontFamily: themeStyles.fontHead as any, color: 'text-white', align: 'text-left', fontWeight: 'font-black' }} className="leading-tight drop-shadow-lg" toolbarPosition="right" />
+                                                    <EditableElement value={editableCopy.mainHook} onChange={(v) => handleCopyChange('mainHook', v)} isEditMode={isEditMode} aiLabel="Hook" defaultStyle={{ fontSize: 'text-5xl', fontFamily: themeStyles.fontHead as any, color: 'text-white', align: 'text-left', fontWeight: 'font-black' }} className="leading-tight" toolbarPosition="right" />
                                                     <div className={`w-20 h-[2px] ${theme.bg} mt-6`}></div>
                                                 </div>
                                             </div>
